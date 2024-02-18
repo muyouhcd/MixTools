@@ -20,7 +20,7 @@ from mathutils.bvhtree import BVHTree
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
 
-#测试标记
+
 
 # class ParentBoneMatcher(bpy.types.Operator):
 #     """Match bones' parent-child relations to a template armature"""
