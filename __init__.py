@@ -27,6 +27,15 @@ import zipfile
 import os
 import shutil
 
+#查找addon文件夹路径
+def get_addon_path():
+    # 获取插件的文件名（通常是__init__.py或其他主文件）
+    file_path = os.path.normpath(os.path.dirname(__file__))
+    # 循环向上寻找，直到到达"addons"文件夹
+    while os.path.basename(file_path) != "addons" and os.path.dirname(file_path) != file_path:
+        file_path = os.path.dirname(file_path)
+    # 最终file_path将是插件根目录的路径
+    return file_path if os.path.basename(file_path) == "addons" else ''
 
 #更新脚本
 def version_tuple(version_string):
@@ -100,7 +109,10 @@ class UpdateAddonOperator(bpy.types.Operator):
                 zip_ref.extractall(temp_dir)
 
             # 根据你的情况找到插件的文件夹和新解压出来的版本目录
-            addon_dir = os.path.join(bpy.utils.user_resource('SCRIPTS'), 'addons', 'your_addon_folder_name/')
+            # addon_dir = os.path.join(bpy.utils.user_resource('SCRIPTS'), 'addons', 'your_addon_folder_name/')
+            
+            addon_dir = get_addon_path()
+
             new_addon_dir = temp_dir + [name for name in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, name))][0]
 
             # 将新版本文件复制到插件目录
