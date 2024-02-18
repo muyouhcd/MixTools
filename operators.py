@@ -21,86 +21,6 @@ from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
 
 
-
-# class ParentBoneMatcher(bpy.types.Operator):
-#     """Match bones' parent-child relations to a template armature"""
-#     bl_idname = "object.parent_bone_matcher"
-#     bl_label = "Parent Bone Matcher"
-#     bl_options = {'REGISTER', 'UNDO'}
-
-#     template_armature_name: bpy.props.StringProperty(
-#         name="Template Armature Name",
-#         default="Bip001"
-#     )
-
-#     def execute(self, context):
-#         # 获取模板骨架
-#         template_armature = bpy.data.objects.get(self.template_armature_name)
-        
-#         # 判断模板骨架是否存在
-#         if not template_armature or template_armature.type != 'ARMATURE':
-#             self.report({'ERROR'}, "Template armature not found or not an armature.")
-#             return {'CANCELLED'}
-
-#         # 当前活动骨架的编辑骨骼和它们的父骨骼名字映射
-#         bone_parent_map = {}
-#         context.view_layer.objects.active = template_armature
-#         bpy.ops.object.mode_set(mode='EDIT')
-#         for bone in template_armature.data.edit_bones:
-#             bone_parent_map[bone.name] = bone.parent.name if bone.parent else None
-#         bpy.ops.object.mode_set(mode='OBJECT')
-
-#         # 遍历所有的骨架，调整对应骨骼的父子关系
-#         for obj in bpy.data.objects:
-#             if obj.type == 'ARMATURE' and obj.name != self.template_armature_name:
-#                 context.view_layer.objects.active = obj
-#                 bpy.ops.object.mode_set(mode='EDIT')
-#                 for bone_name, parent_name in bone_parent_map.items():
-#                     if bone_name in obj.data.edit_bones:
-#                         bone = obj.data.edit_bones[bone_name]
-#                         bone.parent = obj.data.edit_bones.get(parent_name) if parent_name else None
-#                 bpy.ops.object.mode_set(mode='OBJECT')
-#         return {'FINISHED'}
-    
-
-# # 这是您现有插件中的一个操作类
-# class MyAddonExistingOperator(bpy.types.Operator):
-#     """My Existing Operator Tooltip"""
-#     bl_idname = "object.my_addon_existing_operator"
-#     bl_label = "My Existing Operator"
-    
-#     # 现有操作的属性可以在这里定义
-#     # 示例属性：一个字符串属性
-#     my_string_prop: bpy.props.StringProperty(name="Some String")
-
-#     # 示例属性：一个整数属性
-#     my_int_prop: bpy.props.IntProperty(name="Some Integer")
-
-#     # 操作类的方法和逻辑
-#     def execute(self, context):
-#         # 这里是现有操作的执行代码
-#         # 假设我们只是打印属性值到控制台
-#         print("String Property:", self.my_string_prop)
-#         print("Integer Property:", self.my_int_prop)
-
-#         # 您可以在这里添加更多自定义逻辑，比如操作数据或者调用其他函数
-
-#         # 最后，返回执行状态
-#         return {'FINISHED'}
-    
-#     # 可选：操作的相关UI（如果操作类有自己专属的面板或者需要交互的属性）
-#     def invoke(self, context, event):
-#         # 调用默认属性填写界面
-#         return context.window_manager.invoke_props_dialog(self)
-
-#     # 可选：操作前/后的准备和清理工作
-#     @classmethod
-#     def poll(cls, context):
-#         # 这里可以设置操作是否可用的条件，例如判断选中了某个特定类型的对象
-#         return context.active_object is not None
-
-
-
 #原点批量移动至-y中心
 class OBJECT_OT_move_object_origin_to_bottom(Operator):
     bl_idname = "object.move_origin_to_bottom"
@@ -495,11 +415,11 @@ class SetEmissionStrength(bpy.types.Operator):
     bl_label = "设置发光强度"
 
     strength : bpy.props.FloatProperty(
-        name="强度",
-        description="设置发光强度",
-        default=0.2,
-        min=0.0
-    )
+            name="强度",
+            description="设置发光强度",
+            default=0.2,
+            min=0.0
+        )
 
     def set_emission_strength(self, material, strength):
         if not material.use_nodes:
