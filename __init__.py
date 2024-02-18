@@ -56,18 +56,22 @@ class UpdateAddonOperator(bpy.types.Operator):
         return {'FINISHED'}
 
     def start_update_process(self):
-        print("+++++++++++++++++++++++++++++++++++++++++++++++++++++")
+        print("正在查找")
+
         user_repo = 'muyouhcd/MiaoTools'
-        current_version = bl_info["version"]
         latest_release_info = self.get_latest_release_info(user_repo)
+        current_version = bl_info["version"]
+        latest_version = latest_release_info['tag_name']
+        
         # print(user_repo)
         print("#####################当前版本#####################")
         print(current_version)
-        print("##############################################")
+        print("#####################最新版本#####################")
+        print(latest_version)
         # print(latest_release_info)
 
         if latest_release_info:
-            latest_version = latest_release_info['tag_name']
+            
             # 将字符串格式的版本号转换为整数元组
             latest_ver_tuple = version_tuple(latest_version)
 
@@ -110,7 +114,6 @@ class UpdateAddonOperator(bpy.types.Operator):
 
             # 根据你的情况找到插件的文件夹和新解压出来的版本目录
             # addon_dir = os.path.join(bpy.utils.user_resource('SCRIPTS'), 'addons', 'your_addon_folder_name/')
-            
             addon_dir = get_addon_path()
 
             new_addon_dir = temp_dir + [name for name in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, name))][0]
