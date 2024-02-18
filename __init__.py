@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiAO",
     "author": "MuyouHCD",
-    "version": (4,5,0),
+    "version": (4,6,0),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -29,6 +29,9 @@ import shutil
 
 
 #更新脚本
+def version_tuple(version_string):
+    # 假设：'version_string' 是一个像 '1.0.2' 这样的字符串
+    return tuple(map(int, version_string.split(".")))
 
 class UpdateAddonOperator(bpy.types.Operator):
     """Update Addon"""
@@ -44,20 +47,23 @@ class UpdateAddonOperator(bpy.types.Operator):
         return {'FINISHED'}
 
     def start_update_process(self):
-        # 这里假设你的插件的GitHub仓库和版本标签是这样的
+        print("+++++++++++++++++++++++++++++++++++++++++++++++++++++")
         user_repo = 'muyouhcd/MiaoTools'
-        current_version = bl_info["version"]  # 你的插件当前版本
-
-        # current_ver_tuple = version_tuple(current_version)
-        # latest_ver_tuple = version_tuple(latest_version)
-        
-        # GitHub API 请求最新发行版本信息
+        current_version = bl_info["version"]
         latest_release_info = self.get_latest_release_info(user_repo)
+        # print(user_repo)
+        print("#####################当前版本#####################")
+        print(current_version)
+        print("##############################################")
+        # print(latest_release_info)
 
         if latest_release_info:
             latest_version = latest_release_info['tag_name']
-            # 比较版本号
-            if current_version < latest_version:
+            # 将字符串格式的版本号转换为整数元组
+            latest_ver_tuple = version_tuple(latest_version)
+
+            # 不需要转换current_version，因为它已经是一个元组
+            if current_version < latest_ver_tuple:
                 download_url = latest_release_info['zipball_url']
                 self.download_latest_version(download_url, latest_version)
             else:
