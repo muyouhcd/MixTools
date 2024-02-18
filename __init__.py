@@ -48,11 +48,9 @@ class UpdateAddonOperator(bpy.types.Operator):
         user_repo = 'muyouhcd/MiaoTools'
         current_version = bl_info["version"]  # 你的插件当前版本
 
-
-        current_ver_tuple = version_tuple(current_version)
-        latest_ver_tuple = version_tuple(latest_version)
+        # current_ver_tuple = version_tuple(current_version)
+        # latest_ver_tuple = version_tuple(latest_version)
         
-
         # GitHub API 请求最新发行版本信息
         latest_release_info = self.get_latest_release_info(user_repo)
 
