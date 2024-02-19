@@ -4,7 +4,9 @@ import requests
 import zipfile
 import os
 import shutil
-from __init__ import bl_info
+
+from . import bl_info
+# from __init__ import bl_info
 
 
 #查找addon文件夹路径
