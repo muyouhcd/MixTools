@@ -1,14 +1,7 @@
 import bpy
-from bpy.props import BoolProperty
-from bpy.types import Panel
-
 from .operators import SetEmissionStrength
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
-from .operators import CharOperaterBoneWeight
-
-# from . import auto_render
-
-
+from .AutoRig import CharOperaterBoneWeight
 
 class CustomFunctionsPanel(bpy.types.Panel):
     bl_label = "Miao Tools"
