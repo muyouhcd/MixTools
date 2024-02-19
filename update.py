@@ -4,7 +4,8 @@ import requests
 import zipfile
 import os
 import shutil
-from. import __init__
+from __init__ import bl_info
+
 
 #查找addon文件夹路径
 def get_addon_path():
@@ -39,7 +40,7 @@ class UpdateAddonOperator(bpy.types.Operator):
 
         user_repo = 'muyouhcd/MiaoTools'
         latest_release_info = self.get_latest_release_info(user_repo)
-        current_version = __init__.bl_info["version"]
+        current_version = bl_info["version"]
         latest_version = latest_release_info['tag_name']
         
         # print(user_repo)
