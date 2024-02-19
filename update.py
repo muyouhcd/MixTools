@@ -23,96 +23,6 @@ def version_tuple(version_string):
     # 假设：'version_string' 是一个像 '1.0.2' 这样的字符串
     return tuple(map(int, version_string.split(".")))
 
-# class UpdateAddonOperator(bpy.types.Operator):
-#     """Update Addon"""
-#     bl_idname = "wm.update_addon"
-#     bl_label = "更新插件"
-
-#     @classmethod
-#     def poll(cls, context):
-#         return True
-
-#     def execute(self, context):
-#         self.start_update_process()
-#         return {'FINISHED'}
-
-#     def start_update_process(self):
-#         print("正在查找")
-
-#         user_repo = 'muyouhcd/MiaoTools'
-#         latest_release_info = self.get_latest_release_info(user_repo)
-#         current_version = bl_info["version"]
-#         latest_version = latest_release_info['tag_name']
-        
-#         # print(user_repo)
-#         print("#####################当前版本#####################")
-#         print(current_version)
-#         print("#####################最新版本#####################")
-#         print(latest_version)
-#         # print(latest_release_info)
-
-#         if latest_release_info:
-            
-#             # 将字符串格式的版本号转换为整数元组
-#             latest_ver_tuple = version_tuple(latest_version)
-
-#             # 不需要转换current_version，因为它已经是一个元组
-#             if current_version < latest_ver_tuple:
-#                 download_url = latest_release_info['zipball_url']
-#                 self.download_latest_version(download_url, latest_version)
-#             else:
-#                 self.report({'INFO'}, 'No update available.')
-#         else:
-#             self.report({'ERROR'}, 'Could not retrieve release information.')
-
-#     def get_latest_release_info(self, user_repo):
-#         api_url = f"https://api.github.com/repos/{user_repo}/releases/latest"
-#         try:
-#             response = requests.get(api_url)
-#             response.raise_for_status()  # 抛出HTTP错误
-#             return response.json()
-#         except Exception as e:
-#             self.report({'ERROR'}, str(e))
-#             return None
-
-#     def download_latest_version(self, download_url, latest_version):
-#         try:
-#             # 下载最新版本
-#             response = requests.get(download_url)
-#             response.raise_for_status()
-            
-#             # 确保有一个用于下载和解压的临时目录
-#             temp_dir = bpy.app.tempdir + "addon_update/"
-#             os.makedirs(temp_dir, exist_ok=True)
-
-#             zip_path = os.path.join(temp_dir, 'addon.zip')
-#             with open(zip_path, 'wb') as file:
-#                 file.write(response.content)
-
-#             # 解压缩文件
-#             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-#                 zip_ref.extractall(temp_dir)
-
-#             # 根据你的情况找到插件的文件夹和新解压出来的版本目录
-#             # addon_dir = os.path.join(bpy.utils.user_resource('SCRIPTS'), 'addons', 'your_addon_folder_name/')
-#             addon_dir = get_addon_path()
-
-#             new_addon_dir = temp_dir + [name for name in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, name))][0]
-
-#             # 将新版本文件复制到插件目录
-#             self.copy_new_version(addon_dir, new_addon_dir)
-
-#             self.report({'INFO'}, f'Addon updated to {latest_version} successfully.')
-#         except Exception as e:
-#             self.report({'ERROR'}, 'Failed to download or install update: ' + str(e))
-
-#     def copy_new_version(self, addon_dir, new_addon_dir):
-#         # 删除旧文件
-#         shutil.rmtree(addon_dir)  
-#         # 把新版本复制到插件目录
-#         shutil.copytree(new_addon_dir, addon_dir)  
-
-
 class UpdateAddonOperator(bpy.types.Operator):
     """Update Addon"""
     bl_idname = "wm.update_addon"
@@ -127,35 +37,92 @@ class UpdateAddonOperator(bpy.types.Operator):
         return {'FINISHED'}
 
     def start_update_process(self):
+        print("正在查找")
+
+        user_repo = 'muyouhcd/MiaoTools'
+        latest_release_info = self.get_latest_release_info(user_repo)
         current_version = bl_info["version"]
+        latest_version = latest_release_info['tag_name']
+        
+        # print(user_repo)
         print("#####################当前版本#####################")
         print(current_version)
-        
-        # 执行git fetch来检查新的提交
-        subprocess.run(["git", "fetch"], check=True)
-        
-        # 检查远端版本
-        result = subprocess.run(["git", "rev-list", "--tags", "--max-count=1"], stdout=subprocess.PIPE, check=True)
-        latest_commit = result.stdout.decode('utf-8').strip()
-        
-        # 获取最新标签名称
-        result = subprocess.run(["git", "describe", "--tags", latest_commit], stdout=subprocess.PIPE, check=True)
-        latest_version_string = result.stdout.decode('utf-8').strip()
-        latest_version = version_tuple(latest_version_string)
-        
         print("#####################最新版本#####################")
-        print(latest_version_string)
+        print(latest_version)
+        # print(latest_release_info)
 
-        if current_version < latest_version:
-            # 拉取最新版本
-            subprocess.run(["git", "checkout", latest_version_string], check=True)
-            # 可能需要重新加载插件，取决于您的设置
-            # bpy.ops.wm.addon_enable(module=__package__)
-            self.report({'INFO'}, f"插件更新到最新版本: {latest_version_string}")
+        if latest_release_info:
+            
+            # 将字符串格式的版本号转换为整数元组
+            latest_ver_tuple = version_tuple(latest_version)
+
+            # 不需要转换current_version，因为它已经是一个元组
+            if current_version < latest_ver_tuple:
+                download_url = latest_release_info['zipball_url']
+                self.download_latest_version(download_url, latest_version)
+            else:
+                self.report({'INFO'}, 'No update available.')
         else:
-            self.report({'INFO'}, "没有找到更新。")
+            self.report({'ERROR'}, 'Could not retrieve release information.')
 
-        return {'FINISHED'}
+    def get_latest_release_info(self, user_repo):
+        api_url = f"https://api.github.com/repos/{user_repo}/releases/latest"
+        try:
+            response = requests.get(api_url)
+            response.raise_for_status()  # 抛出HTTP错误
+            return response.json()
+        except Exception as e:
+            self.report({'ERROR'}, str(e))
+            return None
+
+    def download_latest_version(self, download_url, latest_version):
+        try:
+            # 下载最新版本
+            response = requests.get(download_url)
+            response.raise_for_status()
+            
+            # 确保有一个用于下载和解压的临时目录
+            temp_dir = bpy.app.tempdir + "addon_update/"
+
+            print("Temp Directory for Update:", temp_dir)  # 打印临时目录路径
+
+            os.makedirs(temp_dir, exist_ok=True)
+
+            zip_path = os.path.join(temp_dir, 'addon.zip')
+
+            print("Downloading zip file to:", zip_path)  # 正在下载.zip文件到该路径
+
+            with open(zip_path, 'wb') as file:
+                file.write(response.content)
+
+            # 解压缩文件
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(temp_dir)
+
+            print("Extracted zip file to:", temp_dir)  # 解压后的文件存放于此目录
+
+            # 根据你的情况找到插件的文件夹和新解压出来的版本目录
+            # addon_dir = os.path.join(bpy.utils.user_resource('SCRIPTS'), 'addons', 'your_addon_folder_name/')
+            addon_dir = get_addon_path()
+
+            new_addon_dir = temp_dir + [name for name in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, name))][0]
+            
+            print("New addon directory:", new_addon_dir)  # 新插件目录的路径
+
+            # 将新版本文件复制到插件目录
+            self.copy_new_version(addon_dir, new_addon_dir)
+
+            self.report({'INFO'}, f'Addon updated to {latest_version} successfully.')
+        except Exception as e:
+            self.report({'ERROR'}, 'Failed to download or install update: ' + str(e))
+
+    def copy_new_version(self, addon_dir, new_addon_dir):
+        # 删除旧文件
+        shutil.rmtree(addon_dir)  
+        # 把新版本复制到插件目录
+        shutil.copytree(new_addon_dir, addon_dir)  
+
+
 
 class MyAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
