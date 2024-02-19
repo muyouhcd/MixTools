@@ -4,6 +4,7 @@ import requests
 import zipfile
 import os
 import shutil
+import subprocess
 
 from . import bl_info
 
