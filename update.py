@@ -4,6 +4,7 @@ import requests
 import zipfile
 import os
 import shutil
+import __init__
 
 #查找addon文件夹路径
 def get_addon_path():
