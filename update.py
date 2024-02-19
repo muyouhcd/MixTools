@@ -4,7 +4,6 @@ import requests
 import zipfile
 import os
 import shutil
-import subprocess
 
 from . import bl_info
 
@@ -112,35 +111,50 @@ def version_tuple(version_string):
 #         # 把新版本复制到插件目录
 #         shutil.copytree(new_addon_dir, addon_dir)  
 
+
 class UpdateAddonOperator(bpy.types.Operator):
-    """Update Addon using Git"""
+    """Update Addon"""
     bl_idname = "wm.update_addon"
-    bl_label = "Update Addon with Git"
+    bl_label = "更新插件"
 
     @classmethod
     def poll(cls, context):
         return True
 
     def execute(self, context):
-        addon_path = get_addon_path()  # 确保这个函数返回你的插件目录路径
-        if addon_path:
-            self.start_update_process(addon_path)
-        else:
-            self.report({'ERROR'}, 'Unable to locate the addon path.')
+        self.start_update_process()
         return {'FINISHED'}
 
-    def start_update_process(self, addon_path):
-        try:
-            # 执行git fetch来获取最新的远程仓库数据
-            subprocess.check_call(["git", "fetch"], cwd=addon_path)
-            # 执行git pull来更新当前分支
-            subprocess.check_call(["git", "pull"], cwd=addon_path)
-            self.report({'INFO'}, 'Addon updated successfully using Git.')
-        except subprocess.CalledProcessError as e:
-            self.report({'ERROR'}, 'An error occurred while updating the addon with Git. ' + str(e))
-        except Exception as e:
-            self.report({'ERROR'}, 'An unexpected error occurred. ' + str(e))
+    def start_update_process(self):
+        current_version = bl_info["version"]
+        print("#####################当前版本#####################")
+        print(current_version)
+        
+        # 执行git fetch来检查新的提交
+        subprocess.run(["git", "fetch"], check=True)
+        
+        # 检查远端版本
+        result = subprocess.run(["git", "rev-list", "--tags", "--max-count=1"], stdout=subprocess.PIPE, check=True)
+        latest_commit = result.stdout.decode('utf-8').strip()
+        
+        # 获取最新标签名称
+        result = subprocess.run(["git", "describe", "--tags", latest_commit], stdout=subprocess.PIPE, check=True)
+        latest_version_string = result.stdout.decode('utf-8').strip()
+        latest_version = version_tuple(latest_version_string)
+        
+        print("#####################最新版本#####################")
+        print(latest_version_string)
 
+        if current_version < latest_version:
+            # 拉取最新版本
+            subprocess.run(["git", "checkout", latest_version_string], check=True)
+            # 可能需要重新加载插件，取决于您的设置
+            # bpy.ops.wm.addon_enable(module=__package__)
+            self.report({'INFO'}, f"插件更新到最新版本: {latest_version_string}")
+        else:
+            self.report({'INFO'}, "没有找到更新。")
+
+        return {'FINISHED'}
 
 class MyAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
