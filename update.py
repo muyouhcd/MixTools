@@ -106,17 +106,17 @@ class UpdateAddonOperator(bpy.types.Operator):
             addon_dir = get_addon_path()
 
             # new_addon_dir = temp_dir + [name for name in os.listdir(temp_dir) if os.path.isdir(os.path.join(temp_dir, name))][0]
-            repo_dir_name = next(os.walk(temp_dir))[1][0]
-            repo_dir = os.path.join(temp_dir, repo_dir_name)
-            miatools_dir_name = 'MiaoTools' # 如果它在不同的路径下，请相应调整这个变量
-            new_addon_dir = os.path.join(repo_dir, miatools_dir_name)   
+
+            print("addon directory:", addon_dir)  # 新插件目录的路径
+
+            new_addon_dir = os.path.join(addon_dir, 'MiaoTools')   
             
             print("New addon directory:", new_addon_dir)  # 新插件目录的路径
 
             # 将新版本文件复制到插件目录
             
             if os.path.exists(new_addon_dir):
-                print("New MiaoTools directory:", new_addon_dir)  # 打印新插件目录的路径
+                print("New MiaoTools directory:", addon_dir)  # 打印新插件目录的路径
                 self.copy_new_version(addon_dir, new_addon_dir)
             else:
                 self.report({'ERROR'}, 'Failed to find MiaoTools folder after extraction')
