@@ -117,10 +117,31 @@ class UpdateAddonOperator(bpy.types.Operator):
             self.report({'ERROR'}, 'Failed to download or install update: ' + str(e))
 
     def copy_new_version(self, addon_dir, new_addon_dir):
-        # 删除旧文件
-        shutil.rmtree(addon_dir)  
-        # 把新版本复制到插件目录
-        shutil.copytree(new_addon_dir, addon_dir)  
+        # 获取当前插件目录中的所有文件和文件夹的列表
+        old_files = {f for f in os.listdir(addon_dir)}
+
+        # 获取解压后新版本中的所有文件和文件夹的列表
+        new_files = {f for f in os.listdir(new_addon_dir)}
+
+        # 找出重复的文件，即旧插件目录中需要被替换的文件
+        duplicate_files = old_files.intersection(new_files)
+
+        # 遍历重复文件列表，并只删除这些文件和文件夹
+        for file_name in duplicate_files:
+            path_to_remove = os.path.join(addon_dir, file_name)
+            if os.path.isdir(path_to_remove):
+                shutil.rmtree(path_to_remove)
+            else:
+                os.remove(path_to_remove)
+                
+        # 现在，旧目录中没有重复文件，可以把新版本复制过去了
+        for file_name in new_files:
+            src_path = os.path.join(new_addon_dir, file_name)
+            dst_path = os.path.join(addon_dir, file_name)
+            if os.path.isdir(src_path):
+                shutil.copytree(src_path, dst_path)
+            else:
+                shutil.copy2(src_path, dst_path)
 
 
 
