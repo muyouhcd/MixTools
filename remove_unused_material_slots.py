@@ -16,8 +16,10 @@ class UNUSED_MATERIAL_SLOTS_OT_Remove(bpy.types.Operator):
             if obj.type == 'MESH':
                 obj.update_from_editmode()
                 used_material_indices = set()
+                material_index_mapping = {}
                 for poly in obj.data.polygons:
                     used_material_indices.add(poly.material_index)
+                    material_index_mapping[poly.index] = poly.material_index
                     
                 used_material_slots = [obj.material_slots[index].material for index in sorted(used_material_indices)]
 
@@ -26,6 +28,10 @@ class UNUSED_MATERIAL_SLOTS_OT_Remove(bpy.types.Operator):
 
                 for material in used_material_slots:
                     obj.data.materials.append(material)
+
+                for poly in obj.data.polygons:
+                    original_index = material_index_mapping[poly.index]
+                    poly.material_index = used_material_slots.index(obj.material_slots[original_index].material)
 
         return {'FINISHED'}
     
