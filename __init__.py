@@ -10,6 +10,8 @@ bl_info = {
     "category": "Object",
 }
 
+#################################################
+
 import bpy
 from . import update
 from . import operators

@@ -252,10 +252,37 @@ class OBJECT_OT_convex_hull_creator(bpy.types.Operator):
 
         return {'FINISHED'}
 #生成体素化指令
+# class VoxelConverter(bpy.types.Operator):
+#     """生成obj2vox指令"""
+#     bl_idname = "object.voxel_converter"
+#     bl_label = "生成体素化指令"
+
+#     @classmethod
+#     def poll(cls, context):
+#         return context.selected_objects is not None
+
+#     def execute(self, context):
+#         selected_objects = context.selected_objects
+#         for obj in selected_objects:
+#             dimensions = obj.dimensions
+#             max_dim = max(dimensions.x, dimensions.y, dimensions.z)
+#             result = round(max_dim * 32)
+#             print(f"obj2voxel {obj.name}.obj {obj.name}.vox -r {result} -p xZy ")
+#         return {'FINISHED'}
+    
+
 class VoxelConverter(bpy.types.Operator):
     """生成obj2vox指令"""
     bl_idname = "object.voxel_converter"
     bl_label = "生成体素化指令"
+
+    # 添加一个IntProperty属性，用于从UI获取用户输入的值
+    resolution_factor: bpy.props.IntProperty(
+        name = "分辨率因子",
+        description = "定义体素化时使用的分辨率乘数",
+        default = 32,
+        min = 1
+    )
 
     @classmethod
     def poll(cls, context):
@@ -266,9 +293,13 @@ class VoxelConverter(bpy.types.Operator):
         for obj in selected_objects:
             dimensions = obj.dimensions
             max_dim = max(dimensions.x, dimensions.y, dimensions.z)
-            result = round(max_dim * 32)
+            # 使用用户输入的值（或默认值）来计算result
+            result = round(max_dim * context.scene.resolution_factor)
             print(f"obj2voxel {obj.name}.obj {obj.name}.vox -r {result} -p xZy ")
         return {'FINISHED'}
+
+
+
 
 #移除所选物体修改器
 class RemoveModifiers(bpy.types.Operator):
@@ -2801,6 +2832,18 @@ def register():
     bpy.types.Scene.collectionA = PointerProperty(type=Collection)
     bpy.types.Scene.collectionB = PointerProperty(type=Collection)
 
+
+    bpy.types.Scene.resolution_factor = bpy.props.IntProperty(
+        name="分辨率因子",
+        description="定义体素化时使用的分辨率乘数",
+        default=32,
+        min=1
+    )
+
+
+
+
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -2820,6 +2863,9 @@ def unregister():
     del bpy.types.Scene.multiple_object_binding
     del bpy.types.Scene.link_scenes_batch_directory
     del bpy.types.Scene.rename_axis
+
+    del bpy.types.Scene.resolution_factor
+
     bpy.types.Scene.tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.GTAtranslate_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.BindOperation_expand = bpy.props.BoolProperty(

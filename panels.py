@@ -58,6 +58,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             layout.label(text="转换工具:")
             convert_box = layout.box()
             convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='MOD_REMESH')
+            convert_box.prop(scene, "resolution_factor")
 
 # 绑定操作
         col_BindOperation = layout.column()

@@ -18,6 +18,43 @@ def get_addon_path():
     # 最终file_path将是插件根目录的路径
     return file_path if os.path.basename(file_path) == "addons" else ''
 
+def download_file(url, save_path):
+    """
+    从指定的 URL 下载文件并保存到本地路径。
+    """
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
+        
+        with open(save_path, 'wb') as file:
+            file.write(response.content)
+    except Exception as e:
+        raise IOError(f"文件下载失败: {e}")
+    
+def create_temp_directory(base_path, folder_name="addon_update"):
+    """
+    在基础路径中创建临时的文件夹。
+    """
+    temp_dir = os.path.join(base_path, folder_name)
+    os.makedirs(temp_dir, exist_ok=True)
+    return temp_dir
+
+def unzip_file(zip_path, extract_to):
+    """
+    将 zip 文件解压缩到指定的目录中。
+    """
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        zip_ref.extractall(extract_to)
+
+def find_new_version_directory(base_path, expected_name="MiaoTools"):
+    """
+    在基路径中查找预期名称的新版本目录。
+    """
+    new_version_dir = os.path.join(base_path, expected_name)
+    if os.path.exists(new_version_dir):
+        return new_version_dir
+    raise FileNotFoundError("新版本目录未找到。")
+
 #更新脚本
 def version_tuple(version_string):
     # 假设：'version_string' 是一个像 '1.0.2' 这样的字符串
@@ -37,13 +74,12 @@ class UpdateAddonOperator(bpy.types.Operator):
         return {'FINISHED'}
 
     def start_update_process(self):
-        print("正在查找")
 
+        print("正在查找")
         user_repo = 'muyouhcd/MiaoTools'
         latest_release_info = self.get_latest_release_info(user_repo)
         current_version = bl_info["version"]
         latest_version = latest_release_info['tag_name']
-        
         # print(user_repo)
         print("#####################当前版本#####################")
         print(current_version)
@@ -59,7 +95,7 @@ class UpdateAddonOperator(bpy.types.Operator):
             # 不需要转换current_version，因为它已经是一个元组
             if current_version < latest_ver_tuple:
                 download_url = latest_release_info['zipball_url']
-                self.download_latest_version(download_url, latest_version)
+                self.download_latest_version(download_url)
             else:
                 self.report({'INFO'}, 'No update available.')
         else:
@@ -74,6 +110,16 @@ class UpdateAddonOperator(bpy.types.Operator):
         except Exception as e:
             self.report({'ERROR'}, str(e))
             return None
+        
+
+    def download_last_version(download_url):
+        
+        download_file(download_url, save_path)
+        create_temp_directory(base_path, folder_name="addon_update")
+        unzip_file(zip_path, extract_to)
+        find_new_version_directory(base_path, expected_name="MiaoTools")
+        
+
 
     def download_latest_version(self, download_url, latest_version):
         try:
@@ -126,6 +172,8 @@ class UpdateAddonOperator(bpy.types.Operator):
         except Exception as e:
             self.report({'ERROR'}, 'Failed to download or install update: ' + str(e))
 
+
+    
     def copy_new_version(self, addon_dir, new_addon_dir):
         # 获取当前插件目录中的所有文件和文件夹的列表
         old_files = {f for f in os.listdir(addon_dir)}
