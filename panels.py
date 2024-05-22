@@ -301,8 +301,14 @@ class CustomFunctionsPanel(bpy.types.Panel):
             operator_instance.output_frame_rate = str(change_resolution_prop.output_frame_rate)
 
 #批量渲染
+        # 确保自动展开部分包括新的滑动条选项
+        # 确保自动展开部分包括新的滑动条选项
+        layout = self.layout
+        scene = bpy.context.scene
+
         col_autorender = layout.column()
-        col_autorender.prop(scene, "autorender_expand", text="批量渲染", emboss=False, icon='TRIA_DOWN' if scene.autorender_expand else 'TRIA_RIGHT')
+        col_autorender.prop(scene, "autorender_expand", text="批量渲染", emboss=False, 
+                            icon='TRIA_DOWN' if scene.autorender_expand else 'TRIA_RIGHT')
 
         if scene.autorender_expand:
             box_autorender = col_autorender.box()
@@ -311,13 +317,14 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_autorender.prop(bpy.context.scene.auto_render_settings, "output_format", text="输出格式")
             box_autorender.prop(bpy.context.scene.auto_render_settings, "collections", text="渲染集合")
             box_autorender.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机（非中文）")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到每个物体")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离（像素）")
             box_autorender.operator("auto_render.execute")
+            
             box_autorender_blendefile = col_autorender.box()
-
             box_autorender_blendefile.label(text="批量渲染.blend文件")
             render_operator = box_autorender_blendefile.operator('auto_render.batch_render')
-            box_autorender_blendefile.prop(render_operator, 'render_as_animation',text="渲染动画")
-
+            box_autorender_blendefile.prop(render_operator, 'render_as_animation', text="渲染动画")
 def register():
     bpy.utils.register_class(CustomFunctionsPanel)
     
