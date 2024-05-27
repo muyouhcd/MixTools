@@ -93,8 +93,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if context.scene.meterialoperation_expand:
 
-            layout.label(text="批量链接贴图")
-            layout.prop(context.scene, "texture_dir", text="贴图目录", icon='FILE_FOLDER')
+            layout.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
             layout.operator("object.apply_texture_operator", text="批量链接贴图", icon='MESH_CIRCLE')
 
             # 材质球排序
