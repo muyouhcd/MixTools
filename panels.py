@@ -92,6 +92,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
                                    icon='TRIA_DOWN' if context.scene.meterialoperation_expand else 'TRIA_RIGHT')
 
         if context.scene.meterialoperation_expand:
+
+            layout.label(text="批量链接贴图")
+            layout.prop(context.scene, "texture_dir", text="贴图目录", icon='FILE_FOLDER')
+            layout.operator("object.apply_texture_operator", text="批量链接贴图", icon='MESH_CIRCLE')
+
             # 材质球排序
             layout.label(text="材质管理:")
             material_operations_box = layout.box()
