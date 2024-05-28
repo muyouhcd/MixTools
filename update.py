@@ -105,39 +105,60 @@ class UpdateAddonOperator(bpy.types.Operator):
 
     def download_latest_version(self, download_url, latest_version):
         try:
+            # 发起下载请求
             response = requests.get(download_url)
             response.raise_for_status()
 
+            # 准备临时目录用于保存并解压zip文件
             temp_dir = bpy.app.tempdir + "addon_update/"
-            print("Temp Directory for Update:", temp_dir)
-
+            print("临时目录用于更新：", temp_dir)
+            # 确保临时目录存在
             os.makedirs(temp_dir, exist_ok=True)
+            
+            # 指定zip文件的保存路径
             zip_path = os.path.join(temp_dir, 'addon.zip')
-            print("Downloading zip file to:", zip_path)
+            print("正在下载zip文件到：", zip_path)
 
+            # 将下载内容写入文件
             with open(zip_path, 'wb') as file:
                 file.write(response.content)
 
+            # 解压zip文件到指定目录
             with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
+            print("已解压zip文件到：", temp_dir)
 
-            print("Extracted zip file to:", temp_dir)
-
-            addon_dir = get_addon_path()
-            print("Addon directory:", addon_dir)
-
-            new_addon_dir = os.path.join(temp_dir, 'MiaoTools')
-            print("New addon directory:", new_addon_dir)
-
-            if os.path.exists(new_addon_dir):
-                print("New MiaoTools directory:", addon_dir)
-                self.copy_new_version(addon_dir, new_addon_dir)
+            # 自动寻找解压后的主目录（假设只有一个目录被解压）
+            extracted_dirs = next(os.walk(temp_dir))[1]
+            if len(extracted_dirs) == 1:
+                new_addon_dir = os.path.join(temp_dir, extracted_dirs[0])
             else:
-                self.report({'ERROR'}, 'Failed to find MiaoTools folder after extraction')
+                self.report({'ERROR'}, "解压后未找到唯一目录或存在多个目录")
+                return
 
-            self.report({'INFO'}, f'Addon updated to {latest_version} successfully.')
+            print("新版插件目录：", new_addon_dir)
+
+            # 插件的当前安装目录
+            addon_dir = get_addon_path()
+
+            # 定位到MiaoTools子目录，如果不存在则创建
+            miao_tools_path = os.path.join(addon_dir, "MiaoTools")
+            if not os.path.exists(miao_tools_path):
+                os.makedirs(miao_tools_path)
+
+            print("当前插件目录：", addon_dir)
+            print("MiaoTools子目录：", miao_tools_path)
+
+            # 拷贝新版本文件到MiaoTools子目录
+            if os.path.exists(new_addon_dir):
+                self.copy_new_version(miao_tools_path, new_addon_dir)
+            else:
+                self.report({'ERROR'}, '未在解压目录中找到预期的插件文件夹')
+
+            # 更新成功报告
+            self.report({'INFO'}, f'插件已成功更新到 {latest_version}')
         except Exception as e:
-            self.report({'ERROR'}, 'Failed to download or install update: ' + str(e))
+            self.report({'ERROR'}, '下载或安装更新失败: ' + str(e))
 
     def copy_new_version(self, addon_dir, new_addon_dir):
         old_files = {f for f in os.listdir(addon_dir)}
