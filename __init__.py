@@ -22,6 +22,7 @@ from . import AutoRenameCar
 from . import ExportFbx
 from . import Voxelizer
 from . import AutoRig
+from . import AutolinkTexture
 
 def register():
     
@@ -36,6 +37,7 @@ def register():
     ExportFbx.register()
     Voxelizer.register()
     AutoRig.register()
+    AutolinkTexture.register()
 
 
 def unregister():
@@ -50,6 +52,7 @@ def unregister():
     ExportFbx.unregister()
     Voxelizer.unregister()
     AutoRig.unregister()
+    AutolinkTexture.unregister()
 
     
     
