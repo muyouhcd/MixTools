@@ -1,6 +1,5 @@
 import bpy
 import os
-import re
 
 class ApplyTextureOperator(bpy.types.Operator):
     """Apply Texture to Selected Objects"""
@@ -25,49 +24,59 @@ class ApplyTextureOperator(bpy.types.Operator):
 
         # 获取选中的物体
         selected_objects = bpy.context.selected_objects
-        
+
+        # 存储已处理过的纹理文件
+        processed_textures = {}
+
         for obj in selected_objects:
-            # 确保该对象有data属性，比如Mesh类型对象
-            if not hasattr(obj.data, 'materials'):
-                self.report({'WARNING'}, f"{obj.name} is not a Mesh object or has no data, skipping.")
-                continue
+            self.process_object_and_children(obj, abs_texture_dir, processed_textures)
 
-            # 获取物体名称
-            obj_name = obj.name
+        return {'FINISHED'}
+    
+    def process_object_and_children(self, obj, texture_dir, processed_textures):
+        # 如果物体类型是空物体，忽略
+        if obj.type == 'EMPTY':
+            return
+        
+        # 确保该对象有data属性，比如Mesh类型对象
+        if not hasattr(obj.data, 'materials'):
+            self.report({'WARNING'}, f"{obj.name} is not a Mesh object or has no data, skipping.")
+            return
+        
+        obj_name = obj.name.lower()  # 将对象名称转换为小写
 
+        found_texture = False
+        while obj_name:
             # 根据物体名称构建贴图文件路径
-            texture_path = os.path.join(abs_texture_dir, f"{obj_name}_texture.png")
-
+            texture_path = os.path.join(texture_dir, f"{obj_name}_texture.png").lower()
+            abs_texture_path = os.path.abspath(texture_path).lower()
+            
             # 打印调试信息，确认文件路径
-            abs_texture_path = os.path.abspath(texture_path)
             print(f"Checking for texture: {abs_texture_path}")
-
-            found_texture = False
 
             # 检查贴图文件是否存在
             if os.path.exists(abs_texture_path):
-                self.apply_texture(obj, abs_texture_path)
-                found_texture = True
-            else:
-                # 尝试模糊查找
-                # 使用正则表达式去除序号后缀
-                base_name = re.sub(r'(_\d+|.\d+)$', '', obj_name)
-                fuzzy_texture_path = os.path.join(abs_texture_dir, f"{base_name}_texture.png")
-                abs_fuzzy_texture_path = os.path.abspath(fuzzy_texture_path)
-                print(f"Attempting fuzzy search for texture: {abs_fuzzy_texture_path}")
+                if abs_texture_path in processed_textures:
+                    texture = processed_textures[abs_texture_path]
+                else:
+                    texture = bpy.data.images.load(abs_texture_path)
+                    processed_textures[abs_texture_path] = texture
                 
-                # 再次检查去除序号后缀的路径
-                if os.path.exists(abs_fuzzy_texture_path):
-                    self.apply_texture(obj, abs_fuzzy_texture_path)
-                    found_texture = True
+                self.apply_texture(obj, texture)
+                found_texture = True
+                break # 找到纹理文件，跳出循环
 
-            # 在找不到纹理的情况下报告
-            if not found_texture:
-                self.report({'WARNING'}, f"Texture file for {obj_name} not found: {abs_texture_path} or {abs_fuzzy_texture_path}")
+            # 如果没有找到，则去掉名称的最后一个字符再试
+            obj_name = obj_name[:-1]
 
-        return {'FINISHED'}
+        if not found_texture:
+            self.report({'WARNING'}, f"Texture file for {obj.name} not found in {texture_dir}")
 
-    def apply_texture(self, obj, texture_path):
+        # 递归处理子物体
+        for child in obj.children:
+            self.process_object_and_children(child, texture_dir, processed_textures)
+
+    def apply_texture(self, obj, texture):
         """辅助函数：应用纹理"""
         # 创建新的材质
         mat = bpy.data.materials.new(name=f"{obj.name}_Material")
@@ -89,7 +98,7 @@ class ApplyTextureOperator(bpy.types.Operator):
 
         # 添加纹理节点
         texture_node = nodes.new(type='ShaderNodeTexImage')
-        texture_node.image = bpy.data.images.load(texture_path)
+        texture_node.image = texture
         texture_node.interpolation = 'Closest'
 
         # 添加BSDF节点
