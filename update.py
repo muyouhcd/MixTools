@@ -61,7 +61,7 @@ def version_tuple(version_string):
 class UpdateAddonOperator(bpy.types.Operator):
     """Update Addon"""
     bl_idname = "wm.update_addon"
-    bl_label = "更新插件"
+    bl_label = "更新插件(仅支持blender3.4及以上版本)"
 
     @classmethod
     def poll(cls, context):
@@ -77,7 +77,7 @@ class UpdateAddonOperator(bpy.types.Operator):
         latest_release_info = self.get_latest_release_info(user_repo)
         current_version = bl_info["version"]
         latest_version = latest_release_info['tag_name']
-        
+
         print("#####################当前版本#####################")
         print(current_version)
         print("#####################最新版本#####################")
