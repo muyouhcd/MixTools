@@ -20,46 +20,6 @@ from mathutils.bvhtree import BVHTree
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
 
-#原点批量移动至-y中心
-class OBJECT_OT_move_object_origin_to_bottom(Operator):
-    bl_idname = "object.move_origin_to_bottom"
-    bl_label = "移动原点到-y中心"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        # 储存当前选中状态和活动物体
-        active_object = context.view_layer.objects.active
-        selected_objects = context.selected_objects
-
-        for obj in selected_objects:
-            # 只对当前物体操作
-            context.view_layer.objects.active = obj
-            # 取消选择其他所有物体
-            bpy.ops.object.select_all(action='DESELECT')
-            # 选中当前物体
-            obj.select_set(True)
-            # 计算物体在世界空间的包围盒角点
-            world_bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-            # 获得Y方向的最小点作为底部中心的Y位置
-            bottom_y = min(world_bbox_corners, key=lambda corner: corner.y).y
-            # 还要计算X和Z方向的中心点，以创建一个底部中心的3D点
-            center_x = sum([corner.x for corner in world_bbox_corners]) / 8
-            center_z = sum([corner.z for corner in world_bbox_corners]) / 8
-            bottom_center = Vector((center_x, bottom_y, center_z))
-            # 设置游标到底部中心点
-            bpy.context.scene.cursor.location = bottom_center
-            # 将原点设置到游标位置
-            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-            # 取消选择当前物体，以便下一个循环
-            obj.select_set(False)
-
-        # 恢复原始选中状态和活动物体
-        for obj in selected_objects:
-            obj.select_set(True)
-        context.view_layer.objects.active = active_object
-
-        return {'FINISHED'}
-
 #移除顶级物体名称后缀，重名则交换
 class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
     bl_idname = "object.remove_suffix_and_resolve"
@@ -582,52 +542,6 @@ class QueueUp(bpy.types.Operator):
                     obj.location = (0, 0, i * distance)
 
         return {"FINISHED"}
-
-# 对齐所选物体原点到底部并归于原点
-class AlignmentGround(bpy.types.Operator):
-    bl_idname = "object.miao_alignment_ground"
-    bl_label = "对齐原点到底部中心-M3"
-
-    def execute(self, context):
-        # 储存当前选中状态和活动物体
-        active_object = context.view_layer.objects.active
-        selected_objects = context.selected_objects
-
-        for obj in selected_objects:
-            # 只对当前物体操作
-            context.view_layer.objects.active = obj
-            
-            # 取消选择其他所有物体
-            bpy.ops.object.select_all(action='DESELECT')
-            
-            # 选中当前物体
-            obj.select_set(True)
-
-            # 计算物体在世界空间的包围盒角点
-            world_bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-
-            # 获得Z方向的最小点作为底部中心的Z位置
-            bottom_z = min(world_bbox_corners, key=lambda corner: corner.z).z
-            # 还要计算X和Y方向的中心点，以创建一个底部中心的3D点
-            center_x = sum([corner.x for corner in world_bbox_corners]) / 8
-            center_y = sum([corner.y for corner in world_bbox_corners]) / 8
-            bottom_center = Vector((center_x, center_y, bottom_z))
-
-            # 设置游标到底部中心点
-            bpy.context.scene.cursor.location = bottom_center
-
-            # 将原点设置到游标位置
-            bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
-
-            # 取消选择当前物体，以便下一个循环
-            obj.select_set(False)
-
-        # 恢复原始选中状态和活动物体
-        for obj in selected_objects:
-            obj.select_set(True)
-        context.view_layer.objects.active = active_object
-
-        return {'FINISHED'}
 
 # 按照空间前后顺序对所选物体重命名
 class RenameByLocation(bpy.types.Operator):
@@ -2347,10 +2261,8 @@ class OBJECT_OT_clean_empty(bpy.types.Operator):
 
 classes = [
     OBJECT_OT_clean_empty,
-    # CharOperaterBoneWeight,
     CharOperater,
     ParentByBoundingbox,
-    OBJECT_OT_move_object_origin_to_bottom,
     OBJECT_OT_remove_suffix_and_resolve_conflicts,
     OBJECT_OT_make_single_user,
     OBJECT_OT_convex_hull_creator,
@@ -2393,7 +2305,6 @@ classes = [
     RotationOperator,
     RenameByLocation,
     QueueUp,
-    AlignmentGround,
     RandomPlacement,
     MergeMaterial,
     CollectionByBoundingbox,

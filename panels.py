@@ -43,9 +43,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # Alignment Tools
             layout.label(text="对齐工具:")
             align_box = layout.box()
-            align_box.operator("object.miao_alignment_ground", text="原点移至底部", icon='ALIGN_BOTTOM')
-            operator = align_box.operator("object.move_origin_to_bottom", text="原点移至-Y中心", icon='PIVOT_BOUNDBOX')
-            align_box.prop(operator, "axis", text="Axis")
+            align_box.prop(context.scene, "axis_direction_enum", text="Axis Direction")
+            op = align_box.operator("object.move_origin", text="Move Origin")
+            op.axis_direction = context.scene.axis_direction_enum
+            # align_box.operator("object.miao_alignment_ground", text="原点移至底部", icon='ALIGN_BOTTOM')
+            # operator = align_box.operator("object.move_origin_to_bottom", text="原点移至-Y中心", icon='PIVOT_BOUNDBOX')
+            # align_box.prop(operator, "axis", text="Axis")
 
             # Selection Tools
             layout.label(text="选择工具:")
