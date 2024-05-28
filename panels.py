@@ -8,7 +8,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
     bl_idname = "VIEW3D_PT_custom_functions"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "MIAO TOOL BOX"
+    bl_category = "MiAO TOOL BOX"
 
     def draw(self, context):
         layout = self.layout
