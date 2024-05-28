@@ -4,7 +4,7 @@ from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 from .AutoRig import CharOperaterBoneWeight
 
 class CustomFunctionsPanel(bpy.types.Panel):
-    bl_label = "Miao Tools"
+    bl_label = "MiAO Tools"
     bl_idname = "VIEW3D_PT_custom_functions"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'

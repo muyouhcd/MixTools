@@ -606,12 +606,12 @@ class AlignmentGround(bpy.types.Operator):
             # 计算物体在世界空间的包围盒角点
             world_bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
 
-            # 获得Y方向的最小点作为底部中心的Y位置
-            bottom_y = min(world_bbox_corners, key=lambda corner: corner.y).y
-            # 还要计算X和Z方向的中心点，以创建一个底部中心的3D点
+            # 获得Z方向的最小点作为底部中心的Z位置
+            bottom_z = min(world_bbox_corners, key=lambda corner: corner.z).z
+            # 还要计算X和Y方向的中心点，以创建一个底部中心的3D点
             center_x = sum([corner.x for corner in world_bbox_corners]) / 8
-            center_z = sum([corner.z for corner in world_bbox_corners]) / 8
-            bottom_center = Vector((center_x, bottom_y, center_z))
+            center_y = sum([corner.y for corner in world_bbox_corners]) / 8
+            bottom_center = Vector((center_x, center_y, bottom_z))
 
             # 设置游标到底部中心点
             bpy.context.scene.cursor.location = bottom_center
