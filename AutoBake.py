@@ -1,103 +1,73 @@
 import bpy
 
-def retopologize_and_bake_color(context):
-    # 获取选中的对象
-    selected_objects = context.selected_objects
-    if len(selected_objects) < 1:
+def retopologize_and_bake_without_remesh_color(new_context):
+    selected_models = new_context.selected_objects
+    if len(selected_models) < 1:
         print("请至少选择一个对象。")
         return
     
-    # 创建一个新的材质，并命名为"SharedMaterial"
-    new_material = bpy.data.materials.new(name="SharedMaterial")
+    shared_material = bpy.data.materials.new(name="SharedMaterial")
+    shared_material.use_nodes = True
+    mat_nodes = shared_material.node_tree.nodes
+    mat_links = shared_material.node_tree.links
     
-    # 启用节点
-    new_material.use_nodes = True
-    nodes = new_material.node_tree.nodes
-    links = new_material.node_tree.links
-    
-    # 删除现有材质中的所有节点
-    for node in nodes:
-        nodes.remove(node)
+    for mat_node in mat_nodes:
+        mat_nodes.remove(mat_node)
         
-    # 创建输出节点、Principled BSDF节点和图像纹理节点，并建立链接
-    output_node = nodes.new(type='ShaderNodeOutputMaterial')
-    principled_bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
-    texture_node = nodes.new(type='ShaderNodeTexImage')
+    output_node = mat_nodes.new(type='ShaderNodeOutputMaterial')
+    principled_bsdf = mat_nodes.new(type='ShaderNodeBsdfPrincipled')
+    texture_node = mat_nodes.new(type='ShaderNodeTexImage')
     
-    links.new(principled_bsdf.outputs['BSDF'], output_node.inputs['Surface'])
-    links.new(texture_node.outputs['Color'], principled_bsdf.inputs['Base Color'])
+    mat_links.new(principled_bsdf.outputs['BSDF'], output_node.inputs['Surface'])
+    mat_links.new(texture_node.outputs['Color'], principled_bsdf.inputs['Base Color'])
     
-    new_material.node_tree.nodes.active = texture_node
+    shared_material.node_tree.nodes.active = texture_node
 
-    # 保存处理过的对象列表和重复对象列表
-    processed_objects = []
-    duplicate_objects = []
+    processed_models = []
+    duplicate_models = []
     
-    # 处理每一个选中的对象
-    for original_obj in selected_objects:
-        if not original_obj.data or not original_obj.data.polygons:
-            print(f"忽略空物体: {original_obj.name}")
+    for source_model in selected_models:
+        if not source_model.data or not source_model.data.polygons:
+            print(f"忽略空物体: {source_model.name}")
             continue
         
-        if not original_obj.data.materials:
-            print(f"原始对象没有材质: {original_obj.name}")
+        if not source_model.data.materials:
+            print(f"原始对象没有材质: {source_model.name}")
             continue
         
-        print(f"正在处理对象: {original_obj.name}")
+        print(f"正在处理对象: {source_model.name}")
 
-        # 取消所有选择，并复制当前对象
         bpy.ops.object.select_all(action='DESELECT')
-        original_obj.select_set(True)
+        source_model.select_set(True)
         bpy.ops.object.duplicate()
-        duplicate_obj = bpy.context.selected_objects[0]
+        copied_model = bpy.context.selected_objects[0]
         
-        # 将复制的对象设为活跃对象并添加REMESH修改器
-        context.view_layer.objects.active = duplicate_obj
-        bpy.ops.object.modifier_add(type='REMESH')
-        remesh_modifier = duplicate_obj.modifiers[-1]
-        remesh_modifier.name = "TempRemesh"
-        remesh_modifier.octree_depth = 1
-        remesh_modifier.use_smooth_shade = False
-        remesh_modifier.mode = 'SHARP'
-        
-        try:
-            # 应用REMESH修改器
-            bpy.ops.object.modifier_apply(modifier="TempRemesh")
-            print(f"应用REMESH到: {duplicate_obj.name}")
-        except Exception as e:
-            print(f"应用REMESH修改器失败: {e}")
-            bpy.data.objects.remove(duplicate_obj)
-            continue
-
-        # 设定UV智能投影展开
         bpy.ops.object.select_all(action='DESELECT')
-        duplicate_obj.select_set(True)
-        context.view_layer.objects.active = duplicate_obj
+        copied_model.select_set(True)
+        new_context.view_layer.objects.active = copied_model
         
         bpy.ops.object.mode_set(mode='EDIT')
         bpy.ops.mesh.select_all(action='SELECT')
         try:
             bpy.ops.uv.smart_project(island_margin=0.01)
-            print(f"UV展开完成: {duplicate_obj.name}")
+            print(f"UV展开完成: {copied_model.name}")
         except Exception as e:
             print(f"UV展开失败: {e}")
             bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.data.objects.remove(duplicate_obj)
+            bpy.data.objects.remove(copied_model)
             continue
         bpy.ops.object.mode_set(mode='OBJECT')
         
-        # 清除和添加新的共享材质
-        duplicate_obj.data.materials.clear()
-        duplicate_obj.data.materials.append(new_material)
+        copied_model.data.materials.clear()
+        copied_model.data.materials.append(shared_material)
         
-        processed_objects.append(original_obj)
-        duplicate_objects.append(duplicate_obj)
+        processed_models.append(source_model)
+        duplicate_models.append(copied_model)
     
-    # 合并所有重拓扑对象的UV
     bpy.ops.object.select_all(action='DESELECT')
-    for obj in duplicate_objects:
-        obj.select_set(True)
-    context.view_layer.objects.active = duplicate_objects[0]
+    for model in duplicate_models:
+        model.select_set(True)
+    new_context.view_layer.objects.active = duplicate_models[0]
     
     bpy.ops.object.join_uvs()
     bpy.ops.object.mode_set(mode='EDIT')
@@ -106,65 +76,56 @@ def retopologize_and_bake_color(context):
     bpy.ops.object.mode_set(mode='OBJECT')
     print(f"所有对象的UV展开完成")
     
-    # 设置烘焙类型为漫反射并设置烘焙参数
     bpy.context.scene.cycles.bake_type = 'DIFFUSE'
     bpy.context.scene.render.bake.use_pass_direct = False
     bpy.context.scene.render.bake.use_pass_indirect = False
     bpy.context.scene.render.bake.use_pass_color = True
     
-    # 创建一个新的图像用于保存最终烘焙结果
-    final_image = bpy.data.images.new(name="FinalBakedTexture", width=1024, height=1024, alpha=False)
-    final_image.generated_color = (1.0, 1.0, 1.0, 1.0)
+    baked_image = bpy.data.images.new(name="FinalBakedTexture", width=1024, height=1024, alpha=False)
+    baked_image.generated_color = (1.0, 1.0, 1.0, 1.0)
     
-    # 将最终图像节点添加到材质节点树中，并连接到Principled BSDF节点的基础颜色输入
-    final_texture_node = new_material.node_tree.nodes.new(type='ShaderNodeTexImage')
-    final_texture_node.interpolation = 'Closest'
-    final_texture_node.image = final_image
-    new_material.node_tree.links.new(final_texture_node.outputs['Color'], principled_bsdf.inputs['Base Color'])
+    result_texture_node = shared_material.node_tree.nodes.new(type='ShaderNodeTexImage')
+    result_texture_node.interpolation = 'Closest'
+    result_texture_node.image = baked_image
+    shared_material.node_tree.links.new(result_texture_node.outputs['Color'], principled_bsdf.inputs['Base Color'])
     
-    # 对每一对原始对象和重复对象进行烘焙
-    for original_obj, duplicate_obj in zip(processed_objects, duplicate_objects):
+    for source_model, copied_model in zip(processed_models, duplicate_models):
         bpy.ops.object.select_all(action='DESELECT')
-        original_obj.select_set(True)
-        duplicate_obj.select_set(True)
-        context.view_layer.objects.active = duplicate_obj
+        source_model.select_set(True)
+        copied_model.select_set(True)
+        new_context.view_layer.objects.active = copied_model
         
-        new_material.node_tree.nodes.active = final_texture_node
+        shared_material.node_tree.nodes.active = result_texture_node
         
         try:
             bpy.ops.object.bake(type='DIFFUSE', use_clear=False, margin=16)
-            print(f"烘焙贴图完成: {duplicate_obj.name}")
+            print(f"烘焙贴图完成: {copied_model.name}")
         except Exception as e:
             print(f"烘焙贴图失败: {e}")
-            bpy.data.objects.remove(duplicate_obj)
+            bpy.data.objects.remove(copied_model)
             continue
 
-    # 保存最终的烘焙图像
-    final_image.filepath_raw = f"//Combined_Baked.png"
-    final_image.file_format = 'PNG'
-    final_image.save()
+    baked_image.filepath_raw = f"//Combined_Baked.png"
+    baked_image.file_format = 'PNG'
+    baked_image.save()
     print(f"所有对象的贴图保存完成")
     
-    # 删除原始对象
-    for obj in processed_objects:
-        bpy.data.objects.remove(obj)
+    for model in processed_models:
+        bpy.data.objects.remove(model)
 
-# 定义一个自定义的Blender操作符
 class RetopologizeAndBakeOperator(bpy.types.Operator):
-    bl_idname = "object.retopologize_and_bake"
+    bl_idname = "object.retopologize_and_bake_without_remesh"
     bl_label = "Retopologize and Bake"
     
-    def execute(self, context):
-        retopologize_and_bake_color(context)
+    def execute(self, new_context):
+        retopologize_and_bake_without_remesh_color(new_context)
         return {'FINISHED'}
 
-# 注册和解除注册功能
 def register():
     bpy.utils.register_class(RetopologizeAndBakeOperator)
 
 def unregister():
     bpy.utils.unregister_class(RetopologizeAndBakeOperator)
-
 
 if __name__ == "__main__":
     register()

@@ -25,6 +25,7 @@ from . import AutoRig
 from . import AutolinkTexture
 from . import MoveOrigin
 from . import AutoBake
+from . import AutoBakeRemesh
 
 def register():
     
@@ -42,6 +43,7 @@ def register():
     AutolinkTexture.register()
     MoveOrigin.register()
     AutoBake.register()
+    AutoBakeRemesh.register()
 
 
 
@@ -60,6 +62,7 @@ def unregister():
     AutolinkTexture.unregister()
     MoveOrigin.unregister()
     AutoBake.unregister()
+    AutoBakeRemesh.unregister()
 
 
 if __name__ == "__main__":

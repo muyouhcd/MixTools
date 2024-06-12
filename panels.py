@@ -275,7 +275,9 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_voxelizer.operator("object.convert_voxelizer_color", text="一键转换vox(带颜色)")
 # 烘焙操作
             box_bake = layout.box()
-            box_bake.operator("object.retopologize_and_bake", text="自动烘焙已选中物体")
+            box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
+            box_bake.operator("object.retopologize_and_bake_without_remesh", text="烘焙选中物体")
+
 
       
 
