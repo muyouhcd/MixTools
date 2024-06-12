@@ -64,7 +64,8 @@ class VOXELIZER_OT_convert(Operator):
                         solid = " "
 
                     results.append(f"cuda_voxelizer -f {obj_dir}{obj_name}.obj -o vox -s {result} {solid}")
-    
+
+                
                     bpy.data.objects.remove(bpy.data.objects[obj_name], do_unlink=True)
                     bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 

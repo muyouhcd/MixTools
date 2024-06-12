@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiAO",
     "author": "MuyouHCD",
-    "version": (4,6,4),
+    "version": (4,6,5),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -24,6 +24,7 @@ from . import Voxelizer
 from . import AutoRig
 from . import AutolinkTexture
 from . import MoveOrigin
+from . import AutoBake
 
 def register():
     
@@ -40,6 +41,8 @@ def register():
     AutoRig.register()
     AutolinkTexture.register()
     MoveOrigin.register()
+    AutoBake.register()
+
 
 
 def unregister():
@@ -56,10 +59,8 @@ def unregister():
     AutoRig.unregister()
     AutolinkTexture.unregister()
     MoveOrigin.unregister()
+    AutoBake.unregister()
 
-    
-    
-    
 
 if __name__ == "__main__":
     register()
