@@ -46,6 +46,9 @@ class CustomFunctionsPanel(bpy.types.Panel):
             align_box.prop(context.scene, "axis_direction_enum", text="Axis Direction")
             op = align_box.operator("object.move_origin", text="Move Origin")
             op.axis_direction = context.scene.axis_direction_enum
+            align_box.operator("object.reset_z_axis", text="z轴归零")
+
+
             # align_box.operator("object.miao_alignment_ground", text="原点移至底部", icon='ALIGN_BOTTOM')
             # operator = align_box.operator("object.move_origin_to_bottom", text="原点移至-Y中心", icon='PIVOT_BOUNDBOX')
             # align_box.prop(operator, "axis", text="Axis")
@@ -213,6 +216,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             export_box.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
             # Export FBX by Parent
             export_box.operator("scene.export_fbx_by_parent", text="按顶级父物体导出FBX（忽略.col标记）", icon='EXPORT')
+            # export_box.operator("scene.export_fbx_by_parent_without_apply", text="按顶级父物体导出FBX（保持变换）", icon='EXPORT')
             # Export FBX by ".col" Mark
             export_box.operator("scene.export_fbx_by_col_mark", text="按.col标记导出FBX", icon='EXPORT')
             # Export FBX by Collection

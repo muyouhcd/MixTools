@@ -20,6 +20,22 @@ from mathutils.bvhtree import BVHTree
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
 
+
+
+class OBJECT_OT_reset_z_axis(Operator):
+    bl_idname = "object.reset_z_axis"
+    bl_label = "重置选择对象的Z轴位置"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 遍历所有选中的对象
+        for obj in context.selected_objects:
+            # 将对象的 Z 轴位置设置为 0
+            obj.location.z = 0.0
+        
+        return {'FINISHED'}
+
+
 #移除顶级物体名称后缀，重名则交换
 class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
     bl_idname = "object.remove_suffix_and_resolve"
@@ -2260,6 +2276,7 @@ class OBJECT_OT_clean_empty(bpy.types.Operator):
         return {'FINISHED'}
 
 classes = [
+    OBJECT_OT_reset_z_axis,
     OBJECT_OT_clean_empty,
     CharOperater,
     ParentByBoundingbox,
