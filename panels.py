@@ -215,7 +215,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             export_box.label(text="批量导出")
             export_box.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
             # Export FBX by Parent
-            export_box.operator("scene.export_fbx_by_parent", text="按顶级父物体导出FBX（忽略.col标记）", icon='EXPORT')
+            export_box.operator("scene.export_fbx_by_parent", text="按顶级父物体导出FBX", icon='EXPORT')
             # export_box.operator("scene.export_fbx_by_parent_without_apply", text="按顶级父物体导出FBX（保持变换）", icon='EXPORT')
             # Export FBX by ".col" Mark
             export_box.operator("scene.export_fbx_by_col_mark", text="按.col标记导出FBX", icon='EXPORT')

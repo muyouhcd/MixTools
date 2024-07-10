@@ -22,6 +22,8 @@ from mathutils import kdtree
 
 
 
+
+
 class OBJECT_OT_reset_z_axis(Operator):
     bl_idname = "object.reset_z_axis"
     bl_label = "重置选择对象的Z轴位置"
@@ -2335,6 +2337,8 @@ classes = [
 ]
 
 def register():
+    
+
 
     bpy.types.Scene.rename_axis = EnumProperty(
         name="轴向",
