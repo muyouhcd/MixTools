@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiAO",
     "author": "MuyouHCD",
-    "version": (4,6,7),
+    "version": (4,6,8),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -10,31 +10,16 @@ bl_info = {
     "category": "Object",
 }
 
+
+import pkgutil
+import importlib
+
 import bpy
 import sys
 import os
 import subprocess
 #------------------------------------------------------------------------------------------
 #自动检测缺失库进行补充安装
-
-# def install_and_import(module_name, package_name=None):
-#     package_name = package_name or module_name
-#     try:
-#         __import__(module_name)
-#         print(f"模块 '{module_name}' 已经安装。")
-#     except ImportError:
-#         print(f"模块 '{module_name}' 未安装。正在安装 '{package_name}'...")
-#         try:
-#             # 使用 Blender 内置的 Python 解释器来安装包
-#             python_executable = sys.executable
-#             subprocess.check_call([python_executable, "-m", "pip", "install", package_name])
-#             print(f"模块 '{package_name}' 安装成功。")
-#         except Exception as e:
-#             print(f"模块 '{package_name}' 安装失败：{e}")
-#             raise
-#     finally:
-#         globals()[module_name] = __import__(module_name)
-#         print(f"模块 '{module_name}' 已经导入。")
 
 def install_and_import(module_name, package_name=None):
     package_name = package_name or module_name
@@ -73,11 +58,9 @@ def check_and_install_modules():
     for module_name, package_name in required_modules.items():
         install_and_import(module_name, package_name)
 
-#------------------------------------------------------------------------------------------
-#------------------检测模块-------------------
+#------------------检测模块是否存在-------------------
 check_and_install_modules()
-#---------------------------------------------
-
+#------------------------------------------------------------------------------------------
 
 from . import update
 from . import operators
@@ -94,8 +77,6 @@ from . import AutolinkTexture
 from . import MoveOrigin
 from . import AutoBake
 from . import AutoBakeRemesh
-
-
 
 def register():
     
@@ -114,8 +95,6 @@ def register():
     MoveOrigin.register()
     AutoBake.register()
     AutoBakeRemesh.register()
-
-
 
 def unregister():
     update.unregister()
