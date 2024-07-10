@@ -72,11 +72,10 @@ def restore_obj_import(obj, original_state):
 
 # 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象。
 def apply_transform_to_descendants(obj):
-    if '_col' not in obj.name:
-        obj.select_set(True)
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        for child in obj.children:
-            apply_transform_to_descendants(child)
+    obj.select_set(True)
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    for child in obj.children:
+        apply_transform_to_descendants(child)
 
 # 按照顶级父物体导出
 class ExportFbxByParent(bpy.types.Operator):
@@ -86,9 +85,9 @@ class ExportFbxByParent(bpy.types.Operator):
     def select_children_except_col(self, obj):
         """递归地选择对象的子对象，忽略'_col'的对象及其所有子对象"""
         for child in obj.children:
-            if '_col' not in child.name:
-                child.select_set(True)
-                self.select_children_except_col(child)
+            # if '_col' not in child.name:
+            child.select_set(True)
+            self.select_children_except_col(child)
 
     def execute(self, context):
         # 检查路径
