@@ -1,5 +1,6 @@
 import bpy
 import os
+import difflib
 
 class ApplyTextureOperator(bpy.types.Operator):
     """将纹理应用到选定的对象"""
@@ -27,13 +28,19 @@ class ApplyTextureOperator(bpy.types.Operator):
         # 初始化一个空字典，用于存储已处理的纹理
         processed_textures = {}
 
+        # 收集所有纹理文件名
+        texture_files = []
+        for root, _, files in os.walk(abs_texture_dir):
+            for file in files:
+                texture_files.append(os.path.join(root, file))
+
         # 处理每一个选中的对象
         for obj in selected_objects:
-            self.process_object_and_children(obj, abs_texture_dir, processed_textures)
+            self.process_object_and_children(obj, texture_files, abs_texture_dir, processed_textures)
 
         return {'FINISHED'}
 
-    def process_object_and_children(self, obj, texture_dir, processed_textures):
+    def process_object_and_children(self, obj, texture_files, texture_dir, processed_textures):
         """递归处理对象及其子对象，应用纹理"""
         # 如果对象类型是空物体，则忽略
         if obj.type == 'EMPTY':
@@ -44,46 +51,34 @@ class ApplyTextureOperator(bpy.types.Operator):
             self.report({'WARNING'}, f"{obj.name} 不是Mesh对象或没有数据，跳过。")
             return
 
-        obj_name = obj.name.lower()  # 将对象名称转换为小写，便于匹配
+        obj_name = obj.name.lower().replace('_', ' ')  # 将对象名称转换为小写并替换下划线
         print(f"正在处理对象：{obj_name}")
 
-        # 开始遍历目录中的所有文件，去掉扩展名进行匹配
-        found_texture = False
-        while obj_name:
-            for root, _, files in os.walk(texture_dir):
-                for file in files:
-                    # 检查文件名和扩展名
-                    file_name, file_ext = os.path.splitext(file)
-                    print(f"检查文件：name={file_name}, ext={file_ext}")
+        # 使用difflib去匹配最接近的纹理文件
+        closest_matches = difflib.get_close_matches(obj_name, [os.path.basename(f).rsplit('.', 1)[0].replace('_', ' ') for f in texture_files])
+        
+        if closest_matches:
+            # 最接近的匹配
+            closest_match = closest_matches[0]
+            abs_texture_path = next((f for f in texture_files if os.path.basename(f).rsplit('.', 1)[0].replace('_', ' ') == closest_match), None)
+            print(f"最接近的匹配文件：{abs_texture_path}")
 
-                    if obj_name == file_name.lower():
-                        abs_texture_path = os.path.join(root, file)
-                        print(f"找到匹配文件：{abs_texture_path}")
+            if abs_texture_path in processed_textures:
+                texture = processed_textures[abs_texture_path]
+            else:
+                try:
+                    texture = bpy.data.images.load(abs_texture_path)
+                    processed_textures[abs_texture_path] = texture
+                except Exception as e:
+                    print(f"加载纹理时发生错误：{e}")
+                    return
 
-                        if abs_texture_path in processed_textures:
-                            texture = processed_textures[abs_texture_path]
-                        else:
-                            try:
-                                texture = bpy.data.images.load(abs_texture_path)
-                                processed_textures[abs_texture_path] = texture
-                            except Exception as e:
-                                print(f"加载纹理时发生错误：{e}")
-                                continue
-
-                        self.apply_texture(obj, texture)
-                        found_texture = True
-                        break
-                if found_texture:
-                    break
-            if found_texture:
-                break
-            obj_name = obj_name[:-1]
-
-        if not found_texture:
-            self.report({'WARNING'}, f"{obj.name} 在 {texture_dir} 中未找到纹理文件")
+            self.apply_texture(obj, texture)
+        else:
+            self.report({'WARNING'}, f"{obj.name} 在 {texture_dir} 中未找到合适的纹理文件")
 
         for child in obj.children:
-            self.process_object_and_children(child, texture_dir, processed_textures)
+            self.process_object_and_children(child, texture_files, texture_dir, processed_textures)
 
     def apply_texture(self, obj, texture):
         """将纹理应用到对象上"""

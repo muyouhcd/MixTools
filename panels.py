@@ -59,12 +59,35 @@ class CustomFunctionsPanel(bpy.types.Panel):
             select_box.operator("object.match_uv", text="选取同UV物体", icon='GROUP_UVS')
             select_box.operator("object.select_large_objects", text="选择过大物体", icon='FULLSCREEN_ENTER')
             select_box.operator("object.select_small_objects", text="选择过小物体", icon='FULLSCREEN_EXIT')
+            select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='FULLSCREEN_EXIT')
 
-            # Conversion Tools
-            layout.label(text="转换工具:")
+            
+            #清理工具
+
+            layout.label(text="清理工具:")
+            clean_box = layout.box()
+            clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='FULLSCREEN_EXIT')
+
+
+            #合并工具
+            layout.label(text="合并工具:")
             convert_box = layout.box()
-            convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='MOD_REMESH')
-            convert_box.prop(scene, "resolution_factor")
+            convert_box.operator("object.combin_same_origin_object", text="合并同原点物体", icon='MOD_REMESH')
+
+            #贴图改名工具
+            layout.label(text="贴图改名工具:")
+            convert_box = layout.box()
+            convert_box.operator("object.rename_texture_orign", text="贴图改名为原始名称", icon='MOD_REMESH')
+            
+
+
+
+
+
+
+
+
+
 
 # 绑定操作
         col_BindOperation = layout.column()
@@ -281,6 +304,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_bake = layout.box()
             box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
             box_bake.operator("object.retopologize_and_bake_without_remesh", text="烘焙选中物体")
+
+            # Conversion Tools
+            layout.label(text="转换工具:")
+            convert_box = layout.box()
+            convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='MOD_REMESH')
+            convert_box.prop(scene, "resolution_factor")
 
 
       

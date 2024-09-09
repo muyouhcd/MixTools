@@ -199,70 +199,8 @@ class RemoveModifiers(bpy.types.Operator):
 
         return {'FINISHED'}
 
-#选择尺寸超过指定值的物体
-def is_object_size_above_threshold(obj, threshold):
-    # 获取物体的尺寸
-    dimensions = obj.dimensions
-    max_size = max(dimensions)
-
-    # 如果最大尺寸超过指定阈值，则返回True，否则返回False
-    return max_size > threshold
-class SelectLargeObjectsOperator(bpy.types.Operator):
-    bl_idname = "object.select_large_objects"
-    bl_label = "选择过大物体"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        # 将阈值设置为8米
-        threshold_meters = 8
-
-        # 清空之前的选择
-        bpy.ops.object.select_all(action='DESELECT')
-
-        # 根据条件选择物体
-        for obj in bpy.context.scene.objects:
-            # 忽略摄像机、灯光等辅助物体
-            if obj.type not in ['MESH']:
-                continue
-
-            # 判断物体尺寸是否超过指定阈值
-            if is_object_size_above_threshold(obj, threshold_meters):
-                obj.select_set(True)
-
-        return {'FINISHED'}
     
-# 判断物体尺寸是否小于指定阈值
-def is_object_size_below_threshold(obj, threshold):
-    # 获取物体的尺寸
-    dimensions = obj.dimensions
-    max_size = max(dimensions)
 
-    # 如果最大尺寸小于指定阈值，则返回True，否则返回False
-    return max_size < threshold
-
-class SelectSmallObjectsOperator(bpy.types.Operator):
-    bl_idname = "object.select_small_objects"
-    bl_label = "选择过小物体"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        # 将阈值设置为1米
-        threshold_meters = 0.2
-
-        # 清空之前的选择
-        bpy.ops.object.select_all(action='DESELECT')
-
-        # 根据条件选择物体
-        for obj in bpy.context.scene.objects:
-            # 忽略摄像机、灯光等非网格物体
-            if obj.type not in ['MESH']:
-                continue
-
-            # 判断物体尺寸是否小于指定阈值
-            if is_object_size_below_threshold(obj, threshold_meters):
-                obj.select_set(True)
-
-        return {'FINISHED'}
 
 # 批量导出obj
 class ExporteObjOperator(bpy.types.Operator):
@@ -2288,11 +2226,11 @@ classes = [
     VoxelConverter,
     CollectionByAttached,
     RemoveModifiers,
-    SelectSmallObjectsOperator,
+
     RenameObjectsOperator,
     VoxOperation,
     ResetNormalsAndFlatShadingOperator,
-    SelectLargeObjectsOperator,
+
     ExporteObjOperator,
     SetTextureInterpolation,
     OBJECT_OT_AlignOperator,
@@ -2410,6 +2348,8 @@ def register():
         min=1
     )
 
+    
+
     for cls in classes:
         bpy.utils.register_class(cls)
 
@@ -2445,3 +2385,5 @@ def unregister():
     bpy.types.Scene.rsm_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.inout_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
+
+    

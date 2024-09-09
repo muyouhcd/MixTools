@@ -35,7 +35,7 @@ def prepare_obj_export(obj):
 
     print(f"正在更新视图")
     bpy.context.view_layer.update()
-
+    bpy.ops.object.make_single_user_operator()
     print(f"正在应用选定物体的变换")
     apply_transform_to_descendants(obj)
 
@@ -72,10 +72,18 @@ def restore_obj_import(obj, original_state):
 
 # 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象。
 def apply_transform_to_descendants(obj):
-    obj.select_set(True)
-    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-    for child in obj.children:
-        apply_transform_to_descendants(child)
+    if '_col' not in obj.name:
+        make_single_user(obj)  # 将对象变为单用户对象
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+        for child in obj.children:
+            apply_transform_to_descendants(child)  # 递归处理子对象
+
+def make_single_user(obj):
+    """将对象变为单用户对象"""
+    if obj.data and obj.data.users > 1:
+        obj.data = obj.data.copy()
 
 # 按照顶级父物体导出
 class ExportFbxByParent(bpy.types.Operator):
@@ -85,9 +93,9 @@ class ExportFbxByParent(bpy.types.Operator):
     def select_children_except_col(self, obj):
         """递归地选择对象的子对象，忽略'_col'的对象及其所有子对象"""
         for child in obj.children:
-            # if '_col' not in child.name:
-            child.select_set(True)
-            self.select_children_except_col(child)
+            if '_col' not in child.name:
+                child.select_set(True)
+                self.select_children_except_col(child)
 
     def execute(self, context):
         # 检查路径
@@ -98,9 +106,6 @@ class ExportFbxByParent(bpy.types.Operator):
         parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
 
         for obj in parents:
-            # if '_col' in obj.name:
-            #     continue
-
             bpy.ops.object.select_all(action='DESELECT')
             self.select_children_except_col(obj)
 
@@ -160,7 +165,9 @@ class ExportFbxByCollection(bpy.types.Operator):
 
     def execute(self, context):
         # 设置导出FBX文件的路径
-        export_dir = bpy.path.abspath(context.scene.export_directory)
+        check_result, export_dir = check_dir(self, context)
+        if not check_result:
+            return {'CANCELLED'}
 
         def move_outside(mesh_obj):
             mesh_obj.select_set(True)
@@ -219,3 +226,6 @@ def unregister():
     bpy.utils.unregister_class(ExportFbxByParent)
     bpy.utils.unregister_class(ExportFbxByColMark)
     bpy.utils.unregister_class(ExportFbxByCollection)
+
+if __name__ == "__main__":
+    register()
