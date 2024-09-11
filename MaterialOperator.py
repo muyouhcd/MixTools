@@ -9,7 +9,7 @@ bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
     min=0.0,
     max=10.0
         )
-        
+
 #批量设置发光亮度
 class SetEmissionStrength(bpy.types.Operator):
     bl_idname = "material.set_emission_strength"
@@ -49,5 +49,5 @@ def register():
     bpy.utils.register_class(SetEmissionStrength)
 
 def unregister():
-    del bpy.types.Scene.emission_strength
+    # del bpy.types.Scene.emission_strength
     bpy.utils.unregister_class(SetEmissionStrength)
