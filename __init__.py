@@ -80,6 +80,7 @@ from . import RenameTool
 from . import RemoveObj
 from . import SelectTool
 from . import ExoprtObj
+from . import MaterialOperator
 
 
 
@@ -105,6 +106,9 @@ def register():
     RemoveObj.register()
     SelectTool.register()
     ExoprtObj.register()
+    MaterialOperator.register()
+
+    
 
 def unregister():
     update.unregister()
@@ -127,6 +131,7 @@ def unregister():
     RemoveObj.unregister()
     SelectTool.unregister()
     ExoprtObj.unregister()
+    MaterialOperator.unregister()
 
 
 if __name__ == "__main__":

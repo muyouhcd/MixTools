@@ -5,10 +5,7 @@ from bpy.props import StringProperty
 from bpy.types import Operator, Panel, PropertyGroup
 from bpy.props import BoolProperty
 
-bpy.types.Scene.generate_solid = bpy.props.BoolProperty(
-            name="实心转换",
-            default=False,
-            )
+
 
 major, minor = bpy.app.version[:2]
 version2 = f"{major}.{minor}"
@@ -154,11 +151,16 @@ class VOXELIZER_OT_convert_with_color(Operator):
         
 
 def register():
+    bpy.types.Scene.generate_solid = bpy.props.BoolProperty(
+            name="实心转换",
+            default=False,
+            )
 
     bpy.utils.register_class(MySettings)
     bpy.types.Scene.voxelizer_tool = bpy.props.PointerProperty(type=MySettings)
     bpy.utils.register_class(VOXELIZER_OT_convert)
     bpy.utils.register_class(VOXELIZER_OT_convert_with_color)
+    
 
     
 def unregister():
@@ -169,10 +171,10 @@ def unregister():
     del bpy.types.Scene.voxelizer_tool
 
     try:
-            del bpy.types.Scene.generate_solid
+        del bpy.types.Scene.generate_solid
     except:
-            print('generate_solid 注册失败')
-            pass  # 类未注册，忽略该异常
+        print('generate_solid 取消注册失败')
+        pass  # 类未注册，忽略该异常
     
 
 if __name__ == "__main__":

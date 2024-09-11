@@ -1,5 +1,5 @@
 import bpy
-from .operators import SetEmissionStrength
+from .MaterialOperator import SetEmissionStrength
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 from .AutoRig import CharOperaterBoneWeight
 
