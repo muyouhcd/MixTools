@@ -39,7 +39,6 @@ class SelectLargeObjectsOperator(bpy.types.Operator):
                 obj.select_set(True)
         return {'FINISHED'}
 
-
 class SelectSmallObjectsOperator(bpy.types.Operator):
     bl_idname = "object.select_small_objects"
     bl_label = "选择过小物体"
@@ -79,6 +78,60 @@ def update_small_objects_threshold(self, context):
     bpy.types.Scene.select_small_objects_threshold = context.scene.select_small_objects_threshold
 
 
+# 按体积筛选物体
+class SelectByVolume(bpy.types.Operator):
+    bl_idname = "object.miao_select_by_volume"
+    bl_label = "按体积筛选物体"
+
+    filter_mode: bpy.props.EnumProperty(
+        name="Filter Mode",
+        description="筛选大于或小于给定体积的物体",
+        items=[
+            ("GREATER_THAN", "大于", "选择体积大于给定阈值的物体"),
+            ("LESS_THAN", "小于", "选择体积小于给定阈值的物体")
+        ],
+        default="GREATER_THAN",
+    )
+
+    volume_threshold: bpy.props.FloatProperty(
+        name="体积阈值",
+        description="根据筛选模式选择大于或小于此值的物体",
+        default=0.0,
+        min=0.0,
+        max=float('inf'),
+        soft_min=0,
+        soft_max=1000.0,
+        step=1,
+        precision=2,
+    )
+
+    select: bpy.props.BoolProperty(
+        name="选择物体",
+        description="若选中，满足条件的物体将被选择；若不选中，满足条件的物体将被取消选择",
+        default=True,
+    )
+
+    def execute(self, context):
+        scene = bpy.context.scene
+
+        for obj in scene.objects:
+            if obj.type == "MESH":
+                volume = obj.dimensions.x * obj.dimensions.y * obj.dimensions.z
+
+                if self.filter_mode == "GREATER_THAN":
+                    condition = volume > self.volume_threshold
+                else:
+                    condition = volume < self.volume_threshold
+
+                if condition:
+                    obj.select_set(self.select)
+                else:
+                    obj.select_set(not self.select)
+        return {"FINISHED"}
+
+
+
+
 def register():
     bpy.utils.register_class(SelectLargeObjectsOperator)
     bpy.utils.register_class(SelectSmallObjectsOperator)
@@ -97,6 +150,7 @@ def register():
         min=0.0,
         update=update_small_objects_threshold
     )
+    bpy.utils.register_class(SelectByVolume)
 
 
 def unregister():
@@ -105,6 +159,7 @@ def unregister():
     bpy.utils.unregister_class(SelectObjectsWithoutTextureOperator)
     del bpy.types.Scene.select_large_objects_threshold
     del bpy.types.Scene.select_small_objects_threshold
+    bpy.utils.unregister_class(SelectByVolume)
 
 if __name__ == "__main__":
     register()

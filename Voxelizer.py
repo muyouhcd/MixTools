@@ -154,6 +154,7 @@ class VOXELIZER_OT_convert_with_color(Operator):
         
 
 def register():
+
     bpy.utils.register_class(MySettings)
     bpy.types.Scene.voxelizer_tool = bpy.props.PointerProperty(type=MySettings)
     bpy.utils.register_class(VOXELIZER_OT_convert)
@@ -161,11 +162,18 @@ def register():
 
     
 def unregister():
+
     bpy.utils.unregister_class(VOXELIZER_OT_convert)
     bpy.utils.unregister_class(MySettings)
     bpy.utils.unregister_class(VOXELIZER_OT_convert_with_color)
     del bpy.types.Scene.voxelizer_tool
-    del bpy.types.Scene.generate_solid
+
+    try:
+            del bpy.types.Scene.generate_solid
+    except:
+            print('generate_solid 注册失败')
+            pass  # 类未注册，忽略该异常
+    
 
 if __name__ == "__main__":
     register()
