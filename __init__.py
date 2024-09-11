@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiAO",
     "author": "MuyouHCD",
-    "version": (4,6,8),
+    "version": (4,6,9),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -77,6 +77,12 @@ from . import AutolinkTexture
 from . import MoveOrigin
 from . import AutoBake
 from . import AutoBakeRemesh
+from . import Combin
+from . import RenameTool
+from . import RemoveObj
+from . import SelectTool
+
+
 
 def register():
     
@@ -95,6 +101,10 @@ def register():
     MoveOrigin.register()
     AutoBake.register()
     AutoBakeRemesh.register()
+    Combin.register()
+    RenameTool.register()
+    RemoveObj.register()
+    SelectTool.register()
 
 def unregister():
     update.unregister()
@@ -112,6 +122,10 @@ def unregister():
     MoveOrigin.unregister()
     AutoBake.unregister()
     AutoBakeRemesh.unregister()
+    Combin.unregister()
+    RenameTool.unregister()
+    RemoveObj.unregister()
+    SelectTool.unregister()
 
 
 if __name__ == "__main__":
