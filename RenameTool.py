@@ -184,6 +184,31 @@ class RenameByLocation(bpy.types.Operator):
 
         return {"FINISHED"}
 
+#重命名为所处集合名称
+class RenameSelectedObjects(bpy.types.Operator):
+    bl_idname = "object.rename_to_collection"
+    bl_label = "所选物体命名为其所在集合名称"
+
+    def execute(self, context):
+        # 获取当前选中的物体
+        selected_objects = context.selected_objects
+        
+        for obj in selected_objects:
+            # 创建一个列表用来存储obj的所有父集合
+            parents = []
+            
+            # 遍历所有集合以找到obj的父辈
+            for coll in bpy.data.collections:
+                if obj.name in coll.objects:
+                    parents.append(coll)
+            
+            # 只有当obj有父集合时，才给obj重命名
+            if parents:
+                # 根据索引，obj的新名字将等于第一个父集合的名字
+                obj.name = parents[0].name
+
+        return {"FINISHED"}
+
 
 def register():     
     bpy.utils.register_class(RenameTextureOrign)
@@ -193,6 +218,7 @@ def register():
     bpy.utils.register_class(RenameObjectsOperator)
     bpy.utils.register_class(OBJECT_OT_RenameButton)
     bpy.utils.register_class(RenameByLocation)
+    bpy.utils.register_class(RenameSelectedObjects)
 
 def unregister():
     bpy.utils.unregister_class(RenameTextureOrign)
@@ -202,5 +228,6 @@ def unregister():
     bpy.utils.unregister_class(RenameObjectsOperator)
     bpy.utils.unregister_class(OBJECT_OT_RenameButton)
     bpy.utils.unregister_class(RenameByLocation)
+    bpy.utils.unregister_class(RenameSelectedObjects)
 
 

@@ -163,7 +163,6 @@ class RemoveModifiers(bpy.types.Operator):
 
         return {'FINISHED'}
 
-
 #设置所选物体材质为临近采样（硬边缘）
 class SetTextureInterpolation(bpy.types.Operator):
     bl_label = "设置所选物体材质为硬边缘采样"
@@ -206,7 +205,6 @@ class MergeMaterial(bpy.types.Operator):
         return {'FINISHED'}
 
 #批量设置发光亮度
-
 bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
     name="强度",
     description="设置发光强度",
@@ -312,7 +310,6 @@ bpy.types.Scene.random_scale_extent_z = bpy.props.FloatVectorProperty(
     default=(1, 1),
     size=2
 )
-
 class RandomScale(bpy.types.Operator):
     bl_idname = "object.miao_random_scale"
     bl_label = "随机缩放"
@@ -351,7 +348,6 @@ bpy.types.Scene.queue_up_axis = bpy.props.EnumProperty(
            ("Z", "Z轴", "在Z轴上排队")],
     default="Y"
 )
-
 class QueueUp(bpy.types.Operator):
     bl_idname = "object.miao_queue_up"
     bl_label = "列队"
@@ -386,7 +382,6 @@ def get_top_parent(obj):
         return obj
     else:
         return get_top_parent(obj.parent)
-
 # 向目标集合添加空物体
 def calculate_bounding_box(objects):
     bbox_corners = [obj.matrix_world @ Vector(corner) for obj in objects for corner in obj.bound_box] 
@@ -712,8 +707,6 @@ class VoxOperation(bpy.types.Operator):
 
         return {'FINISHED'}
 
-
-
 # 碰撞检测（Boundbox）并创建父级
 class ParentByBoundingbox(bpy.types.Operator):
     bl_idname = "object.miao_parent_byboundingbox"
@@ -838,7 +831,6 @@ bpy.types.Scene.threshold_distance = bpy.props.FloatProperty(
     precision=2
 )
 
-
 class CharOperater(bpy.types.Operator):
     bl_idname = "object.miao_char_operater"
     bl_label = "角色一键处理"
@@ -919,57 +911,6 @@ class CleanCollection(bpy.types.Operator):
         clean_collection(scene.collection)
 
         return {'FINISHED'}
-
-# 按体积筛选物体
-class SelectByVolume(bpy.types.Operator):
-    bl_idname = "object.miao_select_by_volume"
-    bl_label = "按体积筛选物体"
-
-    filter_mode: bpy.props.EnumProperty(
-        name="Filter Mode",
-        description="筛选大于或小于给定体积的物体",
-        items=[
-            ("GREATER_THAN", "大于", "选择体积大于给定阈值的物体"),
-            ("LESS_THAN", "小于", "选择体积小于给定阈值的物体")
-        ],
-        default="GREATER_THAN",
-    )
-
-    volume_threshold: bpy.props.FloatProperty(
-        name="体积阈值",
-        description="根据筛选模式选择大于或小于此值的物体",
-        default=0.0,
-        min=0.0,
-        max=float('inf'),
-        soft_min=0,
-        soft_max=1000.0,
-        step=1,
-        precision=2,
-    )
-
-    select: bpy.props.BoolProperty(
-        name="选择物体",
-        description="若选中，满足条件的物体将被选择；若不选中，满足条件的物体将被取消选择",
-        default=True,
-    )
-
-    def execute(self, context):
-        scene = bpy.context.scene
-
-        for obj in scene.objects:
-            if obj.type == "MESH":
-                volume = obj.dimensions.x * obj.dimensions.y * obj.dimensions.z
-
-                if self.filter_mode == "GREATER_THAN":
-                    condition = volume > self.volume_threshold
-                else:
-                    condition = volume < self.volume_threshold
-
-                if condition:
-                    obj.select_set(self.select)
-                else:
-                    obj.select_set(not self.select)
-        return {"FINISHED"}
 
 # 材质球排序
 class MaterialSort(bpy.types.Operator):
@@ -1396,30 +1337,6 @@ class RenameByParent(bpy.types.Operator):
         rename_selected_objects_with_sequential_suffixes()
         return {"FINISHED"}
 
-#重命名为所处集合名称
-class RenameSelectedObjects(bpy.types.Operator):
-    bl_idname = "object.rename_to_collection"
-    bl_label = "所选物体命名为其所在集合名称"
-
-    def execute(self, context):
-        # 获取当前选中的物体
-        selected_objects = context.selected_objects
-        
-        for obj in selected_objects:
-            # 创建一个列表用来存储obj的所有父集合
-            parents = []
-            
-            # 遍历所有集合以找到obj的父辈
-            for coll in bpy.data.collections:
-                if obj.name in coll.objects:
-                    parents.append(coll)
-            
-            # 只有当obj有父集合时，才给obj重命名
-            if parents:
-                # 根据索引，obj的新名字将等于第一个父集合的名字
-                obj.name = parents[0].name
-
-        return {"FINISHED"}
 
 
 #按照集合位置划分绑定父级
@@ -2031,7 +1948,6 @@ classes = [
     MoveOutsideOperator,
     FixSizeOperator,
     OBJECT_OT_SetParentButton,
-    RenameSelectedObjects,
     ClearAnimationData,
     SetEmissionStrength,
     OBJECT_OT_move_to_surface,
@@ -2046,7 +1962,6 @@ classes = [
     ResetNormals,
     CollectionByDistance,
     CleanCollection,
-    SelectByVolume,
     MaterialSort,
     BoundboxGen,
     CombinObject,
@@ -2066,8 +1981,7 @@ classes = [
 
 def register():
     
-
-
+    
     bpy.types.Scene.rename_axis = EnumProperty(
         name="轴向",
         items=[
@@ -2138,17 +2052,21 @@ def register():
         min=1
     )
 
-    
-
     for cls in classes:
-        bpy.utils.register_class(cls)
+        try:
+            bpy.utils.register_class(cls)
+        except ValueError:
+            pass  # 类已经注册，忽略该异常
 
 def is_class_registered(cls):
     return hasattr(cls, "bl_rna")
 
 def unregister():
-    for cls in classes:
-        bpy.utils.unregister_class(cls)
+    for cls in reversed(classes):
+        try:
+            bpy.utils.unregister_class(cls)
+        except ValueError:
+            pass  # 类未注册，忽略该异常
     del bpy.types.Scene.collectionB
     del bpy.types.Scene.collectionA
     del bpy.types.Scene.random_placement_extent
@@ -2159,9 +2077,7 @@ def unregister():
     del bpy.types.Scene.multiple_object_binding
     del bpy.types.Scene.link_scenes_batch_directory
     del bpy.types.Scene.rename_axis
-
     del bpy.types.Scene.resolution_factor
-
     bpy.types.Scene.tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.GTAtranslate_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.BindOperation_expand = bpy.props.BoolProperty(

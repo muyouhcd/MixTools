@@ -297,7 +297,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_voxelizer = layout.box()
             box_voxelizer.prop(context.scene.voxelizer_tool, "path")
             box_voxelizer.prop(context.scene.voxelizer_tool, "voxelizer_path")
-            box_voxelizer.prop(scene, "generate_solid")
+            # box_voxelizer.prop(scene, "generate_solid")
             box_voxelizer.operator("object.convert_voxelizer", text="一键转换vox")
             box_voxelizer.operator("object.convert_voxelizer_color", text="一键转换vox(带颜色)")
 # 烘焙操作
