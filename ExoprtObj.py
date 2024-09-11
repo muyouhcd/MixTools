@@ -1,6 +1,6 @@
 
 import bpy
-
+import os
 
 # 批量导出obj
 class ExporteObjOperator(bpy.types.Operator):
@@ -54,12 +54,8 @@ class ExporteObjOperator(bpy.types.Operator):
       
     return {'FINISHED'}
 
-
-
 def register():     
     bpy.utils.register_class(ExporteObjOperator)
 
-
 def unregister():
     bpy.utils.unregister_class(ExporteObjOperator)
-

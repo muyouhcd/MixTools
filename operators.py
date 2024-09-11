@@ -21,9 +21,6 @@ from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
 
 
-
-
-
 class OBJECT_OT_reset_z_axis(Operator):
     bl_idname = "object.reset_z_axis"
     bl_label = "重置选择对象的Z轴位置"
@@ -144,7 +141,6 @@ class VoxelConverter(bpy.types.Operator):
             print(f"obj2voxel {obj.name}.obj {obj.name}.vox -r {result} -p xZy ")
         return {'FINISHED'}
 
-
 #移除所选物体修改器
 class RemoveModifiers(bpy.types.Operator):
     """移除所选物体的修改器"""
@@ -166,10 +162,6 @@ class RemoveModifiers(bpy.types.Operator):
                     obj.modifiers.remove(obj.modifiers[0])
 
         return {'FINISHED'}
-
-    
-
-
 
 
 #设置所选物体材质为临近采样（硬边缘）
@@ -194,10 +186,6 @@ class SetTextureInterpolation(bpy.types.Operator):
                             node.interpolation = 'Closest'
                             
         return {'FINISHED'}
-
-
-
-
 
 # 合并材质
 class MergeMaterial(bpy.types.Operator):

@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiAO",
     "author": "MuyouHCD",
-    "version": (4,6,9),
+    "version": (4,7,0),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -10,10 +10,8 @@ bl_info = {
     "category": "Object",
 }
 
-
 import pkgutil
 import importlib
-
 import bpy
 import sys
 import os
