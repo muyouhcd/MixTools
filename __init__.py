@@ -81,6 +81,7 @@ from . import Combin
 from . import RenameTool
 from . import RemoveObj
 from . import SelectTool
+from . import ExoprtObj
 
 
 
@@ -105,6 +106,7 @@ def register():
     RenameTool.register()
     RemoveObj.register()
     SelectTool.register()
+    ExoprtObj.register()
 
 def unregister():
     update.unregister()
@@ -126,6 +128,7 @@ def unregister():
     RenameTool.unregister()
     RemoveObj.unregister()
     SelectTool.unregister()
+    ExoprtObj.unregister()
 
 
 if __name__ == "__main__":
