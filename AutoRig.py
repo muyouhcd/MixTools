@@ -310,7 +310,10 @@ class CharOperaterBoneWeight(bpy.types.Operator):
 
         def join_objects(parent_dict, new_name):
             for top_parent, objects in parent_dict.items():
-                # 确保在 OBJECT 模式下运行
+                if len(objects) <= 1:
+                    continue
+
+                # 确保所有对象都在 OBJECT 模式下
                 if bpy.context.mode != 'OBJECT':
                     bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -319,10 +322,11 @@ class CharOperaterBoneWeight(bpy.types.Operator):
                     obj.select_set(True)
 
                 if bpy.context.selected_objects:
-                    ctx = bpy.context.copy()
-                    ctx['active_object'] = bpy.context.selected_objects[0]
-                    ctx['selected_editable_objects'] = bpy.context.selected_objects
-                    bpy.ops.object.join(ctx)
+                    # 设置第一个选中的对象为活动对象
+                    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+                    bpy.ops.object.join()
+
+                bpy.context.object.name = new_name
 
         def create_contact_vertex_groups(input_objects, threshold_distance):
             objects = {obj.name: obj for obj in input_objects}

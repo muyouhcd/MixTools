@@ -81,14 +81,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             
 
 
-
-
-
-
-
-
-
-
 # 绑定操作
         col_BindOperation = layout.column()
         col_BindOperation.prop(scene, "BindOperation_expand", text="绑定操作集合", emboss=False,
