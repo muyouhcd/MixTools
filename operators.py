@@ -1258,6 +1258,8 @@ def set_nearest_parent_for_collection(self, context):
             objB.select_set(False)
             collB.name = closest_top_objA.name
 
+# ----
+
 
             
 class OBJECT_OT_SetParentButton(bpy.types.Operator):
