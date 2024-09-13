@@ -188,6 +188,11 @@ class CharOperaterBoneWeight(bpy.types.Operator):
             if default_bone:
                 edit_bones.remove(default_bone)
 
+            default_bone = edit_bones.get('骨骼')
+            if default_bone:
+                edit_bones.remove(default_bone)
+
+
             created_bones = {}
 
             for bone_name, data in bone_data.items():
