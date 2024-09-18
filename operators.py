@@ -296,6 +296,11 @@ class RandomScale(bpy.types.Operator):
         return {'FINISHED'}
 
 # 名称顺序y轴列队
+bpy.types.Scene.use_bounding_box = bpy.props.BoolProperty(
+    name="使用包围盒",
+    description="按照包围盒尺寸排列",
+    default=False
+)
 bpy.types.Scene.queue_up_distance = bpy.props.FloatProperty(
     name="距离",
     description="列队移动的距离",
@@ -313,28 +318,54 @@ class QueueUp(bpy.types.Operator):
     bl_label = "列队"
 
     def execute(self, context):
-
-        # 获取自定义属性的值
         distance = bpy.context.scene.queue_up_distance
         axis = bpy.context.scene.queue_up_axis
+        use_bounding_box = bpy.context.scene.use_bounding_box
 
-        objects = sorted(list(bpy.context.selected_objects),
-                         key=lambda obj: obj.name)
-
+        objects = sorted(list(bpy.context.selected_objects), key=lambda obj: obj.name)
+        
         if len(objects) == 0:
-            print("Collection is empty, cannot move objects")
-        else:
-            for i, obj in enumerate(objects):
+            self.report({'WARNING'}, "没有选中的物体")
+            return {"CANCELLED"}
+
+        current_position = Vector((0, 0, 0))
+
+        for obj in objects:
+            if use_bounding_box:
+                # 获取物体包围盒的边界角点坐标
+                bounding_box_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                min_corner = Vector((min([v.x for v in bounding_box_corners]),
+                                     min([v.y for v in bounding_box_corners]),
+                                     min([v.z for v in bounding_box_corners])))
+                max_corner = Vector((max([v.x for v in bounding_box_corners]),
+                                     max([v.y for v in bounding_box_corners]),
+                                     max([v.z for v in bounding_box_corners])))
+                size = max_corner - min_corner
+
                 if axis == "X":
-                    obj.location = (i * distance, 0, 0)
+                    displacement = Vector((size[0] / 2.0, 0, 0))
+                    obj.location = current_position + displacement
+                    current_position += Vector((size[0] + distance, 0, 0))
                 elif axis == "Y":
-                    obj.location = (0, i * distance, 0)
+                    displacement = Vector((0, size[1] / 2.0, 0))
+                    obj.location = current_position + displacement
+                    current_position += Vector((0, size[1] + distance, 0))
                 elif axis == "Z":
-                    obj.location = (0, 0, i * distance)
+                    displacement = Vector((0, 0, size[2] / 2.0))
+                    obj.location = current_position + displacement
+                    current_position += Vector((0, 0, size[2] + distance))
+            else:
+                if axis == "X":
+                    obj.location = current_position
+                    current_position[0] += distance
+                elif axis == "Y":
+                    obj.location = current_position
+                    current_position[1] += distance
+                elif axis == "Z":
+                    obj.location = current_position
+                    current_position[2] += distance
 
-        return {"FINISHED"}
-
-# 创建父级空物体
+        return {"FINISHED"}# 创建父级空物体
 def get_top_parent(obj):
     if obj.parent is None:
         return obj

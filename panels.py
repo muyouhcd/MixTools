@@ -198,6 +198,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # queue_up_box.label(text="列队")
             queue_up_box.prop(context.scene, "queue_up_distance")
             queue_up_box.prop(context.scene, "queue_up_axis", text="轴向")
+            queue_up_box.prop(context.scene, "use_bounding_box", text="使用包围盒")
             queue_up_box.operator("object.miao_queue_up")
             # 创建一个box来包含置乱位置相关功能
             random_placement_box = layout.box()
