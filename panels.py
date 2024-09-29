@@ -67,7 +67,8 @@ class CustomFunctionsPanel(bpy.types.Panel):
             layout.label(text="清理工具:")
             clean_box = layout.box()
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='FULLSCREEN_EXIT')
-
+            clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='FULLSCREEN_EXIT')
+            
 
             #合并工具
             layout.label(text="合并工具:")

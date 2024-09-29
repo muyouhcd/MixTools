@@ -126,6 +126,3 @@ def register():
 
 def unregister():
     bpy.utils.unregister_class(RetopologizeAndBakeOperator)
-
-if __name__ == "__main__":
-    register()

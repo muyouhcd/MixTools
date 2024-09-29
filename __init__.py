@@ -81,6 +81,7 @@ from . import RemoveObj
 from . import SelectTool
 from . import ExoprtObj
 from . import MaterialOperator
+from . import UVCleaner
 
 
 
@@ -107,6 +108,7 @@ def register():
     SelectTool.register()
     ExoprtObj.register()
     MaterialOperator.register()
+    UVCleaner.register()
 
     
 
@@ -132,6 +134,8 @@ def unregister():
     SelectTool.unregister()
     ExoprtObj.unregister()
     MaterialOperator.unregister()
+    UVCleaner.unregister()
+
 
 
 if __name__ == "__main__":

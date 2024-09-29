@@ -96,7 +96,7 @@ class ExportFbxByParent(bpy.types.Operator):
             if '_col' not in child.name:
                 child.select_set(True)
                 self.select_children_except_col(child)
-
+    
     def execute(self, context):
         # 检查路径
         check_result, dest_path = check_dir(self, context)
