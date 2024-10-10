@@ -39,6 +39,8 @@ class CustomFunctionsPanel(bpy.types.Panel):
             gen_box.operator("object.miao_boundbox_gen", text="生成包围盒", icon='MESH_CUBE')
             gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='MESH_CUBE')
             gen_box.operator("object.miao_safecombin", text="安全合并", icon='AUTOMERGE_ON')
+            
+            gen_box.operator("object.object_instance", text="转换实例化", icon='AUTOMERGE_ON')
 
             # Alignment Tools
             layout.label(text="对齐工具:")
