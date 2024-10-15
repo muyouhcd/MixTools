@@ -1,7 +1,6 @@
 import bpy
 from .MaterialOperator import SetEmissionStrength
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
-from .AutoRig import CharOperaterBoneWeight
 
 class CustomFunctionsPanel(bpy.types.Panel):
     bl_label = "MiAO Tools"
@@ -275,7 +274,8 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_character.operator("object.miao_char_operater", text="导入角色一键处理")
             box_character.prop(scene,"assign_contact_weights")
             box_character.prop(scene, "threshold_distance")
-            box_character.operator(CharOperaterBoneWeight.bl_idname, text="角色一键绑定")
+            box_character.operator('object.char_operater_bone_weight', text="女性角色一键绑定")
+            box_character.operator('object.char_operater_male_bone_weight', text="男性角色一键绑定")
         
             box_assestoperation = col_assestoperation.box()
             box_assestoperation.operator("object.miao_apply_and_separate", text="1.独立化应用所有变换")
