@@ -268,10 +268,27 @@ class FemaleCharOperaterBoneWeight(bpy.types.Operator):
             # origin = femal_bone_data.get("origin", Vector((0.0, 0.030188, 0.914863)))
 
             origin = femal_bone_data.get("origin", Vector((0.0, 0.0, 0.0)))
+            # 获取当前场景中所有对象的列表
+            all_objects = bpy.data.objects
+
+            # 确保列表中有对象
+            if all_objects:
+                # 选择任意对象，这里使用第一个对象
+                first_object = all_objects[0]
+                
+                # 设置此对象为活动对象
+                bpy.context.view_layer.objects.active = first_object
+                
+                # 确保对象被选中
+                first_object.select_set(True)
+
+                # 现在可以执行如切换模式的操作
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='SELECT')
 
             # 设置正确的上下文和模式
             bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.select_all(action='DESELECT')
+            bpy.ops.object.select_all(action='SELECT')
 
             # 创建骨架
             bpy.ops.object.armature_add(enter_editmode=True, location=(0,0,0))
@@ -516,9 +533,22 @@ class MaleCharOperaterBoneWeight(bpy.types.Operator):
 
             origin = male_bone_data.get("origin", Vector((0.0, 0.0, 0.0)))
 
-            # 设置正确的上下文和模式
-            bpy.ops.object.mode_set(mode='OBJECT')
-            bpy.ops.object.select_all(action='DESELECT')
+            all_objects = bpy.data.objects
+
+            # 确保列表中有对象
+            if all_objects:
+                # 选择任意对象，这里使用第一个对象
+                first_object = all_objects[0]
+                
+                # 设置此对象为活动对象
+                bpy.context.view_layer.objects.active = first_object
+                
+                # 确保对象被选中
+                first_object.select_set(True)
+
+                # 现在可以执行如切换模式的操作
+                bpy.ops.object.mode_set(mode='OBJECT')
+                bpy.ops.object.select_all(action='SELECT')
 
             # 创建骨架
             bpy.ops.object.armature_add(enter_editmode=True, location=(0,0,0))
