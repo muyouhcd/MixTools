@@ -206,6 +206,145 @@ male_bone_data = {
     "Bip001 R Toe0Nub": {"parent": "Bip001 R Toe0", "head": Vector((-0.0908, -0.2095, -0.8770)), "tail": Vector((-0.0908, -0.2095, -0.8117))}
 }
 
+def get_top_parent(obj):
+    while obj.parent is not None:
+        obj = obj.parent
+    return obj if obj else None
+
+def create_parent_dict(name_list):
+    top_parents = {}
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH' and any(name in obj.name for name in name_list):
+            top_parent = get_top_parent(obj)
+            if top_parent is None:
+                top_parent = obj
+            if top_parent not in top_parents:
+                top_parents[top_parent] = []
+            top_parents[top_parent].append(obj)
+    return top_parents
+
+def join_objects(parent_dict, new_name):
+    for top_parent, objects in parent_dict.items():
+        if len(objects) <= 1:
+            continue
+
+        # 确保所有对象都在 OBJECT 模式下
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in objects:
+            obj.select_set(True)
+
+        if bpy.context.selected_objects:
+            # 设置第一个选中的对象为活动对象
+            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+            bpy.ops.object.join()
+
+        bpy.context.object.name = new_name
+
+def create_contact_vertex_groups(input_objects, threshold_distance):
+    objects = {obj.name: obj for obj in input_objects}
+
+    kdtrees = {}
+    bm_objects = {}
+    for obj_name, obj in objects.items():
+        bm_objects[obj_name] = bmesh.new()
+        bm_objects[obj_name].from_mesh(obj.data)
+        kdtrees[obj_name] = kdtree.KDTree(len(bm_objects[obj_name].verts))
+        for i, v in enumerate(bm_objects[obj_name].verts):
+            kdtrees[obj_name].insert(obj.matrix_world @ v.co, i)
+        kdtrees[obj_name].balance()
+
+    vertex_groups = defaultdict(dict)
+
+    for obj_a in input_objects:
+        obj_a_name = obj_a.name
+        for obj_b in input_objects:
+            if obj_a != obj_b:
+                group_name = f'Bip001 {obj_b.name}'
+                vertex_groups[obj_a][obj_b] = (obj_a.vertex_groups.new(name=group_name)
+                                            if group_name not in obj_a.vertex_groups else
+                                            obj_a.vertex_groups[group_name])
+
+    for obj_a in input_objects:
+        obj_a_name = obj_a.name
+        bm_a = bm_objects[obj_a_name]
+        kd_tree_a = kdtrees[obj_a_name]
+        for obj_b in input_objects:
+            if obj_a != obj_b:
+                kd_tree_b = kdtrees[obj_b.name]
+                vertex_group = vertex_groups[obj_a][obj_b]
+                for i, v in enumerate(bm_a.verts):
+                    global_v_co = obj_a.matrix_world @ v.co
+                    closest_co, closest_index, dist = kd_tree_b.find(global_v_co)
+                    if dist < threshold_distance:
+                        weight = 1.0 - dist / threshold_distance
+                        vertex_group.add([v.index], weight, 'REPLACE')
+
+    for bm in bm_objects.values():
+        bm.free()
+
+    for obj in input_objects:
+        obj.data.update()
+
+    print("Contact weights assigned for all object combinations, and self vertex groups created with full weight.")
+
+def filter_objects_by_name_patterns(objects, name_patterns):
+    filtered_objects = []
+    for obj in objects:
+        if obj.type == 'MESH' and any(name_pattern in obj.name for name_pattern in name_patterns):
+            filtered_objects.append(obj)
+    return filtered_objects
+
+def rename_all_children_based_on_coords(empty_coords):
+        objects_bvh = {}
+
+        def create_bvh_tree(obj):
+            bm = bmesh.new()
+            bm.from_object(obj, bpy.context.evaluated_depsgraph_get())
+            bmesh.ops.transform(bm, verts=bm.verts, matrix=obj.matrix_world)
+            bvh = BVHTree.FromBMesh(bm)
+            bm.free()
+            return bvh
+
+        for obj in bpy.context.scene.objects:
+            if obj.type == 'MESH':
+                objects_bvh[obj] = create_bvh_tree(obj)
+
+        renamed_objects = {}
+
+        for name, coord in empty_coords:
+            intersection_count = defaultdict(int)
+
+            for other_obj, bvh in objects_bvh.items():
+                ray_origin = coord
+                ray_direction = Vector((0, 0, -1))
+
+                hit, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
+                while hit:
+                    intersection_count[other_obj] += 1
+                    hit += ray_direction * 0.00001
+                    hit, _, _, _ = bvh.ray_cast(hit, ray_direction)
+
+            for other_obj, count in intersection_count.items():
+                if count % 2 == 1:
+                    new_name = name.replace("_example", "")
+                    if other_obj not in renamed_objects:
+                        other_obj.name = new_name
+                        renamed_objects[other_obj] = True
+
+def process_contact_weights():
+    threshold_distance = bpy.context.scene.threshold_distance
+    if bpy.context.scene.assign_contact_weights:
+        print("Processing contact weights...")
+        all_objects = bpy.context.scene.objects
+        for name_patterns in named_group:
+            group_objects = filter_objects_by_name_patterns(all_objects, name_patterns)
+            create_contact_vertex_groups(group_objects, threshold_distance)
+        pass
+    else:
+        print("Skipping contact weight assignment...")
 
 class CharOperater(bpy.types.Operator):
     bl_idname = "object.miao_char_operater"
@@ -331,43 +470,6 @@ class FemaleCharOperaterBone(bpy.types.Operator):
 
             return armature
 
-        def rename_all_children_based_on_coords(empty_coords):
-            objects_bvh = {}
-
-            def create_bvh_tree(obj):
-                bm = bmesh.new()
-                bm.from_object(obj, bpy.context.evaluated_depsgraph_get())
-                bmesh.ops.transform(bm, verts=bm.verts, matrix=obj.matrix_world)
-                bvh = BVHTree.FromBMesh(bm)
-                bm.free()
-                return bvh
-
-            for obj in bpy.context.scene.objects:
-                if obj.type == 'MESH':
-                    objects_bvh[obj] = create_bvh_tree(obj)
-
-            renamed_objects = {}
-
-            for name, coord in empty_coords:
-                intersection_count = defaultdict(int)
-
-                for other_obj, bvh in objects_bvh.items():
-                    ray_origin = coord
-                    ray_direction = Vector((0, 0, -1))
-
-                    hit, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
-                    while hit:
-                        intersection_count[other_obj] += 1
-                        hit += ray_direction * 0.00001
-                        hit, _, _, _ = bvh.ray_cast(hit, ray_direction)
-
-                for other_obj, count in intersection_count.items():
-                    if count % 2 == 1:
-                        new_name = name.replace("_example", "")
-                        if other_obj not in renamed_objects:
-                            other_obj.name = new_name
-                            renamed_objects[other_obj] = True
-
         def duplicate_bones_to_objects():
             # 先删除命名为 "BOX" 的物体
             boxes_to_delete = [obj for obj in bpy.data.objects if obj.name.startswith("BOX")]
@@ -405,112 +507,9 @@ class FemaleCharOperaterBone(bpy.types.Operator):
                             group = child_obj.vertex_groups.new(name=bone_name)
                             for v in child_obj.data.vertices:
                                 group.add([v.index], 1.0, 'ADD')
-
-        def get_top_parent(obj):
-            while obj.parent is not None:
-                obj = obj.parent
-            return obj if obj else None
-
-        def create_parent_dict(name_list):
-            top_parents = {}
-            for obj in bpy.context.scene.objects:
-                if obj.type == 'MESH' and any(name in obj.name for name in name_list):
-                    top_parent = get_top_parent(obj)
-                    if top_parent is None:
-                        top_parent = obj
-                    if top_parent not in top_parents:
-                        top_parents[top_parent] = []
-                    top_parents[top_parent].append(obj)
-            return top_parents
-
-        def join_objects(parent_dict, new_name):
-            for top_parent, objects in parent_dict.items():
-                if len(objects) <= 1:
-                    continue
-
-                # 确保所有对象都在 OBJECT 模式下
-                if bpy.context.mode != 'OBJECT':
-                    bpy.ops.object.mode_set(mode='OBJECT')
-
-                bpy.ops.object.select_all(action='DESELECT')
-                for obj in objects:
-                    obj.select_set(True)
-
-                if bpy.context.selected_objects:
-                    # 设置第一个选中的对象为活动对象
-                    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
-                    bpy.ops.object.join()
-
-                bpy.context.object.name = new_name
-
-        def create_contact_vertex_groups(input_objects, threshold_distance):
-            objects = {obj.name: obj for obj in input_objects}
-
-            kdtrees = {}
-            bm_objects = {}
-            for obj_name, obj in objects.items():
-                bm_objects[obj_name] = bmesh.new()
-                bm_objects[obj_name].from_mesh(obj.data)
-                kdtrees[obj_name] = kdtree.KDTree(len(bm_objects[obj_name].verts))
-                for i, v in enumerate(bm_objects[obj_name].verts):
-                    kdtrees[obj_name].insert(obj.matrix_world @ v.co, i)
-                kdtrees[obj_name].balance()
-
-            vertex_groups = defaultdict(dict)
-
-            for obj_a in input_objects:
-                obj_a_name = obj_a.name
-                for obj_b in input_objects:
-                    if obj_a != obj_b:
-                        group_name = f'Bip001 {obj_b.name}'
-                        vertex_groups[obj_a][obj_b] = (obj_a.vertex_groups.new(name=group_name)
-                                                    if group_name not in obj_a.vertex_groups else
-                                                    obj_a.vertex_groups[group_name])
-
-            for obj_a in input_objects:
-                obj_a_name = obj_a.name
-                bm_a = bm_objects[obj_a_name]
-                kd_tree_a = kdtrees[obj_a_name]
-                for obj_b in input_objects:
-                    if obj_a != obj_b:
-                        kd_tree_b = kdtrees[obj_b.name]
-                        vertex_group = vertex_groups[obj_a][obj_b]
-                        for i, v in enumerate(bm_a.verts):
-                            global_v_co = obj_a.matrix_world @ v.co
-                            closest_co, closest_index, dist = kd_tree_b.find(global_v_co)
-                            if dist < threshold_distance:
-                                weight = 1.0 - dist / threshold_distance
-                                vertex_group.add([v.index], weight, 'REPLACE')
-
-            for bm in bm_objects.values():
-                bm.free()
-
-            for obj in input_objects:
-                obj.data.update()
-
-            print("Contact weights assigned for all object combinations, and self vertex groups created with full weight.")
-
-        def filter_objects_by_name_patterns(objects, name_patterns):
-            filtered_objects = []
-            for obj in objects:
-                if obj.type == 'MESH' and any(name_pattern in obj.name for name_pattern in name_patterns):
-                    filtered_objects.append(obj)
-            return filtered_objects
-
+        
         bpy.ops.object.miao_clean_sense()
         rename_all_children_based_on_coords(empty_coords_femal_name_example)
-
-        def process_contact_weights():
-            threshold_distance = bpy.context.scene.threshold_distance
-            if bpy.context.scene.assign_contact_weights:
-                print("Processing contact weights...")
-                all_objects = bpy.context.scene.objects
-                for name_patterns in named_group:
-                    group_objects = filter_objects_by_name_patterns(all_objects, name_patterns)
-                    create_contact_vertex_groups(group_objects, threshold_distance)
-                pass
-            else:
-                print("Skipping contact weight assignment...")
 
         process_contact_weights()
         duplicate_bones_to_objects()
@@ -591,43 +590,6 @@ class MaleCharOperaterBone(bpy.types.Operator):
 
             return armature
 
-        def rename_all_children_based_on_coords(empty_coords):
-            objects_bvh = {}
-
-            def create_bvh_tree(obj):
-                bm = bmesh.new()
-                bm.from_object(obj, bpy.context.evaluated_depsgraph_get())
-                bmesh.ops.transform(bm, verts=bm.verts, matrix=obj.matrix_world)
-                bvh = BVHTree.FromBMesh(bm)
-                bm.free()
-                return bvh
-
-            for obj in bpy.context.scene.objects:
-                if obj.type == 'MESH':
-                    objects_bvh[obj] = create_bvh_tree(obj)
-
-            renamed_objects = {}
-
-            for name, coord in empty_coords:
-                intersection_count = defaultdict(int)
-
-                for other_obj, bvh in objects_bvh.items():
-                    ray_origin = coord
-                    ray_direction = Vector((0, 0, -1))
-
-                    hit, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
-                    while hit:
-                        intersection_count[other_obj] += 1
-                        hit += ray_direction * 0.00001
-                        hit, _, _, _ = bvh.ray_cast(hit, ray_direction)
-
-                for other_obj, count in intersection_count.items():
-                    if count % 2 == 1:
-                        new_name = name.replace("_example", "")
-                        if other_obj not in renamed_objects:
-                            other_obj.name = new_name
-                            renamed_objects[other_obj] = True
-
         def duplicate_bones_to_objects():
             # 先删除命名为 "BOX" 的物体
             boxes_to_delete = [obj for obj in bpy.data.objects if obj.name.startswith("BOX")]
@@ -666,111 +628,8 @@ class MaleCharOperaterBone(bpy.types.Operator):
                             for v in child_obj.data.vertices:
                                 group.add([v.index], 1.0, 'ADD')
 
-        def get_top_parent(obj):
-            while obj.parent is not None:
-                obj = obj.parent
-            return obj if obj else None
-
-        def create_parent_dict(name_list):
-            top_parents = {}
-            for obj in bpy.context.scene.objects:
-                if obj.type == 'MESH' and any(name in obj.name for name in name_list):
-                    top_parent = get_top_parent(obj)
-                    if top_parent is None:
-                        top_parent = obj
-                    if top_parent not in top_parents:
-                        top_parents[top_parent] = []
-                    top_parents[top_parent].append(obj)
-            return top_parents
-
-        def join_objects(parent_dict, new_name):
-            for top_parent, objects in parent_dict.items():
-                if len(objects) <= 1:
-                    continue
-
-                # 确保所有对象都在 OBJECT 模式下
-                if bpy.context.mode != 'OBJECT':
-                    bpy.ops.object.mode_set(mode='OBJECT')
-
-                bpy.ops.object.select_all(action='DESELECT')
-                for obj in objects:
-                    obj.select_set(True)
-
-                if bpy.context.selected_objects:
-                    # 设置第一个选中的对象为活动对象
-                    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
-                    bpy.ops.object.join()
-
-                bpy.context.object.name = new_name
-
-        def create_contact_vertex_groups(input_objects, threshold_distance):
-            objects = {obj.name: obj for obj in input_objects}
-
-            kdtrees = {}
-            bm_objects = {}
-            for obj_name, obj in objects.items():
-                bm_objects[obj_name] = bmesh.new()
-                bm_objects[obj_name].from_mesh(obj.data)
-                kdtrees[obj_name] = kdtree.KDTree(len(bm_objects[obj_name].verts))
-                for i, v in enumerate(bm_objects[obj_name].verts):
-                    kdtrees[obj_name].insert(obj.matrix_world @ v.co, i)
-                kdtrees[obj_name].balance()
-
-            vertex_groups = defaultdict(dict)
-
-            for obj_a in input_objects:
-                obj_a_name = obj_a.name
-                for obj_b in input_objects:
-                    if obj_a != obj_b:
-                        group_name = f'Bip001 {obj_b.name}'
-                        vertex_groups[obj_a][obj_b] = (obj_a.vertex_groups.new(name=group_name)
-                                                    if group_name not in obj_a.vertex_groups else
-                                                    obj_a.vertex_groups[group_name])
-
-            for obj_a in input_objects:
-                obj_a_name = obj_a.name
-                bm_a = bm_objects[obj_a_name]
-                kd_tree_a = kdtrees[obj_a_name]
-                for obj_b in input_objects:
-                    if obj_a != obj_b:
-                        kd_tree_b = kdtrees[obj_b.name]
-                        vertex_group = vertex_groups[obj_a][obj_b]
-                        for i, v in enumerate(bm_a.verts):
-                            global_v_co = obj_a.matrix_world @ v.co
-                            closest_co, closest_index, dist = kd_tree_b.find(global_v_co)
-                            if dist < threshold_distance:
-                                weight = 1.0 - dist / threshold_distance
-                                vertex_group.add([v.index], weight, 'REPLACE')
-
-            for bm in bm_objects.values():
-                bm.free()
-
-            for obj in input_objects:
-                obj.data.update()
-
-            print("Contact weights assigned for all object combinations, and self vertex groups created with full weight.")
-
-        def filter_objects_by_name_patterns(objects, name_patterns):
-            filtered_objects = []
-            for obj in objects:
-                if obj.type == 'MESH' and any(name_pattern in obj.name for name_pattern in name_patterns):
-                    filtered_objects.append(obj)
-            return filtered_objects
-
         bpy.ops.object.miao_clean_sense()
         rename_all_children_based_on_coords(empty_coords_male_name_example)
-
-        def process_contact_weights():
-            threshold_distance = bpy.context.scene.threshold_distance
-            if bpy.context.scene.assign_contact_weights:
-                print("Processing contact weights...")
-                all_objects = bpy.context.scene.objects
-                for name_patterns in named_group:
-                    group_objects = filter_objects_by_name_patterns(all_objects, name_patterns)
-                    create_contact_vertex_groups(group_objects, threshold_distance)
-                pass
-            else:
-                print("Skipping contact weight assignment...")
 
         process_contact_weights()
         duplicate_bones_to_objects()
