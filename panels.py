@@ -38,6 +38,8 @@ class CustomFunctionsPanel(bpy.types.Panel):
             gen_box.operator("object.miao_boundbox_gen", text="生成包围盒", icon='MESH_CUBE')
             gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='MESH_CUBE')
             gen_box.operator("object.miao_safecombin", text="安全合并", icon='AUTOMERGE_ON')
+
+            
             
             gen_box.operator("object.object_instance", text="转换实例化", icon='AUTOMERGE_ON')
 
@@ -48,6 +50,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             op = align_box.operator("object.move_origin", text="Move Origin")
             op.axis_direction = context.scene.axis_direction_enum
             align_box.operator("object.reset_z_axis", text="z轴归零")
+            
 
 
             # align_box.operator("object.miao_alignment_ground", text="原点移至底部", icon='ALIGN_BOTTOM')
@@ -272,8 +275,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
             #一键定位并绑定角色
             box_character = col_assestoperation.box()
             box_character.operator("object.miao_char_operater", text="导入角色一键处理")
-            box_character.prop(scene,"assign_contact_weights")
-            box_character.prop(scene, "threshold_distance")
+            # box_character.prop(scene,"assign_contact_weights")
+            # box_character.prop(scene, "threshold_distance")
+            box_character.operator("object.point_data_generator", text="角色点位数据生成", icon='AUTOMERGE_ON')
+            box_character.operator("object.bone_data_generator", text="角色骨骼数据生成", icon='AUTOMERGE_ON')
+
             box_character.operator('object.char_operater_bone_weight', text="女性角色一键绑定")
             box_character.operator('object.char_operater_male_bone_weight', text="男性角色一键绑定")
         

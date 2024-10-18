@@ -25,6 +25,7 @@ named_group = [
     {'R Finger21', 'R Finger2'},
     {'Pelvis', 'Spine2', 'Spine1', 'Spine'}
 ]
+
 empty_coords_femal_name_example = [
     ("R Toe0_example", Vector((-0.0922, -0.1240, 0.0156))),
     ("R Foot_example", Vector((-0.0938, -0.0028, 0.0340))),
@@ -115,7 +116,6 @@ femal_bone_data = {
 "Bip001 R Toe0Nub": {"parent": "Bip001 R Toe0", "head": Vector((-0.0915, -0.1512, -0.9054)), "tail": Vector((-0.0915, -0.1512, -0.8851))},
 
 }
-
 
 empty_coords_male_name_example = [
     ("R Toe0_example", Vector((-0.0934, -0.1497, 0.0143))),
@@ -258,14 +258,13 @@ class CharOperater(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class FemaleCharOperaterBoneWeight(bpy.types.Operator):
+class FemaleCharOperaterBone(bpy.types.Operator):
     bl_idname = "object.char_operater_bone_weight"
     bl_label = "女性骨骼绑定"
 
     def execute(self, context):
-        def create_armature_with_bones(armature_name, femal_bone_data):
+        def create_femal_armature_with_bones(armature_name, femal_bone_data):
             # 获取骨架的起始位置
-            # origin = femal_bone_data.get("origin", Vector((0.0, 0.030188, 0.914863)))
 
             origin = femal_bone_data.get("origin", Vector((0.0, 0.0, 0.0)))
             # 获取当前场景中所有对象的列表
@@ -383,7 +382,7 @@ class FemaleCharOperaterBoneWeight(bpy.types.Operator):
                 if object.parent is None:
                     # 创建一个新的骨架并为每个顶级父对象命名
                     armature_name = f'{object.name}_armature'
-                    armature = create_armature_with_bones(armature_name, femal_bone_data)
+                    armature = create_femal_armature_with_bones(armature_name, femal_bone_data)
 
                     collection = object.users_collection[0]
 
@@ -522,7 +521,7 @@ class FemaleCharOperaterBoneWeight(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class MaleCharOperaterBoneWeight(bpy.types.Operator):
+class MaleCharOperaterBone(bpy.types.Operator):
     bl_idname = "object.char_operater_male_bone_weight"
     bl_label = "男性骨骼绑定"
 
@@ -782,12 +781,129 @@ class MaleCharOperaterBoneWeight(bpy.types.Operator):
 
         return {'FINISHED'}
 
+#生成骨骼数据（命名为Bip001_example）
+class BoneDataGenerator(bpy.types.Operator):
+    bl_idname = "object.bone_data_generator"
+    bl_label = "生成骨骼数据"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        def get_bone_data_with_scaling(template_armature_name):
+            bone_data = {}
+            template_armature = bpy.data.objects.get(template_armature_name)
+            
+            if template_armature and template_armature.type == 'ARMATURE':
+                object_scale = template_armature.scale  # Get the scale of the armature object.
+                
+                bpy.context.view_layer.objects.active = template_armature
+                bpy.ops.object.mode_set(mode='EDIT')
+                for bone in template_armature.data.edit_bones:
+                    # Apply the object scale to the head and tail positions.
+                    head_scaled = Vector(bone.head) * object_scale
+                    tail_scaled = Vector(bone.tail) * object_scale
+                    
+                    bone_data[bone.name] = {
+                        "parent": bone.parent.name if bone.parent else None,
+                        "head": head_scaled,
+                        "tail": tail_scaled
+                    }
+                bpy.ops.object.mode_set(mode='OBJECT')
+            
+            return bone_data
+
+        # Usage example
+        template_armature_name = "Bip001_example"
+        bone_data = get_bone_data_with_scaling(template_armature_name)
+
+        # Format output to ensure each bone is output on one line
+        output_lines = []
+        for bone_name, data in bone_data.items():
+            parent_str = f'"{data["parent"]}"' if data["parent"] else "None"
+            head_str = f"Vector(({data['head'].x:.4f}, {data['head'].y:.4f}, {data['head'].z:.4f}))"
+            tail_str = f"Vector(({data['tail'].x:.4f}, {data['tail'].y:.4f}, {data['tail'].z:.4f}))"
+            output_lines.append(f'"{bone_name}": {{"parent": {parent_str}, "head": {head_str}, "tail": {tail_str}}},')
+
+        # Output each line
+        for line in output_lines:
+            print(line)
+
+        return {'FINISHED'}
+class PointDataGenerator(bpy.types.Operator):
+    bl_idname = "object.point_data_generator"
+    bl_label = "生成点数据"
+    bl_options = {'REGISTER', 'UNDO'}
+    def execute(self, context):
+        # 在这里添加你的代码来生成点数据
+        def get_empty_objects_data(objects_list):
+            empty_coords = []
+            for obj_name in objects_list:
+                obj = bpy.data.objects.get(obj_name)
+                if obj and obj.type == 'EMPTY':
+                    empty_coords.append((obj.name, Vector(obj.location)))
+            return empty_coords
+
+        # 示例：你想提取这些空物体的信息
+        empty_objects_example = [
+            "R Toe0_example",
+            "R Foot_example",
+            "R Calf_example",
+            "L Toe0_example",
+            "L Foot_example",
+            "L Calf_example",
+            "Spine_example",
+            "Spine2_example",
+            "Spine1_example",
+            "R UpperArm_example",
+            "R Thigh_example",
+            "R Hand_example",
+            "R Forearm_example",
+            "R Finger2_example",
+            "R Finger21_example",
+            "R Finger1_example",
+            "R Finger11_example",
+            "R Finger0_example",
+            "R Finger01_example",
+            "Pelvis_example",
+            "L UpperArm_example",
+            "L Thigh_example",
+            "L Hand_example",
+            "L Forearm_example",
+            "L Finger2_example",
+            "L Finger21_example",
+            "L Finger1_example",
+            "L Finger11_example",
+            "L Finger0_example",
+            "L Finger01_example",
+            "Neck_example",
+            "Head_example", 
+            "Head_example",
+            "Feet_example",
+            "UpperBody_example",
+            "Face_example",
+            "LowerBody_example"
+            
+        ]
+
+        # 提取信息并生成数据结构
+        empty_coords_data = get_empty_objects_data(empty_objects_example)
+
+        # 打印结果，每行输出一个空物体的名称和坐标
+        for name, location in empty_coords_data:
+            location_str = f"Vector(({location.x:.4f}, {location.y:.4f}, {location.z:.4f}))"
+            print(f'("{name}", {location_str}),')
+        return {'FINISHED'}
+
 def register():
     bpy.utils.register_class(CharOperater)
-    bpy.utils.register_class(FemaleCharOperaterBoneWeight)
-    bpy.utils.register_class(MaleCharOperaterBoneWeight)
+    bpy.utils.register_class(FemaleCharOperaterBone)
+    bpy.utils.register_class(MaleCharOperaterBone)
+    bpy.utils.register_class(BoneDataGenerator)
+    bpy.utils.register_class(PointDataGenerator)
 
 def unregister():
     bpy.utils.unregister_class(CharOperater)
-    bpy.utils.unregister_class(FemaleCharOperaterBoneWeight)
-    bpy.utils.unregister_class(MaleCharOperaterBoneWeight)
+    bpy.utils.unregister_class(FemaleCharOperaterBone)
+    bpy.utils.unregister_class(MaleCharOperaterBone)
+    bpy.utils.unregister_class(BoneDataGenerator)
+    bpy.utils.unregister_class(PointDataGenerator)
+
+    
