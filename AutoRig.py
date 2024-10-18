@@ -5,8 +5,6 @@ from mathutils import Vector
 from collections import defaultdict
 from mathutils.bvhtree import BVHTree
 from mathutils import kdtree
-import math
-
 
 
 name_groups = [
@@ -243,53 +241,6 @@ def join_objects(parent_dict, new_name):
 
         bpy.context.object.name = new_name
 
-def create_contact_vertex_groups(input_objects, threshold_distance):
-    objects = {obj.name: obj for obj in input_objects}
-
-    kdtrees = {}
-    bm_objects = {}
-    for obj_name, obj in objects.items():
-        bm_objects[obj_name] = bmesh.new()
-        bm_objects[obj_name].from_mesh(obj.data)
-        kdtrees[obj_name] = kdtree.KDTree(len(bm_objects[obj_name].verts))
-        for i, v in enumerate(bm_objects[obj_name].verts):
-            kdtrees[obj_name].insert(obj.matrix_world @ v.co, i)
-        kdtrees[obj_name].balance()
-
-    vertex_groups = defaultdict(dict)
-
-    for obj_a in input_objects:
-        obj_a_name = obj_a.name
-        for obj_b in input_objects:
-            if obj_a != obj_b:
-                group_name = f'Bip001 {obj_b.name}'
-                vertex_groups[obj_a][obj_b] = (obj_a.vertex_groups.new(name=group_name)
-                                            if group_name not in obj_a.vertex_groups else
-                                            obj_a.vertex_groups[group_name])
-
-    for obj_a in input_objects:
-        obj_a_name = obj_a.name
-        bm_a = bm_objects[obj_a_name]
-        kd_tree_a = kdtrees[obj_a_name]
-        for obj_b in input_objects:
-            if obj_a != obj_b:
-                kd_tree_b = kdtrees[obj_b.name]
-                vertex_group = vertex_groups[obj_a][obj_b]
-                for i, v in enumerate(bm_a.verts):
-                    global_v_co = obj_a.matrix_world @ v.co
-                    closest_co, closest_index, dist = kd_tree_b.find(global_v_co)
-                    if dist < threshold_distance:
-                        weight = 1.0 - dist / threshold_distance
-                        vertex_group.add([v.index], weight, 'REPLACE')
-
-    for bm in bm_objects.values():
-        bm.free()
-
-    for obj in input_objects:
-        obj.data.update()
-
-    print("Contact weights assigned for all object combinations, and self vertex groups created with full weight.")
-
 def filter_objects_by_name_patterns(objects, name_patterns):
     filtered_objects = []
     for obj in objects:
@@ -345,6 +296,53 @@ def process_contact_weights():
         pass
     else:
         print("Skipping contact weight assignment...")
+
+def create_contact_vertex_groups(input_objects, threshold_distance):
+    objects = {obj.name: obj for obj in input_objects}
+
+    kdtrees = {}
+    bm_objects = {}
+    for obj_name, obj in objects.items():
+        bm_objects[obj_name] = bmesh.new()
+        bm_objects[obj_name].from_mesh(obj.data)
+        kdtrees[obj_name] = kdtree.KDTree(len(bm_objects[obj_name].verts))
+        for i, v in enumerate(bm_objects[obj_name].verts):
+            kdtrees[obj_name].insert(obj.matrix_world @ v.co, i)
+        kdtrees[obj_name].balance()
+
+    vertex_groups = defaultdict(dict)
+
+    for obj_a in input_objects:
+        obj_a_name = obj_a.name
+        for obj_b in input_objects:
+            if obj_a != obj_b:
+                group_name = f'Bip001 {obj_b.name}'
+                vertex_groups[obj_a][obj_b] = (obj_a.vertex_groups.new(name=group_name)
+                                            if group_name not in obj_a.vertex_groups else
+                                            obj_a.vertex_groups[group_name])
+
+    for obj_a in input_objects:
+        obj_a_name = obj_a.name
+        bm_a = bm_objects[obj_a_name]
+        kd_tree_a = kdtrees[obj_a_name]
+        for obj_b in input_objects:
+            if obj_a != obj_b:
+                kd_tree_b = kdtrees[obj_b.name]
+                vertex_group = vertex_groups[obj_a][obj_b]
+                for i, v in enumerate(bm_a.verts):
+                    global_v_co = obj_a.matrix_world @ v.co
+                    closest_co, closest_index, dist = kd_tree_b.find(global_v_co)
+                    if dist < threshold_distance:
+                        weight = 1.0 - dist / threshold_distance
+                        vertex_group.add([v.index], weight, 'REPLACE')
+
+    for bm in bm_objects.values():
+        bm.free()
+
+    for obj in input_objects:
+        obj.data.update()
+
+    print("Contact weights assigned for all object combinations, and self vertex groups created with full weight.")
 
 class CharOperater(bpy.types.Operator):
     bl_idname = "object.miao_char_operater"
