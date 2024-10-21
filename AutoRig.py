@@ -116,92 +116,92 @@ femal_bone_data = {
 }
 
 empty_coords_male_name_example = [
-    ("R Toe0_example", Vector((-0.0934, -0.1497, 0.0143))),
-    ("R Foot_example", Vector((-0.0934, -0.0682, 0.0286))),
-    ("R Calf_example", Vector((-0.0934, -0.0100, 0.3663))),
-    ("L Toe0_example", Vector((0.0921, -0.1497, 0.0143))),
-    ("L Foot_example", Vector((0.0921, -0.0682, 0.0286))),
-    ("L Calf_example", Vector((0.0921, -0.0100, 0.3663))),
-    ("Spine_example", Vector((-0.0006, -0.0280, 1.0215))),
-    ("Spine2_example", Vector((-0.0006, -0.0472, 1.3918))),
-    ("Spine1_example", Vector((-0.0006, -0.0279, 1.1449))),
-    ("R UpperArm_example", Vector((-0.3555, -0.0055, 1.4089))),
-    ("R Thigh_example", Vector((-0.0934, -0.0221, 0.7384))),
-    ("R Hand_example", Vector((-0.7695, 0.0003, 1.4246))),
-    ("R Forearm_example", Vector((-0.5733, -0.0020, 1.4179))),
-    ("R Finger2_example", Vector((-0.8162, 0.0122, 1.4216))),
-    ("R Finger21_example", Vector((-0.8493, 0.0126, 1.4224))),
-    ("R Finger1_example", Vector((-0.8163, -0.0408, 1.4228))),
-    ("R Finger11_example", Vector((-0.8498, -0.0408, 1.4228))),
-    ("R Finger0_example", Vector((-0.7737, -0.0623, 1.3918))),
-    ("R Finger01_example", Vector((-0.8048, -0.0623, 1.3918))),
-    ("Pelvis_example", Vector((-0.0006, -0.0221, 0.9410))),
-    ("L UpperArm_example", Vector((0.3565, -0.0091, 1.4086))),
-    ("L Thigh_example", Vector((0.0921, -0.0221, 0.7384))),
-    ("L Hand_example", Vector((0.7705, -0.0032, 1.4243))),
-    ("L Forearm_example", Vector((0.5743, -0.0055, 1.4176))),
-    ("L Finger2_example", Vector((0.8116, 0.0090, 1.4221))),
-    ("L Finger21_example", Vector((0.8463, 0.0090, 1.4221))),
-    ("L Finger1_example", Vector((0.8130, -0.0408, 1.4228))),
-    ("L Finger11_example", Vector((0.8466, -0.0408, 1.4228))),
-    ("L Finger0_example", Vector((0.7746, -0.0623, 1.3918))),
-    ("L Finger01_example", Vector((0.8042, -0.0623, 1.3918))),
-    ("Neck_example", Vector((-0.0032, -0.0144, 1.4750))),
-    ("Head_example", Vector((-0.0032, -0.0154, 1.6308)))
+    ("R Toe0_example", Vector((-0.0922, -0.1240, 0.0156))),
+    ("R Foot_example", Vector((-0.0938, 0.0124, 0.0340))),
+    ("R Calf_example", Vector((-0.0938, 0.0110, 0.2991))),
+    ("L Toe0_example", Vector((0.0922, -0.1240, 0.0156))),
+    ("L Foot_example", Vector((0.0938, 0.0124, 0.0340))),
+    ("L Calf_example", Vector((0.0938, 0.0110, 0.2991))),
+    ("Spine_example", Vector((0.0000, 0.0270, 1.0378))),
+    ("Spine2_example", Vector((0.0000, 0.0171, 1.2895))),
+    ("Spine1_example", Vector((0.0000, 0.0134, 1.1500))),
+    ("R UpperArm_example", Vector((-0.3006, 0.0021, 1.4002))),
+    ("R Thigh_example", Vector((-0.0952, 0.0023, 0.6991))),
+    ("R Hand_example", Vector((-0.7474, 0.0076, 1.4080))),
+    ("R Forearm_example", Vector((-0.5861, 0.0076, 1.4080))),
+    ("R Finger2_example", Vector((-0.8154, 0.0232, 1.4158))),
+    ("R Finger21_example", Vector((-0.8565, 0.0212, 1.4158))),
+    ("R Finger1_example", Vector((-0.8154, -0.0237, 1.4158))),
+    ("R Finger11_example", Vector((-0.8579, -0.0237, 1.4158))),
+    ("R Finger0_example", Vector((-0.7729, -0.0471, 1.3846))),
+    ("R Finger01_example", Vector((-0.8069, -0.0471, 1.3846))),
+    ("Pelvis_example", Vector((0.0000, 0.0306, 0.9380))),
+    ("L UpperArm_example", Vector((0.3006, 0.0021, 1.4002))),
+    ("L Thigh_example", Vector((0.0952, 0.0023, 0.6991))),
+    ("L Hand_example", Vector((0.7474, 0.0076, 1.4080))),
+    ("L Forearm_example", Vector((0.5861, 0.0076, 1.4080))),
+    ("L Finger2_example", Vector((0.8154, 0.0232, 1.4158))),
+    ("L Finger21_example", Vector((0.8579, 0.0284, 1.4158))),
+    ("L Finger1_example", Vector((0.8154, -0.0237, 1.4158))),
+    ("L Finger11_example", Vector((0.8579, -0.0237, 1.4158))),
+    ("L Finger0_example", Vector((0.7729, -0.0471, 1.3846))),
+    ("L Finger01_example", Vector((0.8069, -0.0471, 1.3846))),
+    ("Neck_example", Vector((0.0000, 0.0156, 1.4141))),
+    ("Head_example", Vector((0.0000, 0.0020, 1.5260)))
 ]
 empty_coords_male_name_example_comb = [
-    ("Head_example", Vector((-0.0032, -0.0154, 1.6308))),
-    ("Feet_example", Vector((-0.0934, -0.1497, 0.0143))),
-    ("UpperBody_example", Vector((-0.0006, -0.0279, 1.3290))),
-    ("Face_example", Vector((-0.0032, -0.0144, 1.4750))),
-    ("LowerBody_example", Vector((-0.0921, -0.0221, 0.1681))),
+    ("Head_example", Vector((0.0000, 0.0020, 1.5260))),
+    ("Feet_example", Vector((-0.0938, 0.0124, 0.0340))),
+    ("UpperBody_example", Vector((-0.0006, 0.0136, 1.2599))),
+    ("Face_example", Vector((0.0000, 0.0020, 1.5260))),
+    ("LowerBody_example", Vector((-0.0952, 0.0023, 0.6991))),
 
 ]
 male_bone_data = {
     "origin": Vector((0.0,0.016025, 0.878018)), # 添加这个键来定义骨架的原点位置
     "Bip001 Pelvis": {"parent": None, "head": Vector((0.0000, 0.0000, 0.0000)), "tail": Vector((0.0000, -0.1038, -0.0000))},
     "Bip001 Spine": {"parent": "Bip001 Pelvis", "head": Vector((0.0000, 0.0001, 0.1077)), "tail": Vector((-0.0000, -0.1256, 0.1076))},
-    "Bip001 Spine1": {"parent": "Bip001 Spine", "head": Vector((0.0000, 0.0001, 0.2334)), "tail": Vector((0.0000, -0.1299, 0.2333))},
-    "Bip001 Spine2": {"parent": "Bip001 Spine1", "head": Vector((0.0000, 0.0001, 0.3635)), "tail": Vector((0.0000, -0.1856, 0.3633))},
+    "Bip001 Spine1": {"parent": "Bip001 Spine", "head": Vector((0.0000, 0.0001, 0.2334)), "tail": Vector((0.0000, -0.1299, 0.2334))},
+    "Bip001 Spine2": {"parent": "Bip001 Spine1", "head": Vector((0.0000, 0.0002, 0.3635)), "tail": Vector((0.0000, -0.1855, 0.3633))},
     "Bip001 Neck": {"parent": "Bip001 Spine2", "head": Vector((0.0000, 0.0001, 0.5589)), "tail": Vector((0.0000, -0.0655, 0.5589))},
-    "Bip001 Head": {"parent": "Bip001 Neck", "head": Vector((0.0000, -0.0000, 0.6245)), "tail": Vector((0.0000, -0.2771, 0.6245))},
-    "Bip001 HeadNub": {"parent": "Bip001 Head", "head": Vector((0.0000, -0.0000, 0.9016)), "tail": Vector((0.0000, -0.2771, 0.9016))},
+    "Bip001 Head": {"parent": "Bip001 Neck", "head": Vector((0.0000, -0.0000, 0.6245)), "tail": Vector((0.0000, -0.3177, 0.6245))},
+    "Bip001 HeadNub": {"parent": "Bip001 Head", "head": Vector((0.0000, -0.0000, 0.9422)), "tail": Vector((0.0000, -0.3177, 0.9422))},
     "Bip001 L Clavicle": {"parent": "Bip001 Spine2", "head": Vector((0.0797, -0.0082, 0.5256)), "tail": Vector((0.0797, 0.0777, 0.5256))},
     "Bip001 L UpperArm": {"parent": "Bip001 L Clavicle", "head": Vector((0.1657, -0.0082, 0.5256)), "tail": Vector((0.1559, 0.3003, 0.5563))},
     "Bip001 L Forearm": {"parent": "Bip001 L UpperArm", "head": Vector((0.4757, 0.0011, 0.5307)), "tail": Vector((0.4843, 0.2361, 0.5543))},
     "Bip001 L Hand": {"parent": "Bip001 L Forearm", "head": Vector((0.7119, -0.0078, 0.5330)), "tail": Vector((0.7130, 0.0002, 0.4536))},
-    "Bip001 L Finger0": {"parent": "Bip001 L Hand", "head": Vector((0.7608, -0.0587, 0.5116)), "tail": Vector((0.7619, -0.0297, 0.5117))},
-    "Bip001 L Finger01": {"parent": "Bip001 L Finger0", "head": Vector((0.7899, -0.0598, 0.5115)), "tail": Vector((0.7909, -0.0326, 0.5116))},
-    "Bip001 L Finger0Nub": {"parent": "Bip001 L Finger01", "head": Vector((0.8171, -0.0608, 0.5114)), "tail": Vector((0.8181, -0.0336, 0.5115))},
-    "Bip001 L Finger1": {"parent": "Bip001 L Hand", "head": Vector((0.7899, -0.0421, 0.5366)), "tail": Vector((0.7903, -0.0430, 0.4906))},
-    "Bip001 L Finger11": {"parent": "Bip001 L Finger1", "head": Vector((0.8359, -0.0423, 0.5371)), "tail": Vector((0.8362, -0.0429, 0.5083))},
-    "Bip001 L Finger1Nub": {"parent": "Bip001 L Finger11", "head": Vector((0.8647, -0.0424, 0.5373)), "tail": Vector((0.8649, -0.0430, 0.5085))},
-    "Bip001 L Finger2": {"parent": "Bip001 L Hand", "head": Vector((0.7910, 0.0062, 0.5376)), "tail": Vector((0.7914, 0.0057, 0.4929))},
-    "Bip001 L Finger21": {"parent": "Bip001 L Finger2", "head": Vector((0.8356, 0.0052, 0.5380)), "tail": Vector((0.8359, 0.0049, 0.5082))},
-    "Bip001 L Finger2Nub": {"parent": "Bip001 L Finger21", "head": Vector((0.8654, 0.0046, 0.5383)), "tail": Vector((0.8657, 0.0043, 0.5085))},
+    "Bip001 L Finger0": {"parent": "Bip001 L Hand", "head": Vector((0.7608, -0.0587, 0.5116)), "tail": Vector((0.7607, -0.0587, 0.4826))},
+    "Bip001 L Finger01": {"parent": "Bip001 L Finger0", "head": Vector((0.7899, -0.0598, 0.5115)), "tail": Vector((0.7897, -0.0598, 0.4843))},
+    "Bip001 L Finger0Nub": {"parent": "Bip001 L Finger01", "head": Vector((0.8171, -0.0608, 0.5114)), "tail": Vector((0.8170, -0.0608, 0.4841))},
+    "Bip001 L Finger1": {"parent": "Bip001 L Hand", "head": Vector((0.7899, -0.0421, 0.5366)), "tail": Vector((0.7903, -0.0421, 0.4906))},
+    "Bip001 L Finger11": {"parent": "Bip001 L Finger1", "head": Vector((0.8359, -0.0423, 0.5371)), "tail": Vector((0.8362, -0.0423, 0.5083))},
+    "Bip001 L Finger1Nub": {"parent": "Bip001 L Finger11", "head": Vector((0.8647, -0.0424, 0.5373)), "tail": Vector((0.8649, -0.0424, 0.5085))},
+    "Bip001 L Finger2": {"parent": "Bip001 L Hand", "head": Vector((0.7910, 0.0062, 0.5376)), "tail": Vector((0.7914, 0.0062, 0.4929))},
+    "Bip001 L Finger21": {"parent": "Bip001 L Finger2", "head": Vector((0.8356, 0.0052, 0.5380)), "tail": Vector((0.8359, 0.0052, 0.5082))},
+    "Bip001 L Finger2Nub": {"parent": "Bip001 L Finger21", "head": Vector((0.8654, 0.0046, 0.5383)), "tail": Vector((0.8657, 0.0046, 0.5085))},
     "Bip001 R Clavicle": {"parent": "Bip001 Spine2", "head": Vector((-0.0797, -0.0082, 0.5256)), "tail": Vector((-0.0797, 0.0777, 0.5256))},
     "Bip001 R UpperArm": {"parent": "Bip001 R Clavicle", "head": Vector((-0.1657, -0.0082, 0.5256)), "tail": Vector((-0.1559, 0.3003, 0.5563))},
     "Bip001 R Forearm": {"parent": "Bip001 R UpperArm", "head": Vector((-0.4757, 0.0011, 0.5307)), "tail": Vector((-0.4843, 0.2361, 0.5543))},
     "Bip001 R Hand": {"parent": "Bip001 R Forearm", "head": Vector((-0.7119, -0.0078, 0.5330)), "tail": Vector((-0.7130, 0.0002, 0.4536))},
-    "Bip001 R Finger0": {"parent": "Bip001 R Hand", "head": Vector((-0.7608, -0.0587, 0.5116)), "tail": Vector((-0.7619, -0.0297, 0.5117))},
-    "Bip001 R Finger01": {"parent": "Bip001 R Finger0", "head": Vector((-0.7899, -0.0598, 0.5115)), "tail": Vector((-0.7909, -0.0326, 0.5116))},
-    "Bip001 R Finger0Nub": {"parent": "Bip001 R Finger01", "head": Vector((-0.8171, -0.0608, 0.5114)), "tail": Vector((-0.8181, -0.0336, 0.5115))},
-    "Bip001 R Finger1": {"parent": "Bip001 R Hand", "head": Vector((-0.7899, -0.0421, 0.5366)), "tail": Vector((-0.7903, -0.0430, 0.4906))},
-    "Bip001 R Finger11": {"parent": "Bip001 R Finger1", "head": Vector((-0.8359, -0.0423, 0.5371)), "tail": Vector((-0.8362, -0.0429, 0.5083))},
-    "Bip001 R Finger1Nub": {"parent": "Bip001 R Finger11", "head": Vector((-0.8647, -0.0424, 0.5373)), "tail": Vector((-0.8649, -0.0430, 0.5085))},
-    "Bip001 R Finger2": {"parent": "Bip001 R Hand", "head": Vector((-0.7910, 0.0062, 0.5376)), "tail": Vector((-0.7914, 0.0058, 0.4929))},
-    "Bip001 R Finger21": {"parent": "Bip001 R Finger2", "head": Vector((-0.8356, 0.0052, 0.5380)), "tail": Vector((-0.8359, 0.0049, 0.5082))},
-    "Bip001 R Finger2Nub": {"parent": "Bip001 R Finger21", "head": Vector((-0.8654, 0.0046, 0.5383)), "tail": Vector((-0.8657, 0.0043, 0.5085))},
-    "Bip001 L Thigh": {"parent": "Bip001 Pelvis", "head": Vector((0.1019, 0.0000, -0.0000)), "tail": Vector((0.1025, -0.3769, 0.0318))},
-    "Bip001 L Calf": {"parent": "Bip001 L Thigh", "head": Vector((0.0967, -0.0318, -0.3768)), "tail": Vector((0.0965, -0.4565, -0.4062))},
+    "Bip001 R Finger0": {"parent": "Bip001 R Hand", "head": Vector((-0.7608, -0.0587, 0.5116)), "tail": Vector((-0.7607, -0.0587, 0.4826))},
+    "Bip001 R Finger01": {"parent": "Bip001 R Finger0", "head": Vector((-0.7899, -0.0598, 0.5115)), "tail": Vector((-0.7897, -0.0598, 0.4843))},
+    "Bip001 R Finger0Nub": {"parent": "Bip001 R Finger01", "head": Vector((-0.8171, -0.0608, 0.5114)), "tail": Vector((-0.8170, -0.0608, 0.4841))},
+    "Bip001 R Finger1": {"parent": "Bip001 R Hand", "head": Vector((-0.7899, -0.0421, 0.5366)), "tail": Vector((-0.7903, -0.0421, 0.4906))},
+    "Bip001 R Finger11": {"parent": "Bip001 R Finger1", "head": Vector((-0.8359, -0.0423, 0.5371)), "tail": Vector((-0.8362, -0.0423, 0.5083))},
+    "Bip001 R Finger1Nub": {"parent": "Bip001 R Finger11", "head": Vector((-0.8647, -0.0424, 0.5373)), "tail": Vector((-0.8649, -0.0424, 0.5085))},
+    "Bip001 R Finger2": {"parent": "Bip001 R Hand", "head": Vector((-0.7910, 0.0062, 0.5376)), "tail": Vector((-0.7914, 0.0062, 0.4929))},
+    "Bip001 R Finger21": {"parent": "Bip001 R Finger2", "head": Vector((-0.8356, 0.0052, 0.5380)), "tail": Vector((-0.8359, 0.0052, 0.5082))},
+    "Bip001 R Finger2Nub": {"parent": "Bip001 R Finger21", "head": Vector((-0.8654, 0.0046, 0.5383)), "tail": Vector((-0.8657, 0.0046, 0.5085))},
+    "Bip001 L Thigh": {"parent": "Bip001 Pelvis", "head": Vector((0.1019, -0.0000, -0.0000)), "tail": Vector((0.1023, -0.3769, 0.0318))},
+    "Bip001 L Calf": {"parent": "Bip001 L Thigh", "head": Vector((0.0967, -0.0318, -0.3768)), "tail": Vector((0.0963, -0.4565, -0.4062))},
     "Bip001 L Foot": {"parent": "Bip001 L Calf", "head": Vector((0.0908, -0.0024, -0.8014)), "tail": Vector((0.0908, -0.1631, -0.8014))},
-    "Bip001 L Toe0": {"parent": "Bip001 L Foot", "head": Vector((0.0908, -0.1442, -0.8770)), "tail": Vector((0.0908, -0.1442, -0.8117))},
-    "Bip001 L Toe0Nub": {"parent": "Bip001 L Toe0", "head": Vector((0.0908, -0.2095, -0.8770)), "tail": Vector((0.0908, -0.2095, -0.8117))},
-    "Bip001 R Thigh": {"parent": "Bip001 Pelvis", "head": Vector((-0.1019, -0.0000, 0.0000)), "tail": Vector((-0.1025, -0.3769, 0.0318))},
-    "Bip001 R Calf": {"parent": "Bip001 R Thigh", "head": Vector((-0.0967, -0.0318, -0.3768)), "tail": Vector((-0.0965, -0.4565, -0.4062))},
+    "Bip001 L Toe0": {"parent": "Bip001 L Foot", "head": Vector((0.0908, -0.1442, -0.8770)), "tail": Vector((0.0908, -0.1442, -0.8567))},
+    "Bip001 L Toe0Nub": {"parent": "Bip001 L Toe0", "head": Vector((0.0908, -0.1645, -0.8770)), "tail": Vector((0.0908, -0.1645, -0.8567))},
+    "Bip001 R Thigh": {"parent": "Bip001 Pelvis", "head": Vector((-0.1019, -0.0000, 0.0000)), "tail": Vector((-0.1023, -0.3769, 0.0318))},
+    "Bip001 R Calf": {"parent": "Bip001 R Thigh", "head": Vector((-0.0967, -0.0318, -0.3768)), "tail": Vector((-0.0963, -0.4565, -0.4062))},
     "Bip001 R Foot": {"parent": "Bip001 R Calf", "head": Vector((-0.0908, -0.0024, -0.8014)), "tail": Vector((-0.0908, -0.1631, -0.8014))},
-    "Bip001 R Toe0": {"parent": "Bip001 R Foot", "head": Vector((-0.0908, -0.1442, -0.8770)), "tail": Vector((-0.0908, -0.1442, -0.8117))},
-    "Bip001 R Toe0Nub": {"parent": "Bip001 R Toe0", "head": Vector((-0.0908, -0.2095, -0.8770)), "tail": Vector((-0.0908, -0.2095, -0.8117))}
+    "Bip001 R Toe0": {"parent": "Bip001 R Foot", "head": Vector((-0.0908, -0.1442, -0.8770)), "tail": Vector((-0.0908, -0.1442, -0.8567))},
+    "Bip001 R Toe0Nub": {"parent": "Bip001 R Toe0", "head": Vector((-0.0908, -0.1645, -0.8770)), "tail": Vector((-0.0908, -0.1645, -0.8567))},
 }
 
 def get_top_parent(obj):
@@ -297,6 +297,8 @@ def process_contact_weights():
     else:
         print("Skipping contact weight assignment...")
 
+
+
 def create_contact_vertex_groups(input_objects, threshold_distance):
     objects = {obj.name: obj for obj in input_objects}
 
@@ -343,6 +345,7 @@ def create_contact_vertex_groups(input_objects, threshold_distance):
         obj.data.update()
 
     print("Contact weights assigned for all object combinations, and self vertex groups created with full weight.")
+
 
 class CharOperater(bpy.types.Operator):
     bl_idname = "object.miao_char_operater"
@@ -628,7 +631,6 @@ class MaleCharOperaterBone(bpy.types.Operator):
 
         bpy.ops.object.miao_clean_sense()
         rename_all_children_based_on_coords(empty_coords_male_name_example)
-
         process_contact_weights()
         duplicate_bones_to_objects()
         parent_dict_list = [(create_parent_dict(name_list), new_name) for name_list, new_name in name_groups]
