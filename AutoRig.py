@@ -146,8 +146,9 @@ empty_coords_male_name_example = [
     ("L Finger11_example", Vector((0.8579, -0.0237, 1.4158))),
     ("L Finger0_example", Vector((0.7729, -0.0471, 1.3846))),
     ("L Finger01_example", Vector((0.8069, -0.0471, 1.3846))),
-    ("Neck_example", Vector((0.0000, 0.0156, 1.4141))),
-    ("Head_example", Vector((0.0000, 0.0020, 1.5260)))
+    ("Neck_example", Vector((0.0000, 0.0156, 1.4677))),
+    ("Head_example", Vector((0.0000, 0.0020, 1.5260))),
+
 ]
 empty_coords_male_name_example_comb = [
     ("Head_example", Vector((0.0000, 0.0020, 1.5260))),
