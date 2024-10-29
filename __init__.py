@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiAO",
     "author": "MuyouHCD",
-    "version": (4,7,8),
+    "version": (4,7,9),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -82,6 +82,8 @@ from . import SelectTool
 from . import ExoprtObj
 from . import MaterialOperator
 from . import UVCleaner
+from . import UVformater
+
 # from . import ObjectInstance
 
 
@@ -109,6 +111,7 @@ def register():
     ExoprtObj.register()
     MaterialOperator.register()
     UVCleaner.register()
+    UVformater.register()
     # ObjectInstance.rejister()
 
 def unregister():
@@ -134,6 +137,7 @@ def unregister():
     ExoprtObj.unregister()
     MaterialOperator.unregister()
     UVCleaner.unregister()
+    UVformater.unregister()
     # ObjectInstance.unregister()
 
 

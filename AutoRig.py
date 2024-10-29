@@ -59,7 +59,7 @@ empty_coords_femal_name_example = [
     ("Head_example", Vector((0.0000, 0.0020, 1.5260))),
 ]
 empty_coords_femal_name_example_comb = [
-    ("Head_example", Vector((0.0000, 0.0020, 1.5260))),
+
     ("Feet_example", Vector((-0.0938, -0.0028, 0.0340))),
     ("UpperBody_example", Vector((-0.0006, 0.0136, 1.2599))),
     ("Face_example", Vector((0.0000, 0.0020, 1.5260))),
@@ -151,7 +151,7 @@ empty_coords_male_name_example = [
 
 ]
 empty_coords_male_name_example_comb = [
-    ("Head_example", Vector((0.0000, 0.0020, 1.5260))),
+
     ("Feet_example", Vector((-0.0938, 0.0124, 0.0340))),
     ("UpperBody_example", Vector((-0.0006, 0.0136, 1.2599))),
     ("Face_example", Vector((0.0000, 0.0020, 1.5260))),
@@ -297,8 +297,6 @@ def process_contact_weights():
         pass
     else:
         print("Skipping contact weight assignment...")
-
-
 
 def create_contact_vertex_groups(input_objects, threshold_distance):
     objects = {obj.name: obj for obj in input_objects}
@@ -734,7 +732,6 @@ class PointDataGenerator(bpy.types.Operator):
             "L Finger0_example",
             "L Finger01_example",
             "Neck_example",
-            "Head_example", 
             "Head_example",
             "Feet_example",
             "UpperBody_example",

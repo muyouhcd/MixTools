@@ -118,9 +118,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
                                    icon='TRIA_DOWN' if context.scene.meterialoperation_expand else 'TRIA_RIGHT')
 
         if context.scene.meterialoperation_expand:
+            
+            layout.operator("object.uv_formater", text="UV尺寸校准", icon='MESH_CIRCLE')
 
-            layout.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
-            layout.operator("object.apply_texture_operator", text="批量链接贴图", icon='MESH_CIRCLE')
+            texture_operater_box = layout.box()
+            texture_operater_box.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
+            texture_operater_box.operator("object.apply_texture_operator", text="批量链接贴图", icon='MESH_CIRCLE')
 
             # 材质球排序
             layout.label(text="材质管理:")
