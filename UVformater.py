@@ -3,15 +3,11 @@ import bmesh
 import math
 import mathutils
 
-
-
-
 def area_quad(v1, v2, v3, v4):
     """Calculate the area of a quad by dividing it into two triangles."""
     return mathutils.geometry.area_tri(v1, v2, v3) + mathutils.geometry.area_tri(v1, v3, v4)
 
-def scale_uv_to_match_texture(obj, pixel_per_meter=32, texture_size=128):
-    """Adjust UVs of each face in the object so that the texture density matches size requirements."""
+def scale_uv_to_match_texture(obj, pixel_per_meter=32, texture_size=128, angle_threshold=5.0):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT')
     
@@ -25,29 +21,65 @@ def scale_uv_to_match_texture(obj, pixel_per_meter=32, texture_size=128):
     
     uv_layer = bm.loops.layers.uv.active
     texture_meter_size = texture_size / pixel_per_meter
+    angle_rad_threshold = math.radians(angle_threshold)
 
+    def get_adjacent_faces(face):
+        for edge in face.edges:
+            for linked_face in edge.link_faces:
+                if linked_face != face:
+                    yield linked_face
+
+    visited_faces = set()
+    
     for face in bm.faces:
-        world_verts = [obj.matrix_world @ v.co for v in face.verts]
-        face_area_world = (
-            mathutils.geometry.area_tri(*world_verts)
-            if len(world_verts) == 3
-            else area_quad(*world_verts)
-        )
-        
-        if face_area_world <= 0:
-            print(f"警告: 对象 {obj.name} 的一个面具有零或负的世界面积，跳过该面。")
+        if face in visited_faces:
             continue
         
-        uv_coords = [l[uv_layer].uv.copy() for l in face.loops]
-
-        face_area_uv = (
-            mathutils.geometry.area_tri(*uv_coords)
-            if len(uv_coords) == 3
-            else area_quad(*uv_coords)
-        )
+        connected_faces = set([face])
+        queue = [face]
         
+        while queue:
+            current_face = queue.pop()
+            visited_faces.add(current_face)
+            face_normal = current_face.normal
+            for adj_face in get_adjacent_faces(current_face):
+                if adj_face in visited_faces:
+                    continue
+                angle = face_normal.angle(adj_face.normal)
+                if angle < angle_rad_threshold:
+                    connected_faces.add(adj_face)
+                    queue.append(adj_face)
+        
+        # Process connected faces
+        world_verts = [obj.matrix_world @ v.co for f in connected_faces for v in f.verts]
+        face_area_world = 0.0
+        face_area_uv = 0.0
+
+        uv_coords = []
+
+        for f in connected_faces:
+            verts = [obj.matrix_world @ v.co for v in f.verts]
+            uvs = [l[uv_layer].uv.copy() for l in f.loops]
+            num_verts = len(verts)
+
+            if num_verts == 3:
+                face_area_world += mathutils.geometry.area_tri(*verts)
+                face_area_uv += mathutils.geometry.area_tri(*uvs)
+            elif num_verts == 4:
+                face_area_world += area_quad(*verts)
+                face_area_uv += area_quad(*uvs)
+            else:
+                print(f"警告: 对象 {obj.name} 包含非三角形或四边形面，跳过该面。")
+                continue
+
+            uv_coords.extend(uvs)
+
+        if face_area_world <= 0:
+            print(f"警告: 对象 {obj.name} 的一组相连面具有零或负的世界面积，跳过该组。")
+            continue
+
         if face_area_uv <= 0:
-            print(f"警告: 对象 {obj.name} 的一个面具有零或负的 UV 面积，跳过该面。")
+            print(f"警告: 对象 {obj.name} 的一组相连面具有零或负的 UV 面积，跳过该组。")
             continue
 
         current_pixel_density = face_area_uv / face_area_world
@@ -56,10 +88,11 @@ def scale_uv_to_match_texture(obj, pixel_per_meter=32, texture_size=128):
 
         center_uv = sum(uv_coords, mathutils.Vector((0, 0))) / len(uv_coords)
 
-        for loop in face.loops:
-            loop_uv = loop[uv_layer].uv
-            loop_uv.x = (loop_uv.x - center_uv.x) * scale_uv_factor + center_uv.x
-            loop_uv.y = (loop_uv.y - center_uv.y) * scale_uv_factor + center_uv.y
+        for f in connected_faces:
+            for loop in f.loops:
+                loop_uv = loop[uv_layer].uv
+                loop_uv.x = (loop_uv.x - center_uv.x) * scale_uv_factor + center_uv.x
+                loop_uv.y = (loop_uv.y - center_uv.y) * scale_uv_factor + center_uv.y
 
     bmesh.update_edit_mesh(mesh)
     bpy.ops.object.mode_set(mode='OBJECT')
@@ -83,19 +116,26 @@ class UVformater(bpy.types.Operator):
         min=1,
         description="纹理的像素尺寸"
     )
-    
+
+    angle_threshold: bpy.props.FloatProperty(
+        name="角度阈值",
+        default=5.0,
+        min=0.0,
+        max=180.0,
+        description="在组内合并处理面时的最大角度差"
+    )
 
     def execute(self, context):
         selected_objects = context.selected_objects
         for obj in selected_objects:
             if obj.type == 'MESH':
-                scale_uv_to_match_texture(obj, self.pixel_per_meter, self.texture_size)
+                scale_uv_to_match_texture(obj, self.pixel_per_meter, self.texture_size, self.angle_threshold)
             else:
                 self.report({'WARNING'}, f"{obj.name} 不是一个网格对象，跳过。")
         return {'FINISHED'}
 
-    
 def register():
     bpy.utils.register_class(UVformater)
+
 def unregister():
     bpy.utils.unregister_class(UVformater)
