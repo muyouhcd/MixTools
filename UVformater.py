@@ -97,6 +97,54 @@ def scale_uv_to_match_texture(obj, pixel_per_meter=32, texture_size=128, angle_t
     bmesh.update_edit_mesh(mesh)
     bpy.ops.object.mode_set(mode='OBJECT')
 
+def unwrap_and_fit_uv(obj):
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    
+    mesh = obj.data
+    bm = bmesh.from_edit_mesh(mesh)
+
+    # Check that there is a UV map and ensure it is initialized
+    if not mesh.uv_layers:
+        bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
+    
+    # Get the active UV layer
+    uv_layer = bm.loops.layers.uv.active
+
+    # Manually unwrap and position the UVs within [0, 1] range
+    # Note: Adjust the unwrap algorithm or parameters if needed
+    bpy.ops.uv.unwrap(method='ANGLE_BASED', margin=0.001)
+    
+    # Find the bounding box of the UVs
+    min_uv = [float('inf'), float('inf')]
+    max_uv = [float('-inf'), float('-inf')]
+    
+    for face in bm.faces:
+        for loop in face.loops:
+            uv = loop[uv_layer].uv
+            if uv.x < min_uv[0]:
+                min_uv[0] = uv.x
+            if uv.y < min_uv[1]:
+                min_uv[1] = uv.y
+            if uv.x > max_uv[0]:
+                max_uv[0] = uv.x
+            if uv.y > max_uv[1]:
+                max_uv[1] = uv.y
+
+    # Determine the scale and translation needed to fit UVs in the [0, 1] range
+    uv_scale = 1.0 / max(max_uv[0] - min_uv[0], max_uv[1] - min_uv[1])
+    uv_offset = [-min_uv[0] * uv_scale, -min_uv[1] * uv_scale]
+
+    # Apply scaling and translation to each UV
+    for face in bm.faces:
+        for loop in face.loops:
+            loop_uv = loop[uv_layer].uv
+            loop_uv.x = loop_uv.x * uv_scale + uv_offset[0]
+            loop_uv.y = loop_uv.y * uv_scale + uv_offset[1]
+
+    bmesh.update_edit_mesh(mesh)
+    bpy.ops.object.mode_set(mode='OBJECT')
+
 class UVformater(bpy.types.Operator):
     bl_idname = "object.uv_formater"
     bl_label = "uv统一规格尺寸"
@@ -134,8 +182,26 @@ class UVformater(bpy.types.Operator):
                 self.report({'WARNING'}, f"{obj.name} 不是一个网格对象，跳过。")
         return {'FINISHED'}
 
+class UVUnwrapper(bpy.types.Operator):
+    bl_idname = "object.uv_unwrapper"
+    bl_label = "UV展开并适配至UV边界"
+    bl_description = "对所选对象展开UV并调整UV坐标以覆盖整个UV空间"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                unwrap_and_fit_uv(obj)
+            else:
+                self.report({'WARNING'}, f"{obj.name} 不是一个网格对象，跳过。")
+        return {'FINISHED'}
+
+
 def register():
+    bpy.utils.register_class(UVUnwrapper)
     bpy.utils.register_class(UVformater)
 
 def unregister():
+    bpy.utils.unregister_class(UVUnwrapper)
     bpy.utils.unregister_class(UVformater)
