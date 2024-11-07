@@ -9,6 +9,10 @@ bpy.types.Scene.export_directory = bpy.props.StringProperty(
     subtype='DIR_PATH'
 )
 
+
+changerotation=90
+changescale=100
+
 # 检查导出目录是否有效
 def check_dir(self, context):
     dest_path = bpy.path.abspath(context.scene.export_directory)
@@ -30,8 +34,8 @@ def prepare_obj_export(obj):
     }
 
     print(f"正在调整 {obj.name} 的比例")
-    obj.scale *= 100
-    obj.rotation_euler = (math.radians(-90), 0, 0)  # 转换为弧度
+    obj.scale *= changescale
+    obj.rotation_euler = (math.radians(-changerotation), 0, 0)  # 转换为弧度
 
     print(f"正在更新视图")
     bpy.context.view_layer.update()
@@ -40,6 +44,20 @@ def prepare_obj_export(obj):
     apply_transform_to_descendants(obj)
 
     return original_state
+
+
+def restore_obj_import(obj):
+
+
+    print(f"开始恢复 {obj.name} 的旋转角度、缩放和位置")
+    obj.scale *= 1/changescale
+    obj.rotation_euler = (math.radians(changerotation), 0, 0)  # 转换为弧度
+    apply_transform_to_descendants(obj)
+
+
+    bpy.context.view_layer.update()
+    print(f"{obj.name} 的状态已恢复")
+
 
 # 导出FBX文件
 def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=None):
@@ -62,13 +80,6 @@ def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=No
     print(f"导出完成：{fbx_file_path}")
 
 # 恢复对象变换
-def restore_obj_import(obj, original_state):
-    print(f"开始恢复 {obj.name} 的旋转角度、缩放和位置")
-    obj.scale = original_state['scale']
-    obj.rotation_euler = original_state['rotation']
-    obj.location = original_state['location']
-    bpy.context.view_layer.update()
-    print(f"{obj.name} 的状态已恢复")
 
 # 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象。
 def apply_transform_to_descendants(obj):
@@ -116,7 +127,7 @@ class ExportFbxByParent(bpy.types.Operator):
             export_fbx(obj, dest_path, scale_factor=0.01, rotation_euler=(math.radians(90), 0, 0))
 
             print(f"恢复对象：{obj.name}")
-            restore_obj_import(obj, original_state)
+            restore_obj_import(obj)
 
         print("所有导出操作已结束")
         return {'FINISHED'}
