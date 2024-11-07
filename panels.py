@@ -120,7 +120,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
         if context.scene.meterialoperation_expand:
             
             layout.operator("object.uv_formater", text="UV尺寸校准", icon='MESH_CIRCLE')
-            layout.operator("object.uv_unwrapper", text="UV铺满展开", icon='MESH_CIRCLE')
+            layout.operator("object.quad_uv_aligner", text="UV铺满展开", icon='MESH_CIRCLE')
 
             texture_operater_box = layout.box()
             texture_operater_box.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
