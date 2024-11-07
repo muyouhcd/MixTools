@@ -42,8 +42,12 @@ def scale_uv_to_match_texture(obj, pixel_per_meter=32, texture_size=128, angle_t
             current_face = queue.pop()
             visited_faces.add(current_face)
             face_normal = current_face.normal
+            face_material = current_face.material_index  # Get the material index of the current face
+
             for adj_face in get_adjacent_faces(current_face):
                 if adj_face in visited_faces:
+                    continue
+                if adj_face.material_index != face_material:
                     continue
                 angle = face_normal.angle(adj_face.normal)
                 if angle < angle_rad_threshold:
@@ -96,7 +100,6 @@ def scale_uv_to_match_texture(obj, pixel_per_meter=32, texture_size=128, angle_t
 
     bmesh.update_edit_mesh(mesh)
     bpy.ops.object.mode_set(mode='OBJECT')
-
 def align_quad_uv_to_corners(obj):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT')
@@ -120,6 +123,8 @@ def align_quad_uv_to_corners(obj):
 
     bmesh.update_edit_mesh(mesh)
     bpy.ops.object.mode_set(mode='OBJECT')
+
+
 class UVformater(bpy.types.Operator):
     bl_idname = "object.uv_formater"
     bl_label = "uv统一规格尺寸"
@@ -156,7 +161,6 @@ class UVformater(bpy.types.Operator):
             else:
                 self.report({'WARNING'}, f"{obj.name} 不是一个网格对象，跳过。")
         return {'FINISHED'}
-
 class QuadUVAligner(bpy.types.Operator):
     bl_idname = "object.quad_uv_aligner"
     bl_label = "四边形UV对齐"

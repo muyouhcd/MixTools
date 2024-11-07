@@ -9,7 +9,6 @@ bpy.types.Scene.export_directory = bpy.props.StringProperty(
     subtype='DIR_PATH'
 )
 
-
 changerotation=90
 changescale=100
 
@@ -42,18 +41,15 @@ def prepare_obj_export(obj):
     bpy.ops.object.make_single_user_operator()
     print(f"正在应用选定物体的变换")
     apply_transform_to_descendants(obj)
-
     return original_state
 
 
 def restore_obj_import(obj):
 
-
     print(f"开始恢复 {obj.name} 的旋转角度、缩放和位置")
     obj.scale *= 1/changescale
     obj.rotation_euler = (math.radians(changerotation), 0, 0)  # 转换为弧度
     apply_transform_to_descendants(obj)
-
 
     bpy.context.view_layer.update()
     print(f"{obj.name} 的状态已恢复")
