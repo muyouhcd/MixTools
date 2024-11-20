@@ -10,7 +10,6 @@ bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
     max=10.0
         )
 
-#批量设置发光亮度
 class SetEmissionStrength(bpy.types.Operator):
     bl_idname = "material.set_emission_strength"
     bl_label = "设置发光强度"
@@ -34,20 +33,20 @@ class SetEmissionStrength(bpy.types.Operator):
 
     def process_selected_objects(self, strength):
         for obj in bpy.context.selected_objects:
-            if obj.data.materials:
+            # 只处理具有网格数据的对象（即类型为 'MESH' 的对象）
+            if obj.type == 'MESH' and obj.data.materials:
                 for mat in obj.data.materials:
                     if mat.node_tree is not None:
                         self.set_emission_strength(mat, strength)
 
     def execute(self, context):
-        strength = context.scene.emission_strength
+        strength = self.strength  # 直接使用类的属性替代 context.scene.emission_strength
         self.process_selected_objects(strength)
         return {'FINISHED'}
 
 def register():     
-
     bpy.utils.register_class(SetEmissionStrength)
 
 def unregister():
-    # del bpy.types.Scene.emission_strength
     bpy.utils.unregister_class(SetEmissionStrength)
+
