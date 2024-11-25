@@ -939,55 +939,75 @@ class BoundboxGen(bpy.types.Operator):
     bl_label = "生成包围盒"
 
     def execute(self, context):
+        def get_local_bounding_box(obj):
+            return [mathutils.Vector(corner) for corner in obj.bound_box]
 
-        def create_box_from_bounding_box(obj):
-            # 获取物体的边界框在局部坐标中的位置
-            local_bounding_box = [mathutils.Vector(corner) for corner in obj.bound_box]
+        def get_world_coordinates(corner, obj):
+            """将局部坐标转换为世界坐标。"""
+            return obj.matrix_world @ corner
 
-            # 计算最小和最大的XYZ坐标
-            min_x = min(v.x for v in local_bounding_box)
-            min_y = min(v.y for v in local_bounding_box)
-            min_z = min(v.z for v in local_bounding_box)
+        def create_box_from_local_bounding_box(obj):
+            # 获取局部坐标系的边界框
+            local_bounding_box = get_local_bounding_box(obj)
 
-            max_x = max(v.x for v in local_bounding_box)
-            max_y = max(v.y for v in local_bounding_box)
-            max_z = max(v.z for v in local_bounding_box)
+            # 计算最小和最大的局部XYZ坐标
+            min_xyz = mathutils.Vector(
+                (min(v.x for v in local_bounding_box),
+                min(v.y for v in local_bounding_box),
+                min(v.z for v in local_bounding_box))
+            )
+            max_xyz = mathutils.Vector(
+                (max(v.x for v in local_bounding_box),
+                max(v.y for v in local_bounding_box),
+                max(v.z for v in local_bounding_box))
+            )
 
-            # 创建网格和物体
-            mesh = bpy.data.meshes.new(obj.name + "_box")
+            # 计算局部中心点和尺寸
+            local_center = (min_xyz + max_xyz) / 2
+            local_size = max_xyz - min_xyz
+
+            # 考虑物体缩放
+            scaled_size = local_size * obj.scale
+
+            # 计算世界坐标系下的中心
+            world_center = get_world_coordinates(local_center, obj)
+
+            # 创建新的网格和物体
+            mesh = bpy.data.meshes.new(name=(obj.name + "_box"))
             bm = bmesh.new()
 
-            size = mathutils.Vector((max_x - min_x, max_y - min_y, max_z - min_z))
+            # 创建一个1m³的单位立方体
+            bmesh.ops.create_cube(bm, size=1.0, calc_uvs=False)
 
-            # 创建立方体，并按包围框调整大小
-            bmesh.ops.create_cube(bm, size=1.0)
+            # 将bmesh转换为mesh并清理
             bm.to_mesh(mesh)
             bm.free()
+            mesh.update()
 
-            box = bpy.data.objects.new(obj.name + "_box", mesh)
+            # 创建物体
+            box = bpy.data.objects.new(name=(obj.name + "_box"), object_data=mesh)
 
-            # 设置包围盒的大小和位置
-            box.dimensions = size
-            box.location = obj.location
+            # 设置世界坐标的位置和旋转
+            box.location = world_center
             box.rotation_euler = obj.rotation_euler
 
-            # 将包围盒的父级设置为参考物体的父级
-            box.parent = obj.parent
+            # 按照缩放调整，以1m³单位为基础的尺寸
+            box.scale = scaled_size
 
+            # 将包围盒添加到场景中
             bpy.context.collection.objects.link(box)
 
             return box
 
-        objects = bpy.context.selected_objects
-
-        if objects:
-            for obj in objects:
-                create_box_from_bounding_box(obj)
+            
+        if bpy.context.selected_objects:
+            for obj in bpy.context.selected_objects:
+                create_box_from_local_bounding_box(obj)
         else:
-            self.report({'WARNING'}, "请先选择物体")
+            print("没有选择物体")
 
         return {'FINISHED'}
-
+    
 # 选择合并，不破坏集合关系
 class CombinObject(bpy.types.Operator):
     bl_idname = "object.miao_safecombin"
