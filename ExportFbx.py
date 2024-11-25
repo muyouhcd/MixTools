@@ -43,7 +43,7 @@ def prepare_obj_export(obj):
     apply_transform_to_descendants(obj)
     return original_state
 
-
+# 恢复对象变换
 def restore_obj_import(obj):
 
     print(f"开始恢复 {obj.name} 的旋转角度、缩放和位置")
@@ -53,7 +53,6 @@ def restore_obj_import(obj):
 
     bpy.context.view_layer.update()
     print(f"{obj.name} 的状态已恢复")
-
 
 # 导出FBX文件
 def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=None):
@@ -74,8 +73,6 @@ def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=No
         axis_up='Y'  # 调整以匹配Unity的坐标系
     )
     print(f"导出完成：{fbx_file_path}")
-
-# 恢复对象变换
 
 # 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象。
 def apply_transform_to_descendants(obj):

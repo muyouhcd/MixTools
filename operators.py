@@ -33,26 +33,51 @@ class ObjectInstancer(bpy.types.Operator):
         if len(selected_objects) < 2:
             self.report({'WARNING'}, "请至少选择两个物体")
             return {'CANCELLED'}
-        
+
         # 使用第一个选中的物体作为替换源
         source_obj = selected_objects[0]
-        
+
         # 记录所选物体的世界空间变换
         world_transforms = [obj.matrix_world.copy() for obj in selected_objects]
-        
+
         # 删除所有选中的物体(除了源物体)
         for obj in selected_objects[1:]:
             bpy.data.objects.remove(obj, do_unlink=True)
-        
-        # 根据记录的世界空间变换创建源物体的链接副本
-        for transform in world_transforms[1:]:
-            new_obj = bpy.data.objects.new(source_obj.name, source_obj.data)
-            new_obj.matrix_world = transform
+
+        def duplicate_with_children(obj, parent=None):
+            # 复制给定物体
+            new_obj = bpy.data.objects.new(obj.name, obj.data)
+
+            # 确保将新的对象与场景关联
             context.collection.objects.link(new_obj)
 
+            # 保留变换
+            new_obj.matrix_world = obj.matrix_world.copy()
+            if obj.type == 'EMPTY':
+                new_obj.empty_display_size = obj.empty_display_size
+
+            # 设置父级关系
+            if parent:
+                new_obj.parent = parent
+                new_obj.matrix_parent_inverse = parent.matrix_world.inverted()
+
+            # 递归复制子物体
+            for child in obj.children:
+                duplicate_with_children(child, new_obj)
+
+            return new_obj
+
+        # 根据记录的世界空间变换创建源物体及其子物体的链接副本
+        for transform in world_transforms[1:]:
+            new_instance = duplicate_with_children(source_obj)
+            if new_instance is not None:
+                # 应用变换
+                new_instance.matrix_world = transform
+
         self.report({'INFO'}, "替换完成")
-        return {'FINISHED'}
-    
+        return {'FINISHED'}   
+
+
 class OBJECT_OT_reset_z_axis(Operator):
     bl_idname = "object.reset_z_axis"
     bl_label = "重置选择对象的Z轴位置"
@@ -909,48 +934,45 @@ class MaterialSort(bpy.types.Operator):
             sort_materials(obj)
         return {"FINISHED"}
 
-# 按照包围盒生成box
 class BoundboxGen(bpy.types.Operator):
     bl_idname = "object.miao_boundbox_gen"
     bl_label = "生成包围盒"
 
     def execute(self, context):
 
-        def create_box_from_bounding_box(obj_name, bounding_box):
-            mesh = bpy.data.meshes.new(obj_name + "_box")
+        def create_box_from_bounding_box(obj):
+            # 获取物体的边界框在局部坐标中的位置
+            local_bounding_box = [mathutils.Vector(corner) for corner in obj.bound_box]
+
+            # 计算最小和最大的XYZ坐标
+            min_x = min(v.x for v in local_bounding_box)
+            min_y = min(v.y for v in local_bounding_box)
+            min_z = min(v.z for v in local_bounding_box)
+
+            max_x = max(v.x for v in local_bounding_box)
+            max_y = max(v.y for v in local_bounding_box)
+            max_z = max(v.z for v in local_bounding_box)
+
+            # 创建网格和物体
+            mesh = bpy.data.meshes.new(obj.name + "_box")
             bm = bmesh.new()
 
-            bmesh.ops.create_cube(bm, size=1)
+            size = mathutils.Vector((max_x - min_x, max_y - min_y, max_z - min_z))
+
+            # 创建立方体，并按包围框调整大小
+            bmesh.ops.create_cube(bm, size=1.0)
             bm.to_mesh(mesh)
+            bm.free()
 
-            box = bpy.data.objects.new(obj_name + "_box", mesh)
+            box = bpy.data.objects.new(obj.name + "_box", mesh)
 
-            global_coordinate_bounding_box = [
-                obj.matrix_world @ mathutils.Vector(coord) for coord in bounding_box
-            ]
-
-            box.dimensions = [
-                abs(global_coordinate_bounding_box[6][0] -
-                    global_coordinate_bounding_box[0][0]),
-                abs(global_coordinate_bounding_box[6][1] -
-                    global_coordinate_bounding_box[0][1]),
-                abs(global_coordinate_bounding_box[6][2] -
-                    global_coordinate_bounding_box[0][2]),
-            ]
-
-            box.location = [
-                (global_coordinate_bounding_box[6][0] +
-                 global_coordinate_bounding_box[0][0]) / 2,
-                (global_coordinate_bounding_box[6][1] +
-                 global_coordinate_bounding_box[0][1]) / 2,
-                (global_coordinate_bounding_box[6][2] +
-                 global_coordinate_bounding_box[0][2]) / 2,
-            ]
+            # 设置包围盒的大小和位置
+            box.dimensions = size
+            box.location = obj.location
+            box.rotation_euler = obj.rotation_euler
 
             # 将包围盒的父级设置为参考物体的父级
             box.parent = obj.parent
-
-            # box.rotation_euler = obj.rotation_euler
 
             bpy.context.collection.objects.link(box)
 
@@ -960,10 +982,9 @@ class BoundboxGen(bpy.types.Operator):
 
         if objects:
             for obj in objects:
-                bounding_box = obj.bound_box
-                create_box_from_bounding_box(obj.name, bounding_box)
+                create_box_from_bounding_box(obj)
         else:
-            print("请先选择物体")
+            self.report({'WARNING'}, "请先选择物体")
 
         return {'FINISHED'}
 
