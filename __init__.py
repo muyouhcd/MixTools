@@ -1,5 +1,5 @@
 bl_info = {
-    "name": "MiAO",
+    "name": "MiaoToolBox",
     "author": "MuyouHCD",
     "version": (4,7,9),
     "blender": (3, 6, 1),
