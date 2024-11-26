@@ -227,7 +227,17 @@ class CustomFunctionsPanel(bpy.types.Panel):
             align_parent_box.prop(context.scene, "collectionA", text="集合A (参考)")
             align_parent_box.prop(context.scene, "collectionB", text="集合B (对齐的目标)")
             align_parent_box.operator("object.align_operator")
-            
+# 动画操作
+        # col_anm = layout.column()
+        # col_anm.prop(scene, "anm_expand", text="动画操作", emboss=False,
+        #             icon='TRIA_DOWN' if context.scene.anm_expand else 'TRIA_RIGHT')
+
+        # if context.scene.anm_expand:
+        #     anim_box = layout.box()
+        #     anim_box.prop(context.scene, "rv_start_frame")
+        #     anim_box.prop(context.scene, "rv_end_frame")
+        #     anim_box.prop(context.scene, "rv_initial_visibility")
+        #     anim_box.operator("object.set_render_visibility")
 
 # 导入导出操作
         col_inout = layout.column()

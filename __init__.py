@@ -83,6 +83,7 @@ from . import ExoprtObj
 from . import MaterialOperator
 from . import UVCleaner
 from . import UVformater
+from . import RenderFrame
 
 # from . import ObjectInstance
 
@@ -113,6 +114,7 @@ def register():
     UVCleaner.register()
     UVformater.register()
     # ObjectInstance.rejister()
+    RenderFrame.register()
 
 def unregister():
     update.unregister()
@@ -139,6 +141,7 @@ def unregister():
     UVCleaner.unregister()
     UVformater.unregister()
     # ObjectInstance.unregister()
+    RenderFrame.unregister()
 
 
 
