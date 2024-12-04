@@ -371,7 +371,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
         scene = bpy.context.scene
 
         col_autorender = layout.column()
-        col_autorender.prop(scene, "autorender_expand", text="批量渲染", emboss=False, 
+        col_autorender.prop(scene, "autorender_expand", text="批量物件渲染", emboss=False, 
                             icon='TRIA_DOWN' if scene.autorender_expand else 'TRIA_RIGHT')
 
         if scene.autorender_expand:
