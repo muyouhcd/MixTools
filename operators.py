@@ -352,6 +352,8 @@ class RandomScale(bpy.types.Operator):
 
         return {'FINISHED'}
 
+
+
 # 名称顺序y轴列队
 bpy.types.Scene.use_bounding_box = bpy.props.BoolProperty(
     name="使用包围盒",
@@ -423,24 +425,31 @@ class QueueUp(bpy.types.Operator):
                     current_position[2] += distance
 
         return {"FINISHED"}# 创建父级空物体
+    
+
+
+# 获取物体的顶级父物体
 def get_top_parent(obj):
-    if obj.parent is None:
-        return obj
-    else:
-        return get_top_parent(obj.parent)
-# 向目标集合添加空物体
+    while obj.parent:
+        obj = obj.parent
+    return obj
+
+# 计算所有选中物体的包围盒
 def calculate_bounding_box(objects):
-    bbox_corners = [obj.matrix_world @ Vector(corner) for obj in objects for corner in obj.bound_box] 
-    min_corner = Vector((min(corner[i] for corner in bbox_corners) for i in range(3))) 
-    max_corner = Vector((max(corner[i] for corner in bbox_corners) for i in range(3))) 
-    return min_corner, max_corner 
+    bbox_corners = [obj.matrix_world @ Vector(corner) for obj in objects for corner in obj.bound_box]
+    min_corner = Vector((min(corner[i] for corner in bbox_corners) for i in range(3)))
+    max_corner = Vector((max(corner[i] for corner in bbox_corners) for i in range(3)))
+    return min_corner, max_corner
 
+# 计算物体底部中心位置
 def calculate_bottom_center(min_corner, max_corner):
-    bottom_center = min_corner
-    bottom_center.x = (max_corner.x + min_corner.x)/2
-    bottom_center.y = (max_corner.y + min_corner.y)/2
-    return bottom_center
+    return Vector((
+        (max_corner.x + min_corner.x) / 2,
+        (max_corner.y + min_corner.y) / 2,
+        min_corner.z  # 取最底部
+    ))
 
+# 向目标集合中添加空物体
 def link_empty(obj_collection, empty_name, location):
     empty = bpy.data.objects.new(empty_name, None)
     obj_collection.objects.link(empty)
@@ -452,72 +461,59 @@ class CreateEmptyAtObjectBottom(bpy.types.Operator):
     bl_label = "在选中物体底部创建父级空物体"
 
     def execute(self, context):
-        def create_empty_at_bottom(collection, name, location):
-            empty = link_empty(collection, name, location)
-            return empty
-
-        def create_single_empty_for_multiple_objects(location):
-            empty_name = 'multiple_objects_empty'
-            empty = link_empty(context.collection, empty_name, location)
-            return empty
-
         multiple_object_binding = context.scene.multiple_object_binding
         selected_objects = bpy.context.selected_objects
 
-        if not multiple_object_binding:
+        # 提前计算好包围盒和底部中心
+        if multiple_object_binding:
+            # 获取所有选中物体的顶级父物体
+            top_parents = [get_top_parent(obj) for obj in selected_objects]
+            # 计算所有顶级父物体的包围盒
+            min_corner, max_corner = calculate_bounding_box(top_parents)
+            # 计算所有物体的底部中心
+            location = calculate_bottom_center(min_corner, max_corner)
+
+            # 创建一个空物体，放置在所有物体的底部中心
+            multiple_empty = link_empty(context.collection, 'multiple_objects_empty', location)
+
+            # 对每个物体进行父级设置
+            for top_parent in top_parents:
+                self.set_parent_to_empty(top_parent, multiple_empty)
+
+        else:
             for obj in selected_objects:
                 top_parent = get_top_parent(obj)
                 obj_collection = top_parent.users_collection[0]
                 empty_name = top_parent.name + '_empty'
 
-                # Calculate the bounding box of the top parent
+                # 计算包围盒和底部中心
                 min_corner, max_corner = calculate_bounding_box([top_parent])
-                # Calculate the bottom center of the top parent
                 location = calculate_bottom_center(min_corner, max_corner)
 
-                # Create a new empty at the location
-                empty = create_empty_at_bottom(obj_collection, empty_name, location)
-
-                # Store the initial world matrix
-                initial_matrix_world = top_parent.matrix_world.copy()
-
-                # Reparent with the new empty object without inverse
-                bpy.ops.object.select_all(action='DESELECT')
-                empty.select_set(True)
-                top_parent.select_set(True)
-                context.view_layer.objects.active = empty
-                bpy.ops.object.parent_set(type="OBJECT", keep_transform=True)
-
-                # Restore the initial world matrix
-                top_parent.matrix_world = initial_matrix_world
-        else:
-            # Get all top parents
-            top_parents = [get_top_parent(obj) for obj in selected_objects]
-
-            # Calculate the bounding box of all top parents
-            min_corner, max_corner = calculate_bounding_box(top_parents)
-            # Calculate the bottom center of all top parents
-            location = calculate_bottom_center(min_corner, max_corner)
-
-            # Create a new empty at the location
-            multiple_empty = create_single_empty_for_multiple_objects(location)
-
-            for top_parent in top_parents:
-
-                # Store the initial world matrix
-                initial_matrix_world = top_parent.matrix_world.copy()
-
-                # Reparent with the new empty object without inverse
-                bpy.ops.object.select_all(action='DESELECT')
-                multiple_empty.select_set(True)
-                top_parent.select_set(True)
-                context.view_layer.objects.active = multiple_empty
-                bpy.ops.object.parent_set(type="OBJECT", keep_transform=True)
-
-                # Restore the initial world matrix
-                top_parent.matrix_world = initial_matrix_world
+                # 创建空物体
+                empty = link_empty(obj_collection, empty_name, location)
+                self.set_parent_to_empty(top_parent, empty)
 
         return {'FINISHED'}
+
+    def set_parent_to_empty(self, obj, empty):
+        # 保存原来的矩阵世界
+        initial_matrix_world = obj.matrix_world.copy()
+
+        # 清除选择，避免每次都反复选择物体
+        bpy.ops.object.select_all(action='DESELECT')
+
+        # 选择空物体和目标物体
+        empty.select_set(True)
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = empty
+
+        # 设置父级关系
+        bpy.ops.object.parent_set(type="OBJECT", keep_transform=True)
+
+        # 恢复物体的世界矩阵
+        obj.matrix_world = initial_matrix_world
+
 
 # 按距离划分编组并绑定最高的物体为父级
 class CollectionByDistance(bpy.types.Operator):

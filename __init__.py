@@ -84,6 +84,7 @@ from . import MaterialOperator
 from . import UVCleaner
 from . import UVformater
 from . import RenderFrame
+from . import BoneProcess
 
 # from . import ObjectInstance
 
@@ -115,6 +116,7 @@ def register():
     UVformater.register()
     # ObjectInstance.rejister()
     RenderFrame.register()
+    BoneProcess.register()
 
 def unregister():
     update.unregister()
@@ -142,6 +144,7 @@ def unregister():
     UVformater.unregister()
     # ObjectInstance.unregister()
     RenderFrame.unregister()
+    BoneProcess.unregister()
 
 
 

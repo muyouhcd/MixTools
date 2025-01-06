@@ -9,8 +9,8 @@ bpy.types.Scene.export_directory = bpy.props.StringProperty(
     subtype='DIR_PATH'
 )
 
-changerotation=90
-changescale=100
+changerotation = 90
+changescale = 100
 
 # 检查导出目录是否有效
 def check_dir(self, context):
@@ -24,6 +24,7 @@ def check_dir(self, context):
     return True, dest_path
 
 # 准备导出前的对象变换
+# 准备导出前的对象变换
 def prepare_obj_export(obj):
     print(f"正在记录 {obj.name} 的原始参数")
     original_state = {
@@ -35,36 +36,31 @@ def prepare_obj_export(obj):
     print(f"正在调整 {obj.name} 的比例")
     obj.scale *= changescale
     obj.rotation_euler = (math.radians(-changerotation), 0, 0)  # 转换为弧度
-
-    print(f"正在更新视图")
-    bpy.context.view_layer.update()
-    bpy.ops.object.make_single_user_operator()
-    print(f"正在应用选定物体的变换")
+    # 应用变换到所有子对象
     apply_transform_to_descendants(obj)
+
     return original_state
 
 # 恢复对象变换
-def restore_obj_import(obj):
-
+def restore_obj_import(obj, original_state):
     print(f"开始恢复 {obj.name} 的旋转角度、缩放和位置")
-    obj.scale *= 1/changescale
-    obj.rotation_euler = (math.radians(changerotation), 0, 0)  # 转换为弧度
-    apply_transform_to_descendants(obj)
-
-    bpy.context.view_layer.update()
+    obj.scale = original_state['scale']
+    obj.rotation_euler = original_state['rotation']
+    obj.location = original_state['location']
+    # 不立即更新视图
     print(f"{obj.name} 的状态已恢复")
 
 # 导出FBX文件
 def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=None):
     fbx_file_ext = "_col.fbx" if col_mark else ".fbx"
     fbx_file_path = os.path.join(dest_path, obj.name.split('_col')[0] + fbx_file_ext)
-    
+
     print(f"设置FBX文件的导出路径为：{fbx_file_path}")
     print(f"开始导出至：{fbx_file_path}")
-    
+
     if rotation_euler:
         obj.rotation_euler = rotation_euler
-    
+
     bpy.ops.export_scene.fbx(
         filepath=fbx_file_path,
         use_selection=True,
@@ -74,15 +70,15 @@ def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=No
     )
     print(f"导出完成：{fbx_file_path}")
 
-# 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象。
+# 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象
 def apply_transform_to_descendants(obj):
     if '_col' not in obj.name:
         make_single_user(obj)  # 将对象变为单用户对象
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
         bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-        for child in obj.children:
-            apply_transform_to_descendants(child)  # 递归处理子对象
+        # for child in obj.children:
+        #     apply_transform_to_descendants(child)  # 递归处理子对象
 
 def make_single_user(obj):
     """将对象变为单用户对象"""
@@ -100,7 +96,7 @@ class ExportFbxByParent(bpy.types.Operator):
             if '_col' not in child.name:
                 child.select_set(True)
                 self.select_children_except_col(child)
-    
+
     def execute(self, context):
         # 检查路径
         check_result, dest_path = check_dir(self, context)
@@ -108,6 +104,9 @@ class ExportFbxByParent(bpy.types.Operator):
             return {'CANCELLED'}
 
         parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
+
+        # 禁用自动更新
+        bpy.context.view_layer.update()
 
         for obj in parents:
             bpy.ops.object.select_all(action='DESELECT')
@@ -120,8 +119,10 @@ class ExportFbxByParent(bpy.types.Operator):
             export_fbx(obj, dest_path, scale_factor=0.01, rotation_euler=(math.radians(90), 0, 0))
 
             print(f"恢复对象：{obj.name}")
-            restore_obj_import(obj)
+            restore_obj_import(obj, original_state)
 
+        # 最后统一更新视图
+        bpy.context.view_layer.update()
         print("所有导出操作已结束")
         return {'FINISHED'}
 
@@ -159,6 +160,8 @@ class ExportFbxByColMark(bpy.types.Operator):
                 print(f"恢复对象：{highest_parent.name}")
                 restore_obj_import(highest_parent, original_state)
 
+        # 最后统一更新视图
+        bpy.context.view_layer.update()
         print("所有导出操作已结束")
         return {'FINISHED'}
 
@@ -172,27 +175,6 @@ class ExportFbxByCollection(bpy.types.Operator):
         check_result, export_dir = check_dir(self, context)
         if not check_result:
             return {'CANCELLED'}
-
-        def move_outside(mesh_obj):
-            mesh_obj.select_set(True)
-            bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-            bpy.ops.object.transform_apply(location=True, rotation=True, scale=False)
-            mesh_obj.rotation_euler.x -= math.radians(90)
-            bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-            mesh_obj.rotation_euler.x += math.radians(90)
-
-        def has_mesh_descendants(obj):
-            if any(child.type == 'MESH' for child in obj.children):
-                return True
-            for child in obj.children:
-                if has_mesh_descendants(child):
-                    return True
-            return False
-
-        def clean_empty(obj):
-            empty_objects_to_delete = [child for child in obj.children if child.type == 'EMPTY' and not has_mesh_descendants(child)]
-            for child in empty_objects_to_delete:
-                bpy.data.objects.remove(child)
 
         for collection in bpy.data.collections:
             collection_dir = os.path.join(export_dir, collection.name)
@@ -208,18 +190,15 @@ class ExportFbxByCollection(bpy.types.Operator):
 
                 original_state = prepare_obj_export(obj)
 
-                clean_empty(obj)
-
                 fbx_path = os.path.join(collection_dir, obj.name + ".fbx")
                 bpy.ops.export_scene.fbx(filepath=fbx_path, use_selection=True, global_scale=0.01)
-                obj.rotation_euler = (0, 0, 0)
 
                 restore_obj_import(obj, original_state)
 
-            bpy.context.view_layer.objects.active = None
-
+        # 最后统一更新视图
+        bpy.context.view_layer.update()
         print("All objects in collections have been exported as FBX files to " + export_dir)
-        return {'FINISHED'} 
+        return {'FINISHED'}
 
 def register():
     bpy.utils.register_class(ExportFbxByParent)

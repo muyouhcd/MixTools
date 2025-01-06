@@ -175,11 +175,105 @@ class QuadUVAligner(bpy.types.Operator):
             else:
                 self.report({'WARNING'}, f"{obj.name} 不是一个网格对象，跳过。")
         return {'FINISHED'}
+    
 
+def correct_uv_rotation(obj):
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.mode_set(mode='EDIT')
+    
+    mesh = obj.data
+    bm = bmesh.from_edit_mesh(mesh)
+
+    if not mesh.uv_layers:
+        mesh.uv_layers.new()
+    
+    uv_layer = bm.loops.layers.uv.active
+    visited_faces = set()
+
+    def get_adjacent_faces(face):
+        for edge in face.edges:
+            for linked_face in edge.link_faces:
+                if linked_face != face:
+                    yield linked_face
+
+    def align_uv_to_reference(ref_face, face):
+        ref_uvs = [ref_face.loops[i][uv_layer].uv.copy() for i in range(len(ref_face.verts))]
+        uvs = [face.loops[i][uv_layer].uv.copy() for i in range(len(face.verts))]
+
+        ref_center = sum(ref_uvs, mathutils.Vector((0.0, 0.0))) / len(ref_uvs)
+        face_center = sum(uvs, mathutils.Vector((0.0, 0.0))) / len(uvs)
+
+        ref_uvs_rel = [uv - ref_center for uv in ref_uvs]
+        uvs_rel = [uv - face_center for uv in uvs]
+
+        def find_rotation_scale(a, b):
+            a1, a2 = a
+            b1, b2 = b
+            rot_angle = (b1 - b2).to_2d().angle_signed((a1 - a2).to_2d())
+            scale = ((b1 - b2).length) / ((a1 - a2).length)
+            return rot_angle, scale
+
+        rotation, scale = find_rotation_scale(ref_uvs_rel[:2], uvs_rel[:2])
+
+        transform = mathutils.Matrix.Translation(ref_center) @ \
+                    mathutils.Matrix.Scale(scale, 2) @ \
+                    mathutils.Matrix.Rotation(rotation, 2) @ \
+                    mathutils.Matrix.Translation(-face_center)
+
+        for i, loop in enumerate(face.loops):
+            loop_uv = loop[uv_layer].uv
+            loop_uv.xy = transform @ uvs[i]
+
+    for face in bm.faces:
+        if face in visited_faces or len(face.verts) != 4:
+            continue
+        
+        # Find connected coplanar faces
+        connected_faces = {face}
+        queue = [face]
+
+        while queue:
+            current_face = queue.pop(0)
+            visited_faces.add(current_face)
+            face_normal = current_face.normal
+
+            for adj_face in get_adjacent_faces(current_face):
+                if adj_face not in visited_faces and len(adj_face.verts) == 4:
+                    angle_between_faces = face_normal.angle(adj_face.normal)
+                    if angle_between_faces < math.radians(1):
+                        queue.append(adj_face)
+                        connected_faces.add(adj_face)
+
+        # Align all connected faces to the reference face
+        reference_face = face
+        for connected_face in connected_faces:
+            if connected_face != reference_face:
+                align_uv_to_reference(reference_face, connected_face)
+
+    bmesh.update_edit_mesh(mesh)
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+
+class CorrectUVRotationOperator(bpy.types.Operator):
+    bl_idname = "object.correct_uv_rotation"
+    bl_label = "矫正 UV 旋转"
+    bl_description = "矫正选定对象的四边形面 UV 旋转，以第一个面为基准进行对齐。"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                correct_uv_rotation(obj)
+            else:
+                self.report({'WARNING'}, f"{obj.name} 不是一个网格对象，跳过。")
+        return {'FINISHED'}
 def register():
     bpy.utils.register_class(QuadUVAligner)
     bpy.utils.register_class(UVformater)
+    bpy.utils.register_class(CorrectUVRotationOperator)
 
 def unregister():
     bpy.utils.unregister_class(QuadUVAligner)
     bpy.utils.unregister_class(UVformater)
+    bpy.utils.unregister_class(CorrectUVRotationOperator)
