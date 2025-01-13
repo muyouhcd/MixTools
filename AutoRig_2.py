@@ -166,6 +166,88 @@ def strip_name_suffix(name):
 class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
     """根据 JSON 数据还原骨架并自动绑定到网格"""
     bl_idname = "object.restore_skeleton_from_json"
+    bl_label = "从所选配置自动绑定"
+
+    def execute(self, context):
+        index = context.scene.json_file_index
+        file_list = context.scene.json_file_list
+
+        if index < 0 or index >= len(file_list):
+            self.report({'ERROR'}, "请选择一个有效的 JSON 文件进行还原")
+            return {'CANCELLED'}
+
+        file_name = file_list[index].name
+        file_path = os.path.join(get_addon_path(), file_name)
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as json_file:
+                data = json.load(json_file)
+                bone_data = data.get("bone_data", {})
+                empty_coords_data = data.get("empty_coords_data", [])
+
+                # 根据空物体的位置重命名场景中的物体
+                rename_all_children_based_on_coords(empty_coords_data)
+
+                # 收集顶级父级对象
+                top_level_objects = {get_top_parent(obj) for obj in context.scene.objects if obj.type == 'MESH'}
+
+                # 为每个顶级父级对象创建和绑定骨架
+                for top_object in top_level_objects:
+                    # 创建骨架
+                    armature = bpy.data.armatures.new(name=f"{top_object.name}_Armature")
+                    armature_obj = bpy.data.objects.new(f"{top_object.name}_Armature_Object", armature)
+                    context.collection.objects.link(armature_obj)
+
+                    # 将骨架移到顶级父级对象的下面
+                    armature_obj.parent = top_object
+
+                    bpy.context.view_layer.objects.active = armature_obj
+                    bpy.ops.object.mode_set(mode='EDIT')
+
+                    created_bones = {}
+                    for bone_name, bone_info in bone_data.items():
+                        bone = armature.edit_bones.new(name=bone_name)
+                        bone.head = Vector(bone_info['head'])
+                        bone.tail = Vector(bone_info['tail'])
+                        created_bones[bone_name] = bone
+
+                    for bone_name, bone_info in bone_data.items():
+                        if bone_info["parent"]:
+                            created_bones[bone_name].parent = created_bones.get(bone_info["parent"])
+
+                    bpy.ops.object.mode_set(mode='OBJECT')
+
+                    # 绑定顶级父级对象的所有子对象
+                    for child_obj in top_object.children:
+                        if child_obj.type == 'MESH':
+                            armature_modifier = child_obj.modifiers.new(name="Armature", type='ARMATURE')
+                            armature_modifier.object = armature_obj
+
+                            # 清除现有顶点组并设置所有顶点权重为0
+                            child_obj.vertex_groups.clear()
+
+                            # 使用去掉后缀的名称创建顶点组
+                            group_name = strip_name_suffix(child_obj.name)
+                            vertex_group = child_obj.vertex_groups.new(name=group_name)
+                            all_verts_indices = list(range(len(child_obj.data.vertices)))
+
+                            # 将所有顶点添加到顶点组并设置权重为1
+                            vertex_group.add(all_verts_indices, 1.0, 'ADD')
+
+                # 合并物体
+                for names, new_name in name_groups:
+                    filtered_objects = create_parent_dict(names)
+                    join_objects(filtered_objects, new_name)
+
+            self.report({'INFO'}, f"骨架从 {file_name} 中成功还原并绑定")
+
+        except Exception as e:
+            self.report({'ERROR'}, f"还原失败: {e}")
+
+        return {'FINISHED'}
+
+    """根据 JSON 数据还原骨架并自动绑定到网格"""
+    bl_idname = "object.restore_skeleton_from_json"
     bl_label = "从JSON还原骨架并自动绑定"
 
     def execute(self, context):
@@ -245,6 +327,7 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
             self.report({'ERROR'}, f"还原失败: {e}")
 
         return {'FINISHED'}
+
 def get_bone_data_with_scaling(armature_name):
     bone_data = {}
     template_armature = bpy.data.objects.get(armature_name)
@@ -253,11 +336,18 @@ def get_bone_data_with_scaling(armature_name):
         bpy.context.view_layer.objects.active = template_armature
         bpy.ops.object.mode_set(mode='EDIT')
         
+        # 获取骨架对象的世界矩阵
+        world_matrix = template_armature.matrix_world
+
         for bone in template_armature.data.edit_bones:
+            # 将局部坐标转换为全局坐标
+            bone_head_world = world_matrix @ bone.head
+            bone_tail_world = world_matrix @ bone.tail
+
             bone_data[bone.name] = {
                 "parent": bone.parent.name if bone.parent else None,
-                "head": list(bone.head),
-                "tail": list(bone.tail)
+                "head": list(bone_head_world),
+                "tail": list(bone_tail_world)
             }
         
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -278,6 +368,75 @@ def save_data_to_json(bone_data, empty_coords_data, file_path):
     }
     with open(file_path, 'w', encoding='utf-8') as json_file:
         json.dump(data, json_file, indent=4, ensure_ascii=False)
+
+class RestoreBoneDataOperator(bpy.types.Operator):
+    """读取 JSON 数据并还原骨骼和空物体位置"""
+    bl_idname = "object.restore_bone_data"
+    bl_label = "还原骨骼数据"
+
+    def execute(self, context):
+        # 使用与保存相同的路径
+        index = context.scene.json_file_index
+        file_list = context.scene.json_file_list
+
+        if index < 0 or index >= len(file_list):
+            self.report({'ERROR'}, "请选择一个有效的 JSON 文件进行还原")
+            return {'CANCELLED'}
+
+        file_name = file_list[index].name
+        file_path = os.path.join(get_addon_path(), file_name)
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as json_file:
+                data = json.load(json_file)
+                bone_data = data.get("bone_data", {})
+                empty_coords_data = data.get("empty_coords_data", [])
+
+                print("Loaded bones:", bone_data)
+                print("Loaded empties:", empty_coords_data)
+
+                # 清单的顶级对象
+                top_level_objects = {get_top_parent(obj) for obj in context.scene.objects if obj.type == 'MESH'}
+
+                for top_object in top_level_objects:
+                    # 创建骨架
+                    armature = bpy.data.armatures.new(name=f"{top_object.name}_Armature")
+                    armature_obj = bpy.data.objects.new(f"{top_object.name}_Armature_Object", armature)
+                    context.collection.objects.link(armature_obj)
+
+                    # 设置骨架位置
+                    armature_obj.parent = top_object
+
+                    bpy.context.view_layer.objects.active = armature_obj
+                    bpy.ops.object.mode_set(mode='EDIT')
+
+                    created_bones = {}
+                    for bone_name, bone_info in bone_data.items():
+                        bone = armature.edit_bones.new(name=bone_name)
+                        bone.head = Vector(bone_info['head'])
+                        bone.tail = Vector(bone_info['tail'])
+                        created_bones[bone_name] = bone
+
+                    # 设置骨骼父关系
+                    for bone_name, bone_info in bone_data.items():
+                        if bone_info["parent"]:
+                            created_bones[bone_name].parent = created_bones.get(bone_info["parent"])
+                    
+                    bpy.ops.object.mode_set(mode='OBJECT')
+
+                # 还原空物体位置
+                for empty_name, location in empty_coords_data:
+                    print(f"Restoring empty object {empty_name} to location {location}")
+                    empty_obj = bpy.data.objects.get(empty_name)
+                    if empty_obj and empty_obj.type == 'EMPTY':
+                        empty_obj.location = Vector(location)
+
+            self.report({'INFO'}, "骨骼数据已成功还原")
+        
+        except Exception as e:
+            self.report({'ERROR'}, f"还原失败: {e}")
+        
+        return {'FINISHED'}
 
 class BoneDataExporterPanel(bpy.types.Panel):
     """创建一个自定义面板"""
@@ -302,10 +461,10 @@ class BoneDataExporterPanel(bpy.types.Panel):
         row.operator("object.restore_empty_data", text="还原空物体数据")
 
         row = layout.row()
-        row.operator("object.restore_skeleton_from_json", text="从JSON还原骨架并自动绑定")
+        row.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定")
 
         row = layout.row()
-        row.operator("object.refresh_json_list", text="刷新文件列表")
+        row.operator("object.refresh_json_list", text="刷新配置列表")
 
 class RefreshJsonListOperator(bpy.types.Operator):
     """操作符，用于刷新JSON文件列表"""
@@ -407,11 +566,9 @@ def register():
     bpy.utils.register_class(RestoreSkeletonFromJsonOperator)
     bpy.utils.register_class(RefreshJsonListOperator)
     bpy.utils.register_class(CharOperater)
-    
+    bpy.utils.register_class(RestoreBoneDataOperator)
     bpy.types.Scene.json_file_list = bpy.props.CollectionProperty(type=bpy.types.PropertyGroup)
     bpy.types.Scene.json_file_index = bpy.props.IntProperty()
-    
-    # Refresh the JSON list at script start
     update_json_file_list(bpy.context)
 
 def unregister():
@@ -421,7 +578,7 @@ def unregister():
     bpy.utils.unregister_class(RestoreEmptyDataOperator)
     bpy.utils.unregister_class(RestoreSkeletonFromJsonOperator)
     bpy.utils.unregister_class(RefreshJsonListOperator)
-    
+    bpy.utils.unregister_class(RestoreBoneDataOperator)
     del bpy.types.Scene.json_file_list
     del bpy.types.Scene.json_file_index
 

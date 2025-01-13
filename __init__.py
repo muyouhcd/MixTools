@@ -66,7 +66,7 @@ from . import auto_render
 from . import AutoRenameCar
 from . import ExportFbx
 from . import Voxelizer
-from . import AutoRig
+# from . import AutoRig
 from . import AutoRig_2
 from . import AutolinkTexture
 from . import MoveOrigin
