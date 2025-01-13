@@ -71,6 +71,7 @@ from . import AutoRenameCar
 from . import ExportFbx
 from . import Voxelizer
 from . import AutoRig
+from . import AutoRig_2
 from . import AutolinkTexture
 from . import MoveOrigin
 from . import AutoBake
@@ -117,6 +118,7 @@ def register():
     # ObjectInstance.rejister()
     RenderFrame.register()
     BoneProcess.register()
+    AutoRig_2.register()
 
 def unregister():
     update.unregister()
@@ -145,6 +147,7 @@ def unregister():
     # ObjectInstance.unregister()
     RenderFrame.unregister()
     BoneProcess.unregister()
+    AutoRig_2.unregister()
 
 
 

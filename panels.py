@@ -297,13 +297,13 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_character.prop(scene,"assign_contact_weights")
             box_character.prop(scene, "threshold_distance")
 
-            box_character.operator('object.char_operater_bone_weight', text="女性角色一键绑定", icon='BONE_DATA')
-            box_character.operator('object.char_operater_male_bone_weight', text="男性角色一键绑定", icon='BONE_DATA')
+            # box_character.operator('object.char_operater_bone_weight', text="女性角色一键绑定", icon='BONE_DATA')
+            # box_character.operator('object.char_operater_male_bone_weight', text="男性角色一键绑定", icon='BONE_DATA')
 
 
-            # box_bone = col_assestoperation.box()
-            # box_bone.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
-            # box_bone.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
+            box_bone = col_assestoperation.box()
+            box_bone.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
+            box_bone.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
         
             box_assestoperation = col_assestoperation.box()
             box_assestoperation.operator("object.miao_apply_and_separate", text="1.独立化应用所有变换")
