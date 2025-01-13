@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,7,9),
+    "version": (4,8,0),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -9,10 +9,6 @@ bl_info = {
     "wiki_url": "",
     "category": "Object",
 }
-
-import pkgutil
-import importlib
-import bpy
 import sys
 import os
 import subprocess
@@ -87,8 +83,6 @@ from . import UVformater
 from . import RenderFrame
 from . import BoneProcess
 
-# from . import ObjectInstance
-
 
 def register():
     
@@ -102,7 +96,6 @@ def register():
     AutoRenameCar.register()
     ExportFbx.register()
     Voxelizer.register()
-    # AutoRig.register()
     AutolinkTexture.register()
     MoveOrigin.register()
     AutoBake.register()
@@ -115,7 +108,6 @@ def register():
     MaterialOperator.register()
     UVCleaner.register()
     UVformater.register()
-    # ObjectInstance.rejister()
     RenderFrame.register()
     BoneProcess.register()
     AutoRig_2.register()
@@ -131,7 +123,6 @@ def unregister():
     AutoRenameCar.unregister()
     ExportFbx.unregister()
     Voxelizer.unregister()
-    # AutoRig.unregister()
     AutolinkTexture.unregister()
     MoveOrigin.unregister()
     AutoBake.unregister()
@@ -144,7 +135,6 @@ def unregister():
     MaterialOperator.unregister()
     UVCleaner.unregister()
     UVformater.unregister()
-    # ObjectInstance.unregister()
     RenderFrame.unregister()
     BoneProcess.unregister()
     AutoRig_2.unregister()
