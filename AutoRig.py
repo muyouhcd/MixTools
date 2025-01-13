@@ -1,10 +1,10 @@
-import bpy
-import bmesh
-import random
-from mathutils import Vector
-from collections import defaultdict
-from mathutils.bvhtree import BVHTree
-from mathutils import kdtree
+# import bpy
+# import bmesh
+# import random
+# from mathutils import Vector
+# from collections import defaultdict
+# from mathutils.bvhtree import BVHTree
+# from mathutils import kdtree
 
 
 # name_groups = [
@@ -344,56 +344,56 @@ from mathutils import kdtree
 
 #     print("Contact weights assigned for all object combinations, and self vertex groups created with full weight.")
 
-class CharOperater(bpy.types.Operator):
-    bl_idname = "object.miao_char_operater"
-    bl_label = "角色一键处理"
+# class CharOperater(bpy.types.Operator):
+#     bl_idname = "object.miao_char_operater"
+#     bl_label = "角色一键处理"
     
-    def apply_transforms_recursive(self, obj):
-        obj.select_set(True)
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        obj.select_set(False)
+#     def apply_transforms_recursive(self, obj):
+#         obj.select_set(True)
+#         bpy.context.view_layer.objects.active = obj
+#         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+#         obj.select_set(False)
 
-        if obj.children:
-            for child in obj.children:
-                self.apply_transforms_recursive(child)
+#         if obj.children:
+#             for child in obj.children:
+#                 self.apply_transforms_recursive(child)
 
-    def execute(self, context):
-        print("开始处理顶点")
-        bpy.ops.object.vox_operation()
-        print("开始处理碰撞")
-        bpy.ops.object.miao_parent_byboundingbox()
+#     def execute(self, context):
+#         print("开始处理顶点")
+#         bpy.ops.object.vox_operation()
+#         print("开始处理碰撞")
+#         bpy.ops.object.miao_parent_byboundingbox()
 
-        def apply_change_to_scene():
-            def set_material_to_objects(objects, material):
-                for obj in objects:
-                    if len(obj.data.materials):
-                        obj.data.materials[0] = material
-                    else:
-                        obj.data.materials.append(material)
+#         def apply_change_to_scene():
+#             def set_material_to_objects(objects, material):
+#                 for obj in objects:
+#                     if len(obj.data.materials):
+#                         obj.data.materials[0] = material
+#                     else:
+#                         obj.data.materials.append(material)
 
-            top_level_parents = [obj for obj in bpy.data.objects if obj.parent is None and 'example' not in obj.name.lower()]
+#             top_level_parents = [obj for obj in bpy.data.objects if obj.parent is None and 'example' not in obj.name.lower()]
 
-            for parent_obj in top_level_parents:
-                parent_obj.scale *= 0.5
-                parent_obj.location = (0, 0, 0)
+#             for parent_obj in top_level_parents:
+#                 parent_obj.scale *= 0.5
+#                 parent_obj.location = (0, 0, 0)
 
-                if parent_obj.children:
-                    children_with_materials = [child for child in parent_obj.children if len(child.data.materials) > 0]
-                    if children_with_materials:
-                        child_with_random_material = random.choice(children_with_materials)
-                        random_material = child_with_random_material.data.materials[0]
-                        set_material_to_objects(parent_obj.children, random_material)
+#                 if parent_obj.children:
+#                     children_with_materials = [child for child in parent_obj.children if len(child.data.materials) > 0]
+#                     if children_with_materials:
+#                         child_with_random_material = random.choice(children_with_materials)
+#                         random_material = child_with_random_material.data.materials[0]
+#                         set_material_to_objects(parent_obj.children, random_material)
     
-        apply_change_to_scene()
+#         apply_change_to_scene()
 
-        for parent_obj in bpy.context.scene.objects:
-            if parent_obj.parent is None:
-                self.apply_transforms_recursive(parent_obj)
+#         for parent_obj in bpy.context.scene.objects:
+#             if parent_obj.parent is None:
+#                 self.apply_transforms_recursive(parent_obj)
         
-        bpy.ops.object.select_all(action='DESELECT')
+#         bpy.ops.object.select_all(action='DESELECT')
 
-        return {'FINISHED'}
+#         return {'FINISHED'}
 
 # class FemaleCharOperaterBone(bpy.types.Operator):
 #     bl_idname = "object.char_operater_bone_weight"
@@ -747,17 +747,17 @@ class CharOperater(bpy.types.Operator):
 #             print(f'("{name}", {location_str}),')
 #         return {'FINISHED'}
 
-def register():
+# def register():
     # None
-    bpy.utils.register_class(CharOperater)
+    # bpy.utils.register_class(CharOperater)
     # bpy.utils.register_class(FemaleCharOperaterBone)
     # bpy.utils.register_class(MaleCharOperaterBone)
     # bpy.utils.register_class(BoneDataGenerator)
     # bpy.utils.register_class(PointDataGenerator)
 
-def unregister():
+# def unregister():
     # None
-    bpy.utils.unregister_class(CharOperater)
+    # bpy.utils.unregister_class(CharOperater)
     # bpy.utils.unregister_class(FemaleCharOperaterBone)
     # bpy.utils.unregister_class(MaleCharOperaterBone)
     # bpy.utils.unregister_class(BoneDataGenerator)
