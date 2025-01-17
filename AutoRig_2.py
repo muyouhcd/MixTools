@@ -5,6 +5,7 @@ import os
 from collections import defaultdict
 from mathutils.bvhtree import BVHTree
 import bmesh
+import random
 
 bl_info = {
     "name": "骨骼数据导出与还原",
@@ -15,10 +16,10 @@ bl_info = {
 
 name_groups = [
     (["Head", "Neck"], "Face"),
-    (["Spine", "UpperArm", "Forearm", "Hand", "Finger"], "UpperBody"),
+    (["Spine", "Arm", "Forearm", "Hand", "Finger"], "UpperBody"),
     (["Pelvis",], "Pelvis"),
-    (["Thigh", "Calf",], "LowerBody"),
-    (["Foot", "Toe0",], "Feet")
+    (["Thigh", "Calf","Leg"], "LowerBody"),
+    (["Foot", "Toe",], "Feet")
 ]
 
 class ExportBoneDataOperator(bpy.types.Operator):
@@ -29,7 +30,7 @@ class ExportBoneDataOperator(bpy.types.Operator):
     def execute(self, context):
         obj = context.active_object
         if obj and obj.type == 'ARMATURE':
-            bone_data = get_bone_data_with_scaling(obj.name)
+            bone_data, embedded_empties = get_bone_data_with_scaling(obj.name)
             empty_coords_data = get_empty_object_data(context)
 
             addon_path = get_addon_path()
@@ -40,7 +41,7 @@ class ExportBoneDataOperator(bpy.types.Operator):
             file_name = f"{obj.name}.json"
             file_path = os.path.join(addon_path, file_name)
 
-            save_data_to_json(bone_data, empty_coords_data, file_path)
+            save_data_to_json(bone_data, empty_coords_data, file_path, embedded_empties)
             self.report({'INFO'}, f"已成功将骨骼和空物体数据导出到 {file_name}")
             
             # Refresh the JSON list after exporting
@@ -84,89 +85,10 @@ class RestoreEmptyDataOperator(bpy.types.Operator):
         
         return {'FINISHED'}
 
-def get_top_parent(obj):
-    while obj.parent is not None:
-        obj = obj.parent
-    return obj if obj else None
-
-def create_parent_dict(name_list):
-    top_parents = {}
-    for obj in bpy.context.scene.objects:
-        if obj.type == 'MESH' and any(name in obj.name for name in name_list):
-            top_parent = get_top_parent(obj)
-            if top_parent is None:
-                top_parent = obj
-            if top_parent not in top_parents:
-                top_parents[top_parent] = []
-            top_parents[top_parent].append(obj)
-    return top_parents
-
-def join_objects(parent_dict, new_name):
-
-    for top_parent, objects in parent_dict.items():
-        if len(objects) <= 1:
-            continue
-
-        # 确保所有对象都在 OBJECT 模式下
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-        bpy.ops.object.select_all(action='DESELECT')
-        for obj in objects:
-            obj.select_set(True)
-
-        if bpy.context.selected_objects:
-            # 设置第一个选中的对象为活动对象
-            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
-            bpy.ops.object.join()
-
-        bpy.context.object.name = new_name
-
-def rename_all_children_based_on_coords(empty_coords):
-    objects_bvh = {}
-
-    def create_bvh_tree(obj):
-        bm = bmesh.new()
-        bm.from_object(obj, bpy.context.evaluated_depsgraph_get())
-        bmesh.ops.transform(bm, verts=bm.verts, matrix=obj.matrix_world)
-        bvh = BVHTree.FromBMesh(bm)
-        bm.free()
-        return bvh
-
-    for obj in bpy.context.scene.objects:
-        if obj.type == 'MESH':
-            objects_bvh[obj] = create_bvh_tree(obj)
-
-    renamed_objects = {}
-
-    for name, coord in empty_coords:
-        intersection_count = defaultdict(int)
-
-        for other_obj, bvh in objects_bvh.items():
-            ray_origin = Vector(coord)
-            ray_direction = Vector((0, 0, -1))
-
-            location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
-            while location:
-                intersection_count[other_obj] += 1
-                ray_origin = location + ray_direction * 0.00001
-                location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
-
-        for other_obj, count in intersection_count.items():
-            if count % 2 == 1:
-                new_name = name.replace("_example", "")
-                if other_obj not in renamed_objects:
-                    other_obj.name = new_name
-                    renamed_objects[other_obj] = True
-
-def strip_name_suffix(name):
-    """去掉名称的数字后缀以便于匹配."""
-    return name.rsplit('.', 1)[0]
-
 class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
-    """根据 JSON 数据还原骨架并自动绑定到网格"""
+    """根据 JSON 数据还原骨架和嵌套空物体并自动绑定到网格"""
     bl_idname = "object.restore_skeleton_from_json"
-    bl_label = "从所选配置自动绑定"
+    bl_label = "从 JSON 还原骨架并自动绑定"
 
     def execute(self, context):
         index = context.scene.json_file_index
@@ -184,6 +106,7 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                 data = json.load(json_file)
                 bone_data = data.get("bone_data", {})
                 empty_coords_data = data.get("empty_coords_data", [])
+                embedded_empty_data = data.get("embedded_empty_data", [])
 
                 # 根据空物体的位置重命名场景中的物体
                 rename_all_children_based_on_coords(empty_coords_data)
@@ -196,10 +119,14 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                     # 创建骨架
                     armature = bpy.data.armatures.new(name=f"{top_object.name}_Armature")
                     armature_obj = bpy.data.objects.new(f"{top_object.name}_Armature_Object", armature)
-                    context.collection.objects.link(armature_obj)
 
-                    # 将骨架移到顶级父级对象的下面
-                    armature_obj.parent = top_object
+                    # 找到目标对象所属的集合并将骨架对象链接到该集合
+                    target_collection = top_object.users_collection[0] if top_object.users_collection else context.collection
+                    target_collection.objects.link(armature_obj)
+                    
+                    # 将骨架设置为顶级父级对象的子对象
+                    top_level_parent = get_top_parent(top_object)
+                    armature_obj.parent = top_level_parent
 
                     bpy.context.view_layer.objects.active = armature_obj
                     bpy.ops.object.mode_set(mode='EDIT')
@@ -216,6 +143,24 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                             created_bones[bone_name].parent = created_bones.get(bone_info["parent"])
 
                     bpy.ops.object.mode_set(mode='OBJECT')
+
+                    # 生成嵌套空物体
+                    for empty_info in embedded_empty_data:
+                        empty_obj = bpy.data.objects.new(empty_info['name'], None)
+                        context.collection.objects.link(empty_obj)
+
+                        empty_obj.location = Vector(empty_info['location'])
+                        empty_obj.rotation_euler = Vector(empty_info['rotation'])
+                        empty_obj.scale = Vector(empty_info['scale'])
+
+                        if empty_info['parent_bone']:
+                            armature_obj = ... # 获取相关骨架对象
+                            empty_obj.parent = armature_obj
+                            empty_obj.parent_type = 'BONE'
+                            empty_obj.parent_bone = empty_info['parent_bone']
+
+                        # 不设定父级，以确保全局空间不受父级影响
+                        # if empty_info["parent"]:  # 这一行注释掉，可以保留空值，直接使用全局坐标
 
                     # 绑定顶级父级对象的所有子对象
                     for child_obj in top_object.children:
@@ -245,129 +190,6 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
             self.report({'ERROR'}, f"还原失败: {e}")
 
         return {'FINISHED'}
-
-    """根据 JSON 数据还原骨架并自动绑定到网格"""
-    bl_idname = "object.restore_skeleton_from_json"
-    bl_label = "从JSON还原骨架并自动绑定"
-
-    def execute(self, context):
-        index = context.scene.json_file_index
-        file_list = context.scene.json_file_list
-
-        if index < 0 or index >= len(file_list):
-            self.report({'ERROR'}, "请选择一个有效的 JSON 文件进行还原")
-            return {'CANCELLED'}
-
-        file_name = file_list[index].name
-        file_path = os.path.join(get_addon_path(), file_name)
-
-        try:
-            with open(file_path, 'r', encoding='utf-8') as json_file:
-                data = json.load(json_file)
-                bone_data = data.get("bone_data", {})
-                empty_coords_data = data.get("empty_coords_data", [])
-
-                # 根据空物体的位置重命名场景中的物体
-                rename_all_children_based_on_coords(empty_coords_data)
-
-                # 收集顶级父级对象
-                top_level_objects = {get_top_parent(obj) for obj in context.scene.objects if obj.type == 'MESH'}
-
-                # 为每个顶级父级对象创建和绑定骨架
-                for top_object in top_level_objects:
-                    # 创建骨架
-                    armature = bpy.data.armatures.new(name=f"{top_object.name}_Armature")
-                    armature_obj = bpy.data.objects.new(f"{top_object.name}_Armature_Object", armature)
-                    context.collection.objects.link(armature_obj)
-
-                    # 将骨架移到顶级父级对象的下面
-                    armature_obj.parent = top_object
-
-                    bpy.context.view_layer.objects.active = armature_obj
-                    bpy.ops.object.mode_set(mode='EDIT')
-
-                    created_bones = {}
-                    for bone_name, bone_info in bone_data.items():
-                        bone = armature.edit_bones.new(name=bone_name)
-                        bone.head = Vector(bone_info['head'])
-                        bone.tail = Vector(bone_info['tail'])
-                        created_bones[bone_name] = bone
-
-                    for bone_name, bone_info in bone_data.items():
-                        if bone_info["parent"]:
-                            created_bones[bone_name].parent = created_bones.get(bone_info["parent"])
-
-                    bpy.ops.object.mode_set(mode='OBJECT')
-
-                    # 绑定顶级父级对象的所有子对象
-                    for child_obj in top_object.children:
-                        if child_obj.type == 'MESH':
-                            armature_modifier = child_obj.modifiers.new(name="Armature", type='ARMATURE')
-                            armature_modifier.object = armature_obj
-
-                            # 清除现有顶点组并设置所有顶点权重为0
-                            child_obj.vertex_groups.clear()
-
-                            # 使用去掉后缀的名称创建顶点组
-                            group_name = strip_name_suffix(child_obj.name)
-                            vertex_group = child_obj.vertex_groups.new(name=group_name)
-                            all_verts_indices = list(range(len(child_obj.data.vertices)))
-
-                            # 将所有顶点添加到顶点组并设置权重为1
-                            vertex_group.add(all_verts_indices, 1.0, 'ADD')
-
-                # 合并物体
-                for names, new_name in name_groups:
-                    filtered_objects = create_parent_dict(names)
-                    join_objects(filtered_objects, new_name)
-
-            self.report({'INFO'}, f"骨架从 {file_name} 中成功还原并绑定")
-
-        except Exception as e:
-            self.report({'ERROR'}, f"还原失败: {e}")
-
-        return {'FINISHED'}
-
-def get_bone_data_with_scaling(armature_name):
-    bone_data = {}
-    template_armature = bpy.data.objects.get(armature_name)
-    
-    if template_armature and template_armature.type == 'ARMATURE':
-        bpy.context.view_layer.objects.active = template_armature
-        bpy.ops.object.mode_set(mode='EDIT')
-        
-        # 获取骨架对象的世界矩阵
-        world_matrix = template_armature.matrix_world
-
-        for bone in template_armature.data.edit_bones:
-            # 将局部坐标转换为全局坐标
-            bone_head_world = world_matrix @ bone.head
-            bone_tail_world = world_matrix @ bone.tail
-
-            bone_data[bone.name] = {
-                "parent": bone.parent.name if bone.parent else None,
-                "head": list(bone_head_world),
-                "tail": list(bone_tail_world)
-            }
-        
-        bpy.ops.object.mode_set(mode='OBJECT')
-    
-    return bone_data
-
-def get_empty_object_data(context):
-    empty_coords_data = []
-    for obj in context.selected_objects:
-        if obj.type == 'EMPTY':
-            empty_coords_data.append((obj.name, list(obj.location)))
-    return empty_coords_data
-
-def save_data_to_json(bone_data, empty_coords_data, file_path):
-    data = {
-        "bone_data": bone_data,
-        "empty_coords_data": empty_coords_data
-    }
-    with open(file_path, 'w', encoding='utf-8') as json_file:
-        json.dump(data, json_file, indent=4, ensure_ascii=False)
 
 class RestoreBoneDataOperator(bpy.types.Operator):
     """读取 JSON 数据并还原骨骼和空物体位置"""
@@ -526,6 +348,148 @@ class CharOperater(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
 
         return {'FINISHED'}
+
+def get_top_parent(obj):
+    while obj.parent is not None:
+        obj = obj.parent
+    return obj if obj else None
+
+def create_parent_dict(name_list):
+    top_parents = {}
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH' and any(name in obj.name for name in name_list):
+            top_parent = get_top_parent(obj)
+            if top_parent is None:
+                top_parent = obj
+            if top_parent not in top_parents:
+                top_parents[top_parent] = []
+            top_parents[top_parent].append(obj)
+    return top_parents
+
+def join_objects(parent_dict, new_name):
+
+    for top_parent, objects in parent_dict.items():
+        if len(objects) <= 1:
+            continue
+
+        # 确保所有对象都在 OBJECT 模式下
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in objects:
+            obj.select_set(True)
+
+        if bpy.context.selected_objects:
+            # 设置第一个选中的对象为活动对象
+            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+            bpy.ops.object.join()
+
+        bpy.context.object.name = new_name
+
+def rename_all_children_based_on_coords(empty_coords):
+    objects_bvh = {}
+
+    def create_bvh_tree(obj):
+        bm = bmesh.new()
+        bm.from_object(obj, bpy.context.evaluated_depsgraph_get())
+        bmesh.ops.transform(bm, verts=bm.verts, matrix=obj.matrix_world)
+        bvh = BVHTree.FromBMesh(bm)
+        bm.free()
+        return bvh
+
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH':
+            objects_bvh[obj] = create_bvh_tree(obj)
+
+    renamed_objects = {}
+
+    for name, coord in empty_coords:
+        intersection_count = defaultdict(int)
+
+        for other_obj, bvh in objects_bvh.items():
+            ray_origin = Vector(coord)
+            ray_direction = Vector((0, 0, -1))
+
+            location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
+            while location:
+                intersection_count[other_obj] += 1
+                ray_origin = location + ray_direction * 0.00001
+                location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
+
+        for other_obj, count in intersection_count.items():
+            if count % 2 == 1:
+                new_name = name.replace("_example", "")
+                if other_obj not in renamed_objects:
+                    other_obj.name = new_name
+                    renamed_objects[other_obj] = True
+
+def strip_name_suffix(name):
+    """去掉名称的数字后缀以便于匹配."""
+    return name.rsplit('.', 1)[0]
+
+def get_embedded_empty_data(armature_object):
+    empty_data = []
+
+    for obj in armature_object.children:
+        if obj.type == 'EMPTY':
+            location_world = obj.matrix_world.translation
+            rotation_world = obj.matrix_world.to_euler()
+            scale_world = obj.matrix_world.to_scale()
+            
+            parent_bone = obj.parent_bone if obj.parent_type == 'BONE' else None
+
+            empty_data.append({
+                "name": obj.name,
+                "location": list(location_world),
+                "rotation": list(rotation_world),
+                "scale": list(scale_world),
+                "parent_bone": parent_bone,  # 记录父级骨骼
+            })
+    return empty_data
+
+def get_bone_data_with_scaling(armature_name):
+    bone_data = {}
+    embedded_empties = []  # 空物体列表
+
+    template_armature = bpy.data.objects.get(armature_name)
+    if template_armature and template_armature.type == 'ARMATURE':
+        bpy.context.view_layer.objects.active = template_armature
+        bpy.ops.object.mode_set(mode='EDIT')
+        
+        world_matrix = template_armature.matrix_world
+
+        for bone in template_armature.data.edit_bones:
+            bone_head_world = world_matrix @ bone.head
+            bone_tail_world = world_matrix @ bone.tail
+
+            bone_data[bone.name] = {
+                "parent": bone.parent.name if bone.parent else None,
+                "head": list(bone_head_world),
+                "tail": list(bone_tail_world)
+            }
+
+        embedded_empties = get_embedded_empty_data(template_armature)
+        
+        bpy.ops.object.mode_set(mode='OBJECT')
+    
+    return bone_data, embedded_empties  # 返回两个值
+
+def get_empty_object_data(context):
+    empty_coords_data = []
+    for obj in context.selected_objects:
+        if obj.type == 'EMPTY':
+            empty_coords_data.append((obj.name, list(obj.location)))
+    return empty_coords_data
+
+def save_data_to_json(bone_data, empty_coords_data, file_path, embedded_empties=None):
+    data = {
+        "bone_data": bone_data,
+        "empty_coords_data": empty_coords_data,
+        "embedded_empty_data": embedded_empties or []
+    }
+    with open(file_path, 'w', encoding='utf-8') as json_file:
+        json.dump(data, json_file, indent=4, ensure_ascii=False)
 
 def update_json_file_list(context):
     file_dir = get_addon_path()
