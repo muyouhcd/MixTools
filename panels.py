@@ -26,21 +26,16 @@ class CustomFunctionsPanel(bpy.types.Panel):
             edit_box.operator("object.miao_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
             edit_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='OBJECT_DATA')
-
             # Animation Tools
             layout.label(text="动画工具:")
             anim_box = layout.box()
             anim_box.operator("object.clear_animation_data", text="批量清空动画", icon='ANIM_DATA')
-            
             # Generation Tools
             layout.label(text="生成工具:")
             gen_box = layout.box()
             gen_box.operator("object.miao_boundbox_gen", text="生成包围盒", icon='MESH_CUBE')
             gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='MESH_CUBE')
             gen_box.operator("object.miao_safecombin", text="安全合并", icon='AUTOMERGE_ON')
-
-            
-            
             gen_box.operator("object.object_instance", text="转换实例化", icon='AUTOMERGE_ON')
 
             # Alignment Tools
@@ -51,8 +46,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             op.axis_direction = context.scene.axis_direction_enum
             align_box.operator("object.reset_z_axis", text="z轴归零")
             
-
-
             # align_box.operator("object.miao_alignment_ground", text="原点移至底部", icon='ALIGN_BOTTOM')
             # operator = align_box.operator("object.move_origin_to_bottom", text="原点移至-Y中心", icon='PIVOT_BOUNDBOX')
             # align_box.prop(operator, "axis", text="Axis")
@@ -65,14 +58,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
             select_box.operator("object.select_small_objects", text="选择过小物体", icon='FULLSCREEN_EXIT')
             select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='FULLSCREEN_EXIT')
 
-            
             #清理工具
-
             layout.label(text="清理工具:")
             clean_box = layout.box()
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='FULLSCREEN_EXIT')
             clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='FULLSCREEN_EXIT')
-            
 
             #合并工具
             layout.label(text="合并工具:")
@@ -84,8 +74,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             convert_box = layout.box()
             convert_box.operator("object.rename_texture_orign", text="贴图改名为原始名称", icon='MOD_REMESH')
             
-
-
 # 绑定操作
         col_BindOperation = layout.column()
         col_BindOperation.prop(scene, "BindOperation_expand", text="绑定操作集合", emboss=False,
@@ -376,7 +364,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
         scene = bpy.context.scene
 
         col_autorender = layout.column()
-        col_autorender.prop(scene, "autorender_expand", text="批量物件渲染", emboss=False, 
+        col_autorender.prop(scene, "autorender_expand", text="批量物件icon渲染", emboss=False, 
                             icon='TRIA_DOWN' if scene.autorender_expand else 'TRIA_RIGHT')
 
         if scene.autorender_expand:
@@ -387,7 +375,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_autorender.prop(bpy.context.scene.auto_render_settings, "collections", text="渲染集合")
             box_autorender.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机（非中文）")
             box_autorender.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到每个物体")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离（像素）")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离（请先设置正交相机）")
             box_autorender.operator("auto_render.execute")
             
             box_autorender_blendefile = col_autorender.box()
