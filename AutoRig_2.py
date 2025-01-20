@@ -70,6 +70,29 @@ def delete_top_level_parent():
     # 删除顶级父级
     bpy.data.objects.remove(top_parent)
 
+def select_top_level_parent():
+    # 获取当前选定的物体
+    selected_objects = bpy.context.selected_objects
+
+    # 确保有物体被选中
+    if not selected_objects:
+        print("没有选中的物体")
+        return
+
+    # 遍历选定的物体
+    for obj in selected_objects:
+        top_parent = obj
+
+        # 找到物体的顶级父级
+        while top_parent.parent:
+            top_parent = top_parent.parent
+
+        # 取消选中其他物体，并选中顶级父级
+        bpy.ops.object.select_all(action='DESELECT')
+        top_parent.select_set(True)
+        bpy.context.view_layer.objects.active = top_parent
+
+        print(f"{obj.name}的顶级父级是: {top_parent.name}")
 
 class OneClickOperator(bpy.types.Operator):
     """一键处理当前角色"""
@@ -78,15 +101,31 @@ class OneClickOperator(bpy.types.Operator):
 
     def execute(self, context):
         bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.transform.resize(value=(0.5, 0.5, 0.5), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
-        
         bpy.ops.object.miao_apply_and_separate()
 
-        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.transform.resize(value=(0.5, 0.5, 0.5), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
+        
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
+        
         delete_top_level_parent()
 
+        bpy.ops.object.select_all(action='SELECT')
+
+        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+        bpy.ops.object.clean_empty()
+
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+
         bpy.ops.object.miao_create_empty_at_bottom()
+
+        bpy.ops.object.select_all(action='SELECT')
+        select_top_level_parent()
+        bpy.ops.object.location_clear(clear_delta=False)
+
+        bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.restore_skeleton_from_json()
 
         return {'FINISHED'}

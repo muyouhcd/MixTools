@@ -12,6 +12,7 @@ bl_info = {
 import sys
 import os
 import subprocess
+import bpy
 #------------------------------------------------------------------------------------------
 #自动检测缺失库进行补充安装
 
@@ -111,6 +112,8 @@ def register():
     RenderFrame.register()
     BoneProcess.register()
     AutoRig_2.register()
+
+    bpy.ops.object.refresh_json_list()
 
 def unregister():
     update.unregister()
