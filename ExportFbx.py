@@ -66,7 +66,9 @@ def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=No
         use_selection=True,
         global_scale=scale_factor,
         axis_forward='-Z',  # 调整以匹配Unity的坐标系
-        axis_up='Y'  # 调整以匹配Unity的坐标系
+        axis_up='Y',  # 调整以匹配Unity的坐标系
+        add_leaf_bones=False 
+
     )
     print(f"导出完成：{fbx_file_path}")
 

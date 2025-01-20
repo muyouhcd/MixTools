@@ -94,6 +94,45 @@ def select_top_level_parent():
 
         print(f"{obj.name}的顶级父级是: {top_parent.name}")
 
+def set_armature_as_parent(keep_transform=True):
+    """
+    将选中物体中的骨架作为其他物体的父级，并保持物体的变换。
+
+    :param keep_transform: 如果为True，则保持变换不变。
+    """
+    # 确保至少有两个物体被选中
+    if len(bpy.context.selected_objects) < 2:
+        print("请至少选择一个带有骨架的对象和一个需要绑定的对象。")
+        return
+
+    selected_objects = bpy.context.selected_objects
+    armature_obj = None
+
+    # 找出骨架对象
+    for obj in selected_objects:
+        if obj.type == 'ARMATURE':
+            armature_obj = obj
+            break
+
+    # 如果没有找到骨架对象，则返回
+    if armature_obj is None:
+        print("没有找到骨架对象，请确保选择的对象中包含一个骨架。")
+        return
+
+    # 将其他物体绑定到骨架
+    for obj in selected_objects:
+        if obj != armature_obj:
+            # 设置变换保持选项
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            armature_obj.select_set(True)
+            bpy.context.view_layer.objects.active = armature_obj
+            
+            bpy.ops.object.parent_set(type='ARMATURE', keep_transform=keep_transform)
+            obj.select_set(False)
+
+    print("骨架绑定成功，并保持了变换。" if keep_transform else "骨架绑定成功。")
+
 class OneClickOperator(bpy.types.Operator):
     """一键处理当前角色"""
     bl_idname = "object.one_click_operator"
@@ -128,6 +167,16 @@ class OneClickOperator(bpy.types.Operator):
 
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.restore_skeleton_from_json()
+
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+        bpy.ops.object.select_all(action='SELECT')
+        delete_top_level_parent()
+
+        bpy.ops.object.select_all(action='SELECT')
+        set_armature_as_parent(keep_transform=True)
+
 
         return {'FINISHED'}
 
@@ -227,8 +276,8 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                 # 为每个顶级父级对象创建和绑定骨架
                 for top_object in top_level_objects:
                     # 创建骨架
-                    armature = bpy.data.armatures.new(name=f"{top_object.name}_Armature")
-                    armature_obj = bpy.data.objects.new(f"{top_object.name}_Armature_Object", armature)
+                    armature = bpy.data.armatures.new(name="Root")
+                    armature_obj = bpy.data.objects.new("Root", armature)
 
                     # 找到目标对象所属的集合并将骨架对象链接到该集合
                     target_collection = top_object.users_collection[0] if top_object.users_collection else context.collection
