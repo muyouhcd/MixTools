@@ -19,6 +19,7 @@ class BoneDataExporterPanel(bpy.types.Panel):
     def draw(self, context):
 
         layout = self.layout
+        scene = context.scene
 
         layout.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
         layout.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
@@ -43,6 +44,21 @@ class BoneDataExporterPanel(bpy.types.Panel):
 
         row = layout.row()
         row.operator("object.one_click_operator", text="一键处理当前角色")
+
+        row = layout.row()
+        layout.prop(scene.batchtool, "fbx_path", text="FBX路径")
+
+        row = layout.row()
+        row.operator("object.operator_by_path", text="批量处理目标文件夹内所有fbx（禁用）")
+
+class OperationPath(bpy.types.PropertyGroup):
+    fbx_path: bpy.props.StringProperty(
+        name="FBX路径",
+        description="输入要处理的FBX文件路径",
+        default="",
+        maxlen=1024,
+        subtype='FILE_PATH'
+    )
 
 
 name_groups = [
@@ -133,6 +149,60 @@ def set_armature_as_parent(keep_transform=True):
 
     print("骨架绑定成功，并保持了变换。" if keep_transform else "骨架绑定成功。")
 
+def delete_largest_mesh_object():
+    # 确保进入对象模式
+    if bpy.context.view_layer.objects.active.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+    
+    selected_objects = bpy.context.selected_objects
+
+    if not selected_objects:
+        print("没有选中的对象。")
+        return
+
+    # 用于存储体积和对应的对象
+    max_volume = 0
+    largest_mesh_obj = None
+    
+    # 遍历选中的对象并计算其体积
+    for obj in selected_objects:
+        # 仅处理网格对象
+        if obj.type == 'MESH':
+            # Blender 中的体积估算，假设物体尺度均为正
+            dimensions = obj.dimensions
+            volume = dimensions.x * dimensions.y * dimensions.z
+            
+            if volume > max_volume:
+                max_volume = volume
+                largest_mesh_obj = obj
+
+    if largest_mesh_obj:
+        # 删除最大的网格对象
+        bpy.data.objects.remove(largest_mesh_obj, do_unlink=True)
+    else:
+        print("未找到可删除的网格对象。")
+
+def set_material_for_selected_objects(material_name):
+    # 获取材质
+    material = bpy.data.materials.get(material_name)
+
+    # 如果材质不存在，打印错误消息并退出
+    if material is None:
+        print(f"Material '{material_name}' not found.")
+        return
+
+    # 遍历所有选中的对象
+    for obj in bpy.context.selected_objects:
+        # 检查对象是否为网格类型
+        if obj.type == 'MESH':
+            # 如果对象没有材质槽，添加一个
+            if len(obj.data.materials) == 0:
+                obj.data.materials.append(material)  # 为网格添加材质槽
+
+            # 将网格的第一个材质槽分配为指定的材质
+            obj.data.materials[0] = material
+            print(f"Material '{material_name}' assigned to object '{obj.name}'")
+
 class OneClickOperator(bpy.types.Operator):
     """一键处理当前角色"""
     bl_idname = "object.one_click_operator"
@@ -145,40 +215,54 @@ class OneClickOperator(bpy.types.Operator):
 
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.transform.resize(value=(0.5, 0.5, 0.5), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
-        
+
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-
-        
         delete_top_level_parent()
-
         bpy.ops.object.select_all(action='SELECT')
-
+        #清除父级关系
         bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+        #清除空物体
         bpy.ops.object.clean_empty()
 
         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-
+        #底部中心创建父级
         bpy.ops.object.miao_create_empty_at_bottom()
 
         bpy.ops.object.select_all(action='SELECT')
+        #选取顶级父级清除位移
         select_top_level_parent()
         bpy.ops.object.location_clear(clear_delta=False)
 
         bpy.ops.object.select_all(action='SELECT')
+        #从json数据绑定
         bpy.ops.object.restore_skeleton_from_json()
 
         bpy.ops.object.select_all(action='SELECT')
+        #删除定位框（尺寸最大物体）
+        delete_largest_mesh_object()
+        #应用所有变换
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-
-        bpy.ops.object.select_all(action='SELECT')
+        #删除顶级父级
         delete_top_level_parent()
-
-        bpy.ops.object.select_all(action='SELECT')
+        #设置骨架为父级
         set_armature_as_parent(keep_transform=True)
-
+        #设置材质
+        bpy.ops.object.miao_merge_material()
+        bpy.ops.object.select_all(action='SELECT')
+        set_material_for_selected_objects("Material")
 
         return {'FINISHED'}
+    
+        
+
+class OperatorByPath(bpy.types.Operator):
+    """操作符，用于根据路径操作"""
+    bl_idname = "object.operator_by_path"
+    bl_label = "根据路径批量操作"
+
+    def execute(self, context):
+        return {'FINISH'}
 
 
 class ExportBoneDataOperator(bpy.types.Operator):
@@ -663,6 +747,9 @@ def register():
     bpy.utils.register_class(CharOperater)
     bpy.utils.register_class(RestoreBoneDataOperator)
     bpy.utils.register_class(OneClickOperator)
+    bpy.utils.register_class(OperatorByPath)
+    bpy.utils.register_class(OperationPath)
+    bpy.types.Scene.batchtool = bpy.props.PointerProperty(type=OperationPath)
     bpy.types.Scene.json_file_list = bpy.props.CollectionProperty(type=bpy.types.PropertyGroup)
     bpy.types.Scene.json_file_index = bpy.props.IntProperty()
     
@@ -678,6 +765,9 @@ def unregister():
     bpy.utils.unregister_class(RefreshJsonListOperator)
     bpy.utils.unregister_class(RestoreBoneDataOperator)
     bpy.utils.unregister_class(OneClickOperator)
+    bpy.utils.unregister_class(OperatorByPath)
+    bpy.utils.unregister_class(OperationPath)
+    del bpy.types.Scene.my_tool
     del bpy.types.Scene.json_file_list
     del bpy.types.Scene.json_file_index
 
