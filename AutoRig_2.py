@@ -41,6 +41,10 @@ class BoneDataExporterPanel(bpy.types.Panel):
         row = layout.row()
         row.operator("object.refresh_json_list", text="刷新配置列表")
 
+        row = layout.row()
+        row.operator("object.one_click_operator", text="一键处理当前角色")
+
+
 name_groups = [
     (["Head", "Neck"], "Face"),
     (["Spine", "Arm", "Forearm", "Hand", "Finger"], "UpperBody"),
@@ -48,6 +52,42 @@ name_groups = [
     (["Thigh", "Calf","Leg"], "LowerBody"),
     (["Foot", "Toe",], "Feet")
 ]
+
+def delete_top_level_parent():
+    # 检查是否有对象被选中
+    if not bpy.context.selected_objects:
+        print("没有选中的对象")
+        return
+    
+    # 获取第一个选中对象
+    obj = bpy.context.selected_objects[0]
+
+    # 找出顶级父级
+    top_parent = obj
+    while top_parent.parent is not None:
+        top_parent = top_parent.parent
+    
+    # 删除顶级父级
+    bpy.data.objects.remove(top_parent)
+
+
+class OneClickOperator(bpy.types.Operator):
+    """一键处理当前角色"""
+    bl_idname = "object.one_click_operator"
+    bl_label = "一键处理当前角色(单个)"
+
+    def execute(self, context):
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.transform.resize(value=(0.5, 0.5, 0.5), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
+        bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+
+        delete_top_level_parent()
+
+        bpy.ops.object.miao_create_empty_at_bottom()
+        bpy.ops.object.restore_skeleton_from_json()
+
+        return {'FINISHED'}
+
 
 class ExportBoneDataOperator(bpy.types.Operator):
     """操作符，用于导出骨骼数据"""
@@ -530,9 +570,12 @@ def register():
     bpy.utils.register_class(RefreshJsonListOperator)
     bpy.utils.register_class(CharOperater)
     bpy.utils.register_class(RestoreBoneDataOperator)
+    bpy.utils.register_class(OneClickOperator)
     bpy.types.Scene.json_file_list = bpy.props.CollectionProperty(type=bpy.types.PropertyGroup)
     bpy.types.Scene.json_file_index = bpy.props.IntProperty()
+    
     update_json_file_list(bpy.context)
+
 
 def unregister():
     bpy.utils.unregister_class(CharOperater)
@@ -542,6 +585,7 @@ def unregister():
     bpy.utils.unregister_class(RestoreSkeletonFromJsonOperator)
     bpy.utils.unregister_class(RefreshJsonListOperator)
     bpy.utils.unregister_class(RestoreBoneDataOperator)
+    bpy.utils.unregister_class(OneClickOperator)
     del bpy.types.Scene.json_file_list
     del bpy.types.Scene.json_file_index
 
