@@ -1,19 +1,6 @@
 {
     "bone_data": {
 
-        "Root_Position": {
-            "parent": "Null",
-            "head": [
-                0.0,
-                0.0,
-                0.0
-            ],
-            "tail": [
-                0.0,
-                0.0,
-                -9.999999747378752e-05
-            ]
-        },
         "Hips": {
             "parent": "Null",
             "head": [

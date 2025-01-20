@@ -209,13 +209,10 @@ class OneClickOperator(bpy.types.Operator):
     bl_label = "一键处理当前角色(单个)"
 
     def execute(self, context):
-
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.miao_apply_and_separate()
-
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.transform.resize(value=(0.5, 0.5, 0.5), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
-
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         delete_top_level_parent()
@@ -224,20 +221,16 @@ class OneClickOperator(bpy.types.Operator):
         bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
         #清除空物体
         bpy.ops.object.clean_empty()
-
         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
         #底部中心创建父级
         bpy.ops.object.miao_create_empty_at_bottom()
-
         bpy.ops.object.select_all(action='SELECT')
         #选取顶级父级清除位移
         select_top_level_parent()
         bpy.ops.object.location_clear(clear_delta=False)
-
         bpy.ops.object.select_all(action='SELECT')
         #从json数据绑定
         bpy.ops.object.restore_skeleton_from_json()
-
         bpy.ops.object.select_all(action='SELECT')
         #删除定位框（尺寸最大物体）
         delete_largest_mesh_object()
