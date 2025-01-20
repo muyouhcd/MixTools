@@ -1580,47 +1580,146 @@ class MergeTopLevel(bpy.types.Operator):
 
 # 对选择的物体进行独立化，应用变换
 
+# class ApplyAndSeparate(bpy.types.Operator):
+#     bl_idname = "object.miao_apply_and_separate"
+#     bl_label = "独立化、应用所有变换"
+
+#     def execute(self, context):
+#         # 获取当前所选物体
+#         selected_objects = context.selected_objects
+#         print(f"开始执行操作，选中了 {len(selected_objects)} 个物体。")
+
+#         for obj in selected_objects:
+#             print(f"正在处理物体: {obj.name}")
+#             self.separate_objects(obj)
+#             self.apply_transformations(obj)
+#         print("操作完成。")
+#         return {'FINISHED'}
+
+#     def apply_transformations(self, obj):
+#         context = bpy.context
+#         context.view_layer.objects.active = obj
+#         obj.select_set(True)
+#         print(f"应用变换: {obj.name}")
+
+#         # 存储原始缩放值
+#         original_scale = obj.scale.copy()
+
+#         # 确保我们在对象模式
+#         bpy.ops.object.mode_set(mode='OBJECT')
+
+#         # 应用缩放变换
+#         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+#         print(f"已应用缩放变换: {obj.name}")
+
+#         # 检查缩放因子的符号
+#         scale_negativity = [axis < 0 for axis in original_scale]
+        
+#         # 如果有奇数个负值缩放
+#         if scale_negativity.count(True) % 2 != 0:
+#             # 进入编辑模式以反转法线方向
+#             bpy.ops.object.mode_set(mode='EDIT')
+            
+#             # 选择所有面
+#             bpy.ops.mesh.select_all(action='SELECT')
+            
+#             # 翻转选中面的法线
+#             bpy.ops.mesh.flip_normals()
+            
+#             # 切换回对象模式
+#             bpy.ops.object.mode_set(mode='OBJECT')
+#             print(f"法线方向已翻转: {obj.name}")
+
+#         # 应用位置和旋转变换
+#         bpy.ops.object.transform_apply(location=True, rotation=True, scale=False)
+#         print(f"已应用位置和旋转变换: {obj.name}")
+
+#     def separate_objects(self, obj):
+#         # 设置为活动物体
+#         context = bpy.context
+#         context.view_layer.objects.active = obj
+#         obj.select_set(True)
+#         print(f"独立物体: {obj.name}")
+
+#         # 隔离对象为独立副本
+#         bpy.ops.object.make_single_user(
+#             object=True, obdata=True, material=False, animation=False, obdata_animation=False)
+#         print(f"物体已独立: {obj.name}")
+
 class ApplyAndSeparate(bpy.types.Operator):
     bl_idname = "object.miao_apply_and_separate"
     bl_label = "独立化、应用所有变换"
 
     def execute(self, context):
-        # 获取当前所选物体
+        # 获取当前所选物体和具有负缩放的物体列表
         selected_objects = context.selected_objects
         print(f"开始执行操作，选中了 {len(selected_objects)} 个物体。")
+        
+        negatively_scaled_objects = set()
 
+        # 在每个对象中检测负缩放
         for obj in selected_objects:
-            print(f"正在处理物体: {obj.name}")
-            self.separate_objects(obj)
-            self.apply_transformations(obj)
+            self.detect_negative_scale(obj, negatively_scaled_objects)
+        
+        # 独立化、应用变换
+        for obj in selected_objects:
+            self.separate_and_apply(obj)
+        
+        # 翻转面朝向
+        for obj_name in negatively_scaled_objects:
+            if obj_name in bpy.data.objects:
+                self.reverse_normals(bpy.data.objects[obj_name])
+
         print("操作完成。")
         return {'FINISHED'}
 
-    def apply_transformations(self, obj):
-        # 设置为活动物体
+    def detect_negative_scale(self, obj, negatively_scaled_objects):
+        # 忽略空物体
+        if obj.type == 'EMPTY':
+            return
+
+        # 检查是否存在负值缩放
+        if any(s < 0 for s in obj.scale):
+            print(f"检测到负缩放: {obj.name}")
+            negatively_scaled_objects.add(obj.name)
+
+        # 递归检查子对象
+        for child in obj.children:
+            self.detect_negative_scale(child, negatively_scaled_objects)
+
+    def separate_and_apply(self, obj):
         context = bpy.context
         context.view_layer.objects.active = obj
         obj.select_set(True)
-        print(f"应用变换: {obj.name}")
 
         # 确保我们在对象模式
-        bpy.ops.object.mode_set(mode='OBJECT')
+        if bpy.context.object.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+        
+        # 独立对象
+        bpy.ops.object.make_single_user(
+            object=True, obdata=True, material=False, animation=False, obdata_animation=False)
 
         # 应用所有变换
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        print(f"已应用变换: {obj.name}")
-
-    def separate_objects(self, obj):
-        # 设置为活动物体
-        context = bpy.context
-        context.view_layer.objects.active = obj
+    
+    def reverse_normals(self, obj):
+        # 确保只影响目标对象
+        bpy.ops.object.select_all(action='DESELECT')
         obj.select_set(True)
-        print(f"独立物体: {obj.name}")
+        bpy.context.view_layer.objects.active = obj
 
-        # 隔离对象为独立副本
-        bpy.ops.object.make_single_user(
-            object=True, obdata=True, material=False, animation=False, obdata_animation=False)
-        print(f"物体已独立: {obj.name}")
+        # 进入对象的编辑模式
+        if bpy.context.object.mode != 'EDIT':
+            bpy.ops.object.mode_set(mode='EDIT')
+
+        # 选择所有的面并翻转法线
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.flip_normals()
+
+        # 返回对象模式
+        bpy.ops.object.mode_set(mode='OBJECT')
+        print(f"已翻转法线: {obj.name}")
 
 # 清理空物体
 class CleanEmpty(bpy.types.Operator):

@@ -100,6 +100,7 @@ class OneClickOperator(bpy.types.Operator):
     bl_label = "一键处理当前角色(单个)"
 
     def execute(self, context):
+
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.miao_apply_and_separate()
 
