@@ -289,7 +289,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_vox.operator("object.vox_operation", text="导入VOX一键处理")
             #一键定位并绑定角色
             box_character = col_assestoperation.box()
-            box_character.operator("object.miao_char_operater", text="导入角色一键处理")
+            box_character.operator("object.miao_char_operater", text="导入VOX角色一键处理")
 
             box_character.operator("object.point_data_generator", text="角色点位数据生成", icon='AUTOMERGE_ON')
             box_character.operator("object.bone_data_generator", text="角色骨骼数据生成", icon='AUTOMERGE_ON')
@@ -300,10 +300,9 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # box_character.operator('object.char_operater_bone_weight', text="女性角色一键绑定", icon='BONE_DATA')
             # box_character.operator('object.char_operater_male_bone_weight', text="男性角色一键绑定", icon='BONE_DATA')
 
-
-            box_bone = col_assestoperation.box()
-            box_bone.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
-            box_bone.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
+            # box_bone = col_assestoperation.box()
+            # box_bone.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
+            # box_bone.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
         
             box_assestoperation = col_assestoperation.box()
             box_assestoperation.operator("object.miao_apply_and_separate", text="1.独立化应用所有变换")
@@ -325,9 +324,9 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_voxelizer.operator("object.convert_voxelizer", text="一键转换vox")
             box_voxelizer.operator("object.convert_voxelizer_color", text="一键转换vox(带颜色)")
 # 烘焙操作
-            box_bake = layout.box()
-            box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
-            box_bake.operator("object.retopologize_and_bake_without_remesh", text="烘焙选中物体")
+            # box_bake = layout.box()
+            # box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
+            # box_bake.operator("object.retopologize_and_bake_without_remesh", text="烘焙选中物体")
 
             # Conversion Tools
             layout.label(text="转换工具:")

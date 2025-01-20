@@ -7,12 +7,39 @@ from mathutils.bvhtree import BVHTree
 import bmesh
 import random
 
-bl_info = {
-    "name": "骨骼数据导出与还原",
-    "blender": (3, 6, 0),
-    "category": "Object",
-    "description": "导出骨骼和空物体的数据到 JSON 文件，并从中还原"
-}
+
+class BoneDataExporterPanel(bpy.types.Panel):
+    """创建一个自定义面板"""
+    bl_label = "自动绑定|骨骼处理"
+    bl_idname = "OBJECT_PT_bone_data_exporter"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = '角色工具'
+    
+    def draw(self, context):
+
+        layout = self.layout
+
+        layout.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
+        layout.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
+
+        row = layout.row()
+        row.operator("object.export_bone_data", text="导出骨骼数据")
+        
+        row = layout.row()
+        row.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
+        
+        row = layout.row()
+        row.operator("object.restore_bone_data", text="还原骨骼数据")
+        
+        row = layout.row()
+        row.operator("object.restore_empty_data", text="还原空物体数据")
+
+        row = layout.row()
+        row.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定")
+
+        row = layout.row()
+        row.operator("object.refresh_json_list", text="刷新配置列表")
 
 name_groups = [
     (["Head", "Neck"], "Face"),
@@ -259,34 +286,6 @@ class RestoreBoneDataOperator(bpy.types.Operator):
             self.report({'ERROR'}, f"还原失败: {e}")
         
         return {'FINISHED'}
-
-class BoneDataExporterPanel(bpy.types.Panel):
-    """创建一个自定义面板"""
-    bl_label = "骨骼数据导出与还原工具"
-    bl_idname = "OBJECT_PT_bone_data_exporter"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = '角色工具'
-    
-    def draw(self, context):
-        layout = self.layout
-        row = layout.row()
-        row.operator("object.export_bone_data", text="导出骨骼数据")
-        
-        row = layout.row()
-        row.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
-        
-        row = layout.row()
-        row.operator("object.restore_bone_data", text="还原骨骼数据")
-        
-        row = layout.row()
-        row.operator("object.restore_empty_data", text="还原空物体数据")
-
-        row = layout.row()
-        row.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定")
-
-        row = layout.row()
-        row.operator("object.refresh_json_list", text="刷新配置列表")
 
 class RefreshJsonListOperator(bpy.types.Operator):
     """操作符，用于刷新JSON文件列表"""
