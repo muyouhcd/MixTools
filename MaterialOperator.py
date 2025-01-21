@@ -2,7 +2,6 @@ import bpy
 import random
 import math
 
-
 bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
     name="强度",
     description="设置发光强度",

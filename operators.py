@@ -1851,7 +1851,7 @@ classes = [
     BoundboxGen,
     CombinObject,
     RemoveVertexGroup,
-    RotationOperator,
+
     QueueUp,
     RandomPlacement,
     CollectionByBoundingbox,
