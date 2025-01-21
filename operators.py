@@ -220,46 +220,7 @@ class RemoveModifiers(bpy.types.Operator):
 
         return {'FINISHED'}
 
-#设置所选物体材质为临近采样（硬边缘）
-class SetTextureInterpolation(bpy.types.Operator):
-    bl_label = "设置所选物体材质为硬边缘采样"
-    bl_idname = "object.set_texture_interpolation"
-    
-    def execute(self, context):
-        selected_objects = bpy.context.selected_objects
-        
-        for obj in selected_objects:
-            mat_slots = obj.material_slots
-            
-            for ms in mat_slots:
-                mat = ms.material
-                
-                if mat and mat.node_tree:
-                    node_tree = mat.node_tree
-                    
-                    for node in node_tree.nodes:
-                        if node.type == 'TEX_IMAGE':
-                            node.interpolation = 'Closest'
-                            
-        return {'FINISHED'}
 
-# 合并材质
-class MergeMaterial(bpy.types.Operator):
-    bl_idname = "object.miao_merge_material"
-    bl_label = "合并材质"
-
-    def execute(self, context):
-        # 单击按钮时要执行的代码
-        mesh_objs = [
-            obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
-        for obj in mesh_objs:
-            print(obj.name)
-            # Delete all materials in the mesh
-            for i in range(len(obj.material_slots)):
-                bpy.ops.object.material_slot_remove({'object': obj})
-            mat = bpy.data.materials.new(obj.name)
-            obj.data.materials.append(mat)
-        return {'FINISHED'}
 
 
 #批量清空动画数据
@@ -896,39 +857,6 @@ class CleanCollection(bpy.types.Operator):
 
         return {'FINISHED'}
 
-# 材质球排序
-class MaterialSort(bpy.types.Operator):
-    bl_idname = "object.miao_material_sort"
-    bl_label = "材质球排序"
-
-    def execute(self, context):
-        def sort_materials(obj):
-            if obj is not None and obj.type == 'MESH' and len(obj.data.materials) > 1:
-                materials = [slot.material for slot in obj.material_slots]
-                sorted_materials = sorted(materials, key=lambda x: x.name)
-
-                # 记录顶点组的材质分配关系
-                polygon_material_indices = [
-                    polygon.material_index for polygon in obj.data.polygons]
-
-                # 创建一个映射，将旧的材质索引映射到新的排序后的材质索引
-                index_mapping = {i: sorted_materials.index(
-                    material) for i, material in enumerate(materials)}
-
-                # 更新顶点组的材质分配关系
-                for polygon in obj.data.polygons:
-                    polygon.material_index = index_mapping[polygon_material_indices[polygon.index]]
-
-                # 将排序后的材质球分配回物体的材质插槽
-                for i, material in enumerate(sorted_materials):
-                    obj.material_slots[i].material = material
-
-        # 获取当前所选物体
-        selected_objects = bpy.context.selected_objects
-        # 遍历所选物体并排序它们的材质球
-        for obj in selected_objects:
-            sort_materials(obj)
-        return {"FINISHED"}
 
 class BoundboxGen(bpy.types.Operator):
     bl_idname = "object.miao_boundbox_gen"
@@ -1121,25 +1049,6 @@ class AlignOrign(bpy.types.Operator):
         # 调用函数 - 对齐所选物体的X轴原点
         align_origin('X')
 
-# 测试用旋转脚本
-class RotationOperator(bpy.types.Operator):
-    bl_idname = "object.rotation_operator"
-    bl_label = "Rotation Operator"
-
-    rotation_angle: bpy.props.FloatProperty(
-        name="Rotation Angle",
-        description="Angle to rotate the selected objects in radians",
-        default=0.0)
-
-    def execute(self, context):
-        rotation_axis = context.scene.my_rotation_axis_enum
-        for obj in bpy.context.selected_objects:
-            if obj.type == "MESH":
-                setattr(obj.rotation_euler, rotation_axis, getattr(
-                    obj.rotation_euler, rotation_axis) + self.rotation_angle)
-
-        return {"FINISHED"}
-
 #一键提升精度
 class MoveOutsideOperator(bpy.types.Operator):
     bl_idname = "object.move_outside_operator"
@@ -1289,8 +1198,6 @@ class CreateAssemblyAsset(bpy.types.Operator):
             print("没有选择任何集合")
         return {"FINISHED"}
 
-
-
 #批量更改子级名称为顶级父级，忽略隐藏物体
 class RenameByParent(bpy.types.Operator):
     bl_idname = "object.miao_rename_by_parent"
@@ -1358,10 +1265,7 @@ def set_nearest_parent_for_collection(self, context):
             objB.select_set(False)
             collB.name = closest_top_objA.name
 
-# ----
-
-
-            
+# ----       
 class OBJECT_OT_SetParentButton(bpy.types.Operator):
     bl_idname = "object.miao_set_parent_collections"
     bl_label = "Set Parent Collections"
@@ -1408,8 +1312,6 @@ class OBJECT_OT_AlignOperator(bpy.types.Operator):
 
         self.report({'INFO'}, "对集合进行了位置对齐")
         return {'FINISHED'}
-
-#根据uv进行选择物体
 
 #根据uv进行选择面
 def get_selected_uv_set(ob):
@@ -1578,74 +1480,6 @@ class MergeTopLevel(bpy.types.Operator):
 
     return {'FINISHED'}
 
-# 对选择的物体进行独立化，应用变换
-
-# class ApplyAndSeparate(bpy.types.Operator):
-#     bl_idname = "object.miao_apply_and_separate"
-#     bl_label = "独立化、应用所有变换"
-
-#     def execute(self, context):
-#         # 获取当前所选物体
-#         selected_objects = context.selected_objects
-#         print(f"开始执行操作，选中了 {len(selected_objects)} 个物体。")
-
-#         for obj in selected_objects:
-#             print(f"正在处理物体: {obj.name}")
-#             self.separate_objects(obj)
-#             self.apply_transformations(obj)
-#         print("操作完成。")
-#         return {'FINISHED'}
-
-#     def apply_transformations(self, obj):
-#         context = bpy.context
-#         context.view_layer.objects.active = obj
-#         obj.select_set(True)
-#         print(f"应用变换: {obj.name}")
-
-#         # 存储原始缩放值
-#         original_scale = obj.scale.copy()
-
-#         # 确保我们在对象模式
-#         bpy.ops.object.mode_set(mode='OBJECT')
-
-#         # 应用缩放变换
-#         bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-#         print(f"已应用缩放变换: {obj.name}")
-
-#         # 检查缩放因子的符号
-#         scale_negativity = [axis < 0 for axis in original_scale]
-        
-#         # 如果有奇数个负值缩放
-#         if scale_negativity.count(True) % 2 != 0:
-#             # 进入编辑模式以反转法线方向
-#             bpy.ops.object.mode_set(mode='EDIT')
-            
-#             # 选择所有面
-#             bpy.ops.mesh.select_all(action='SELECT')
-            
-#             # 翻转选中面的法线
-#             bpy.ops.mesh.flip_normals()
-            
-#             # 切换回对象模式
-#             bpy.ops.object.mode_set(mode='OBJECT')
-#             print(f"法线方向已翻转: {obj.name}")
-
-#         # 应用位置和旋转变换
-#         bpy.ops.object.transform_apply(location=True, rotation=True, scale=False)
-#         print(f"已应用位置和旋转变换: {obj.name}")
-
-#     def separate_objects(self, obj):
-#         # 设置为活动物体
-#         context = bpy.context
-#         context.view_layer.objects.active = obj
-#         obj.select_set(True)
-#         print(f"独立物体: {obj.name}")
-
-#         # 隔离对象为独立副本
-#         bpy.ops.object.make_single_user(
-#             object=True, obdata=True, material=False, animation=False, obdata_animation=False)
-#         print(f"物体已独立: {obj.name}")
-
 class ApplyAndSeparate(bpy.types.Operator):
     bl_idname = "object.miao_apply_and_separate"
     bl_label = "独立化、应用所有变换"
@@ -1738,7 +1572,25 @@ class CleanEmpty(bpy.types.Operator):
         bpy.context.view_layer.update()
         return {"FINISHED"}
         ####
+#清理无子集空物体
+class OBJECT_OT_clean_empty(bpy.types.Operator):
+    """My Object Empty Deleting Script"""
+    bl_idname = "object.clean_empty"
+    bl_label = "清除无子集空物体"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        # 获取当前场景的所有对象
+        scene_objects = context.scene.objects
+        # 收集所有没有子对象的空物体
+        empties_to_delete = [obj for obj in scene_objects if obj.type == 'EMPTY' and not obj.children]
+        # 删除这些空物体
+        for empty in empties_to_delete:
+            bpy.data.objects.remove(empty)
+        
+        self.report({'INFO'}, f"Deleted {len(empties_to_delete)} empty objects without children.")
 
+        return {'FINISHED'}
 # 递归清理场景
 class CleanSense(bpy.types.Operator):
     bl_idname = "object.miao_clean_sense"
@@ -1910,53 +1762,6 @@ class SCENE_OT_add_sorted_scenes_to_sequencer(bpy.types.Operator):
 
         return {'FINISHED'}
 
-# 随机材质球颜色
-class OBJ_OT_random_meterial(bpy.types.Operator):
-    bl_idname = "scene.random_meterial"
-    bl_label = "随机材质球颜色"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        def random_color(colors_set):
-            while True:
-                color = (random.random(), random.random(), random.random(), 1)
-                if color not in colors_set:
-                    colors_set.add(color)
-                    return color
-
-        def create_diffuse_material(name, color):
-            material = bpy.data.materials.new(name=name)
-            material.use_nodes = True
-            node_tree = material.node_tree
-
-            # 获取 Principled BSDF 节点
-            principled_bsdf_node = node_tree.nodes.get("Principled BSDF")
-
-            # 更改颜色
-            principled_bsdf_node.inputs["Base Color"].default_value = color
-            return material
-
-        def main():
-            selected_objects = bpy.context.selected_objects
-            used_colors = set()
-
-            for obj in selected_objects:
-                if obj.type == 'MESH':
-                    material_slots = obj.material_slots
-                    for index, material_slot in enumerate(material_slots):
-                        unique_color = random_color(used_colors)
-
-                        # 创建新的漫反射材质
-                        new_material = create_diffuse_material(
-                            obj.name + '_diffuse_' + str(index), unique_color)
-
-                        # 替换现有材质
-                        material_slot.material = new_material
-
-        main()
-
-        return {'FINISHED'}
-
 # 下落至表面
 class OBJECT_OT_move_to_surface(bpy.types.Operator):
     bl_idname = "object.move_to_surface"
@@ -2015,25 +1820,6 @@ class OBJECT_OT_move_to_surface(bpy.types.Operator):
 
         return {"FINISHED"}
 
-#清理无子集空物体
-class OBJECT_OT_clean_empty(bpy.types.Operator):
-    """My Object Empty Deleting Script"""
-    bl_idname = "object.clean_empty"
-    bl_label = "清除无子集空物体"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def execute(self, context):
-        # 获取当前场景的所有对象
-        scene_objects = context.scene.objects
-        # 收集所有没有子对象的空物体
-        empties_to_delete = [obj for obj in scene_objects if obj.type == 'EMPTY' and not obj.children]
-        # 删除这些空物体
-        for empty in empties_to_delete:
-            bpy.data.objects.remove(empty)
-        
-        self.report({'INFO'}, f"Deleted {len(empties_to_delete)} empty objects without children.")
-
-        return {'FINISHED'}
 
 classes = [
     OBJECT_OT_reset_z_axis,
@@ -2046,14 +1832,12 @@ classes = [
     RemoveModifiers,
     VoxOperation,
     ResetNormalsAndFlatShadingOperator,
-    SetTextureInterpolation,
     OBJECT_OT_AlignOperator,
     MoveOutsideOperator,
     FixSizeOperator,
     OBJECT_OT_SetParentButton,
     ClearAnimationData,
     OBJECT_OT_move_to_surface,
-    OBJ_OT_random_meterial,
     SCENE_OT_add_sorted_scenes_to_sequencer,
     SCENE_OT_sort_scenes,
     SCENE_OT_link_scenes_from_blend_files,
@@ -2064,14 +1848,12 @@ classes = [
     ResetNormals,
     CollectionByDistance,
     CleanCollection,
-    MaterialSort,
     BoundboxGen,
     CombinObject,
     RemoveVertexGroup,
     RotationOperator,
     QueueUp,
     RandomPlacement,
-    MergeMaterial,
     CollectionByBoundingbox,
     AlignOrign,
     CreateEmptyAtObjectBottom,
@@ -2083,8 +1865,6 @@ classes = [
 ]
 
 def register():
-    
-    
     bpy.types.Scene.rename_axis = EnumProperty(
         name="轴向",
         items=[

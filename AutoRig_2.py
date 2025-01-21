@@ -7,7 +7,6 @@ from mathutils.bvhtree import BVHTree
 import bmesh
 import random
 
-
 class BoneDataExporterPanel(bpy.types.Panel):
     """创建一个自定义面板"""
     bl_label = "自动绑定|骨骼处理"
@@ -21,7 +20,7 @@ class BoneDataExporterPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
-        layout.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
+        # layout.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
         layout.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
 
         row = layout.row()
@@ -58,8 +57,7 @@ class OperationPath(bpy.types.PropertyGroup):
         default="",
         maxlen=1024,
         subtype='FILE_PATH'
-    )
-
+    ) # type: ignore
 
 name_groups = [
     (["Head", "Neck"], "Face"),
@@ -148,6 +146,43 @@ def set_armature_as_parent(keep_transform=True):
             obj.select_set(False)
 
     print("骨架绑定成功，并保持了变换。" if keep_transform else "骨架绑定成功。")
+
+def select_armature():
+
+    # 确保至少有两个物体被选中
+    if len(bpy.context.selected_objects) < 1:
+        print("请至少选择一个带有骨架的对象和一个需要绑定的对象。")
+        return
+
+    selected_objects = bpy.context.selected_objects
+    armature_obj = None
+
+    # 找出骨架对象
+    for obj in selected_objects:
+        if obj.type == 'ARMATURE':
+            armature_obj = obj
+            break
+
+    # 取消选中其他物体，并选中骨架
+    bpy.ops.object.select_all(action='DESELECT')
+    armature_obj.select_set(True)
+    bpy.context.view_layer.objects.active = armature_obj
+
+    # 如果没有找到骨架对象，则返回
+    if armature_obj is None:
+        print("没有找到骨架对象，请确保选择的对象中包含一个骨架。")
+        return
+    
+    # 进入编辑模式
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.armature.select_all(action='SELECT')
+    # 在这里执行所需的编辑模式命令，例如选择所有顶点
+    bpy.ops.object.connect_bone()
+    # 退出编辑模式，回到对象模式
+    bpy.ops.object.mode_set(mode='OBJECT')
+
+    
+
 
 def delete_largest_mesh_object():
     # 确保进入对象模式
@@ -245,9 +280,10 @@ class OneClickOperator(bpy.types.Operator):
         bpy.ops.object.select_all(action='SELECT')
         set_material_for_selected_objects("Material")
 
+        bpy.ops.object.select_all(action='SELECT')
+        select_armature()
+
         return {'FINISHED'}
-    
-        
 
 class OperatorByPath(bpy.types.Operator):
     """操作符，用于根据路径操作"""
@@ -256,7 +292,6 @@ class OperatorByPath(bpy.types.Operator):
 
     def execute(self, context):
         return {'FINISH'}
-
 
 class ExportBoneDataOperator(bpy.types.Operator):
     """操作符，用于导出骨骼数据"""

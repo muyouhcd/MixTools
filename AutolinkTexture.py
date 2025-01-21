@@ -12,7 +12,7 @@ class ApplyTextureOperator(bpy.types.Operator):
         description="Directory where the texture files are located",
         default="",
         subtype='DIR_PATH'
-    )
+    ) # type: ignore
 
     def execute(self, context):
         # 获取从UI中输入的贴图目录

@@ -160,41 +160,41 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         default="./",
         maxlen=1024,
         subtype='DIR_PATH'
-    )
+    ) # type: ignore
     output_name: bpy.props.StringProperty(
         name="Output Name",
         description="Name of the rendered images",
         default="auto_render"
-    )
+    ) # type: ignore
     output_format: bpy.props.EnumProperty(
         name="Output Format",
         description="Image format of the rendered images",
         items=[('PNG', 'PNG', 'PNG'), ('JPEG', 'JPEG', 'JPEG'), ('BMP', 'BMP', 'BMP'), ('TIFF', 'TIFF', 'TIFF')]
-    )
+    ) # type: ignore
     collections: bpy.props.EnumProperty(
         name="Collections",
         description="Choose a collection to be rendered",
         default=None,
         items=get_all_collections
-    )
+    ) # type: ignore
     cameras: bpy.props.EnumProperty(
         name="Cameras",
         description="Camera to be used for rendering",
         default=None,
         items=get_all_cameras
-    )
+    ) # type: ignore # type: ignore
     focus_each_object: bpy.props.BoolProperty(
         name="Focus Each Object",
         description="Enable to focus camera on each object before rendering",
         default=False
-    )
+    ) # type: ignore
     margin_distance: bpy.props.IntProperty(
         name="Margin Distance (px)",
         description="Margin distance between object and frame border in pixels",
         default=0,  # Default margin value in pixels
         min=0,
         max=1000
-    )
+    ) # type: ignore
 class AUTO_RENDER_OT_Execute(bpy.types.Operator):
     bl_idname = "auto_render.execute"
     bl_label = "渲染"
@@ -227,15 +227,15 @@ class BatchRenderOperator(bpy.types.Operator, ImportHelper):
     filter_glob: bpy.props.StringProperty(
         default="*.blend",
         options={'HIDDEN'},
-    )
+    ) # type: ignore
 
-    files: CollectionProperty(name='File Path', type=bpy.types.OperatorFileListElement)
+    files: CollectionProperty(name='File Path', type=bpy.types.OperatorFileListElement) # type: ignore
 
     render_as_animation: bpy.props.BoolProperty(
         name="Render as Animation",
         default=True,
         description="Enable to render as animation",
-    )
+    ) # type: ignore
     
 
     def execute(self, context):
