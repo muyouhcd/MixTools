@@ -57,13 +57,13 @@ class CustomFunctionsPanel(bpy.types.Panel):
             select_box.operator("object.match_uv", text="选取同UV物体", icon='GROUP_UVS')
             select_box.operator("object.select_large_objects", text="选择过大物体", icon='FULLSCREEN_ENTER')
             select_box.operator("object.select_small_objects", text="选择过小物体", icon='FULLSCREEN_EXIT')
-            select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='FULLSCREEN_EXIT')
+            select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='FILE_BLANK')
 
             #清理工具
             layout.label(text="清理:")
             clean_box = layout.box()
-            clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='FULLSCREEN_EXIT')
-            clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='FULLSCREEN_EXIT')
+            clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='BRUSH_DATA')
+            clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='BRUSH_DATA')
 
 
 
@@ -106,29 +106,29 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if context.scene.meterialoperation_expand:
             
-            layout.operator("object.uv_formater", text="UV尺寸校准", icon='MESH_CIRCLE')
-            layout.operator("object.quad_uv_aligner", text="UV铺满展开", icon='MESH_CIRCLE')
-            layout.operator("object.correct_uv_rotation", text="UV旋转矫正", icon='MESH_CIRCLE')
+            layout.operator("object.uv_formater", text="UV尺寸校准", icon='UV_DATA')
+            layout.operator("object.quad_uv_aligner", text="UV铺满展开", icon='UV')
+            layout.operator("object.correct_uv_rotation", text="UV旋转矫正", icon='MOD_UVPROJECT')
 
             texture_operater_box = layout.box()
             texture_operater_box.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
-            texture_operater_box.operator("object.apply_texture_operator", text="批量链接贴图", icon='MESH_CIRCLE')
+            texture_operater_box.operator("object.apply_texture_operator", text="批量链接贴图", icon='NODE_TEXTURE')
 
             # 材质球排序
             layout.label(text="材质管理:")
             material_operations_box = layout.box()
-            material_operations_box.operator("object.miao_material_sort", text="材质球排序", icon='MESH_CIRCLE')
+            material_operations_box.operator("object.miao_material_sort", text="材质球排序", icon='SORTSIZE')
             
             # Random Material
-            material_operations_box.operator("scene.random_meterial", text="随机材质", icon='MESH_CIRCLE')
+            material_operations_box.operator("scene.random_meterial", text="随机材质", icon='OUTLINER_OB_POINTCLOUD')
             
             # Merge Materials
-            material_operations_box.operator("object.miao_merge_material", text="清理材质", icon='MESH_CIRCLE')
+            material_operations_box.operator("object.miao_merge_material", text="清理材质", icon='BRUSH_DATA')
             # Remove Unused Material Slots
-            material_operations_box.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='MESH_CIRCLE')
+            material_operations_box.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='BRUSH_DATA')
 
             # Set Texture Interpolation
-            material_operations_box.operator("object.set_texture_interpolation", text="设置临近采样（硬边缘）", icon='MESH_CIRCLE')
+            material_operations_box.operator("object.set_texture_interpolation", text="设置临近采样（硬边缘）", icon='TEXTURE_DATA')
 
             # Emission Strength Adjustment
             emission_box = layout.box()
@@ -272,7 +272,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_vox.operator("object.vox_operation", text="导入VOX一键处理",icon='ALIASED')
             #一键定位并绑定角色
             box_character = col_assestoperation.box()
-            box_character.operator("object.miao_char_operater", text="导入VOX角色一键处理")
+            box_character.operator("object.miao_char_operater", text="导入VOX角色一键处理",icon='ALIASED')
 
             # box_character.operator("object.point_data_generator", text="角色点位数据生成", icon='AUTOMERGE_ON')
             # box_character.operator("object.bone_data_generator", text="角色骨骼数据生成", icon='AUTOMERGE_ON')
@@ -304,8 +304,8 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_voxelizer.prop(context.scene.voxelizer_tool, "path")
             box_voxelizer.prop(context.scene.voxelizer_tool, "voxelizer_path")
             # box_voxelizer.prop(scene, "generate_solid")
-            box_voxelizer.operator("object.convert_voxelizer", text="一键转换vox")
-            box_voxelizer.operator("object.convert_voxelizer_color", text="一键转换vox(带颜色)")
+            box_voxelizer.operator("object.convert_voxelizer", text="一键转换vox",icon='ALIASED')
+            box_voxelizer.operator("object.convert_voxelizer_color", text="一键转换vox(带颜色)",icon='ALIASED')
 # 烘焙
             # box_bake = layout.box()
             # box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
@@ -314,7 +314,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # Conversion Tools
             layout.label(text="转换:")
             convert_box = layout.box()
-            convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='MOD_REMESH')
+            convert_box.operator("object.voxel_converter", text="生成体素化指令",icon='MESH_GRID')
             convert_box.prop(scene, "resolution_factor")
 
 #批量渲染
@@ -329,18 +329,18 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if scene.autorender_expand:
             box_autorender = col_autorender.box()
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_path", text="输出路径")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_name", text="输出名称")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_format", text="输出格式")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "collections", text="渲染集合")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_path", text="输出路径",icon='FILE_FOLDER')
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_name", text="输出名称",icon='FILE_FOLDER')
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_format", text="输出格式",icon='FILE_IMAGE')
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "collections", text="渲染集合",icon='GROUP')
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机",icon='CAMERA_DATA')
             box_autorender.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到每个物体（正交相机）")
             box_autorender.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离（正交相机）")
-            box_autorender.operator("auto_render.execute")
+            box_autorender.operator("auto_render.execute",text="渲染",icon='RENDER_STILL')
             
             box_autorender_blendefile = col_autorender.box()
             box_autorender_blendefile.label(text="批量渲染.blend文件")
-            render_operator = box_autorender_blendefile.operator('auto_render.batch_render')
+            render_operator = box_autorender_blendefile.operator('auto_render.batch_render',text="渲染",icon='RENDER_STILL')
             box_autorender_blendefile.prop(render_operator, 'render_as_animation', text="渲染动画")
 
 # 批量调整渲染设置
@@ -362,7 +362,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_renderadj.prop(change_resolution_prop, "resolution_percentage", text="质量百分比")
             box_renderadj.prop(change_resolution_prop, "output_frame_rate", text="帧率")
             
-            operator_instance = box_renderadj.operator(BATCH_RESOLUTION_OT_ExecuteButton.bl_idname)
+            operator_instance = box_renderadj.operator(BATCH_RESOLUTION_OT_ExecuteButton.bl_idname,text="执行",icon='RENDER_STILL')
 
             # 添加操作按钮并传递输入参数
             operator_instance.output_file = change_resolution_prop.output_file

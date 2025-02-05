@@ -108,7 +108,6 @@ def select_top_level_parent():
 def set_armature_as_parent(keep_transform=True):
     """
     将选中物体中的骨架作为其他物体的父级，并保持物体的变换。
-
     :param keep_transform: 如果为True，则保持变换不变。
     """
     # 确保至少有两个物体被选中
@@ -177,9 +176,6 @@ def select_armature():
     bpy.ops.object.connect_bone()
     # 退出编辑模式，回到对象模式
     bpy.ops.object.mode_set(mode='OBJECT')
-
-    
-
 
 def delete_largest_mesh_object():
     # 确保进入对象模式
@@ -779,8 +775,6 @@ def register():
     bpy.types.Scene.json_file_index = bpy.props.IntProperty()
 
     bpy.types.Scene.show_bone_operators = bpy.props.BoolProperty(default=False)
-
-
 
 def unregister():
     bpy.utils.unregister_class(CharOperater)
