@@ -36,12 +36,11 @@ class BoneDataExporterPanel(bpy.types.Panel):
         row = box_json.row()
         row.alignment = 'CENTER'  # 设置行的对齐方式为居中
         row.label(text="配置列表")
-        
+
         box_json.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
         box_json.operator("object.refresh_json_list", text="刷新配置列表",icon='FILE_REFRESH')
-        
         box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
-        box_json.operator("object.one_click_operator", text="一键处理当前导入角色(单位64格/M)",icon='COMMUNITY')
+        box_json.operator("object.one_click_operator", text="一键处理64角色",icon='COMMUNITY')
 
         # row = layout.row()
         # layout.prop(scene.batchtool, "fbx_path", text="FBX路径")
