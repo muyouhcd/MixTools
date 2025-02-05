@@ -63,12 +63,12 @@ from . import panels
 from . import CorrectRotation
 from . import renderconfig
 from . import remove_unused_material_slots
-from . import auto_render
+from . import AutoRender
 from . import AutoRenameCar
 from . import ExportFbx
 from . import Voxelizer
 # from . import AutoRig
-from . import AutoRig_2
+from . import AutoRig
 from . import AutolinkTexture
 from . import MoveOrigin
 from . import AutoBake
@@ -86,60 +86,60 @@ from . import BoneProcess
 
 
 def register():
-    operators.register()
-    update.register()
-    renderconfig.register()
-    CorrectRotation.register()
-    remove_unused_material_slots.register()
-    auto_render.register()
-    panels.register()
-    AutoRenameCar.register()
-    ExportFbx.register()
-    Voxelizer.register()
-    AutolinkTexture.register()
-    MoveOrigin.register()
     AutoBake.register()
     AutoBakeRemesh.register()
+    AutoRenameCar.register()
+    AutoRender.register()
+    AutoRig.register()
+    AutolinkTexture.register()
+    BoneProcess.register()
     Combin.register()
+    CorrectRotation.register()
+    ExoprtObj.register()
+    ExportFbx.register()
+    MaterialOperator.register()
+    MoveOrigin.register()
+    operators.register()
+    panels.register()
     RenameTool.register()
     RemoveObj.register()
+    renderconfig.register()
+    RenderFrame.register()
+    remove_unused_material_slots.register()
     SelectTool.register()
-    ExoprtObj.register()
-    MaterialOperator.register()
     UVCleaner.register()
     UVformater.register()
-    RenderFrame.register()
-    BoneProcess.register()
-    AutoRig_2.register()
+    update.register()
+    Voxelizer.register()
+
     bpy.ops.object.refresh_json_list()
 
 def unregister():
-    update.unregister()
-    operators.unregister()
-    panels.unregister()
-    auto_render.unregister()
-    renderconfig.unregister()
-    CorrectRotation.unregister()
-    remove_unused_material_slots.unregister()
-    AutoRenameCar.unregister()
-    ExportFbx.unregister()
-    Voxelizer.unregister()
-    AutolinkTexture.unregister()
-    MoveOrigin.unregister()
     AutoBake.unregister()
     AutoBakeRemesh.unregister()
+    AutoRenameCar.unregister()
+    AutoRender.unregister()
+    AutoRig.unregister()
+    AutolinkTexture.unregister()
+    BoneProcess.unregister()
     Combin.unregister()
+    CorrectRotation.unregister()
+    ExoprtObj.unregister()
+    ExportFbx.unregister()
+    MaterialOperator.unregister()
+    MoveOrigin.unregister()
+    operators.unregister()
+    panels.unregister()
     RenameTool.unregister()
     RemoveObj.unregister()
+    renderconfig.unregister()
+    RenderFrame.unregister()
+    remove_unused_material_slots.unregister()
     SelectTool.unregister()
-    ExoprtObj.unregister()
-    MaterialOperator.unregister()
     UVCleaner.unregister()
     UVformater.unregister()
-    RenderFrame.unregister()
-    BoneProcess.unregister()
-    AutoRig_2.unregister()
-
+    update.unregister()
+    Voxelizer.unregister()
 
 
 

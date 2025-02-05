@@ -35,9 +35,9 @@ class CustomFunctionsPanel(bpy.types.Panel):
             layout.label(text="生成:")
             gen_box = layout.box()
             gen_box.operator("object.miao_boundbox_gen", text="生成包围盒", icon='MESH_CUBE')
-            gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='MESH_CUBE')
+            gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='META_ELLIPSOID')
             gen_box.operator("object.miao_safecombin", text="安全合并", icon='AUTOMERGE_ON')
-            gen_box.operator("object.object_instance", text="转换实例化", icon='AUTOMERGE_ON')
+            gen_box.operator("object.object_instance", text="转换实例化", icon='OUTLINER_OB_GROUP_INSTANCE')
 
             # Alignment Tools
             layout.label(text="对齐:")
@@ -82,7 +82,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             layout.label(text="碰撞检测与集合绑定:")
             bounding_box_operations = layout.box()
             bounding_box_operations.operator("object.miao_collection_byboundingbox", text="检测碰撞归集合", icon='MESH_CIRCLE')
-            bounding_box_operations.operator("object.miao_parent_byboundingbox", text="检测碰撞归子集", icon='MESH_CIRCLE')
+            bounding_box_operations.operator("object.miao_parent_byboundingbox", text="检测碰撞归子集", icon='FILE_PARENT')
             bounding_box_operations.operator("object.collection_by_attached", text="检测并合并碰撞", icon='MESH_CIRCLE')
             
             # Parent By Collections
@@ -91,7 +91,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             parent_by_collections_box.label(text="以集合物体绑定子集合父级")
             parent_by_collections_box.prop(scene, "collectionA", text="集合 A")
             parent_by_collections_box.prop(scene, "collectionB", text="集合 B")
-            parent_by_collections_box.operator("object.miao_set_parent_collections", text="设置父级", icon='MESH_CIRCLE')
+            parent_by_collections_box.operator("object.miao_set_parent_collections", text="设置父级", icon='FILE_PARENT')
 
             # Empty Parent Binding
             layout.label(text="绑定空物体父级:")
@@ -201,12 +201,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
             queue_up_box.prop(context.scene, "queue_up_distance")
             queue_up_box.prop(context.scene, "queue_up_axis", text="轴向")
             queue_up_box.prop(context.scene, "use_bounding_box", text="使用包围盒")
-            queue_up_box.operator("object.miao_queue_up")
+            queue_up_box.operator("object.miao_queue_up",icon='SNAP_VERTEX')
             # 创建一个box来包含置乱位置相关功能
             random_placement_box = layout.box()
             # random_placement_box.label(text="置乱位置")
             random_placement_box.prop(context.scene, "random_placement_extent")
-            random_placement_box.operator("object.miao_random_placement")
+            random_placement_box.operator("object.miao_random_placement",icon='STICKY_UVS_DISABLE')
             # 创建一个box来包含置乱缩放相关功能
             random_scale_box = layout.box()
             # random_scale_box.label(text="置乱缩放")
@@ -269,7 +269,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
                                  icon='TRIA_DOWN' if context.scene.assestoperation_expand else 'TRIA_RIGHT')
         if context.scene.assestoperation_expand:
             box_vox = col_assestoperation.box()
-            box_vox.operator("object.vox_operation", text="导入VOX一键处理")
+            box_vox.operator("object.vox_operation", text="导入VOX一键处理",icon='ALIASED')
             #一键定位并绑定角色
             box_character = col_assestoperation.box()
             box_character.operator("object.miao_char_operater", text="导入VOX角色一键处理")

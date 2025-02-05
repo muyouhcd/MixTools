@@ -55,16 +55,19 @@ class ApplyTextureOperator(bpy.types.Operator):
             print(f"Checking for texture: {abs_texture_path}")
 
             # 检查贴图文件是否存在
-            if os.path.exists(abs_texture_path):
-                if abs_texture_path in processed_textures:
-                    texture = processed_textures[abs_texture_path]
-                else:
+            if abs_texture_path in processed_textures:
+                texture = processed_textures[abs_texture_path]
+            else:
+                try:
                     texture = bpy.data.images.load(abs_texture_path)
                     processed_textures[abs_texture_path] = texture
+                except Exception as e:
+                    self.report({'ERROR'}, f"Failed to load texture {abs_texture_path}: {str(e)}")
+                    return
                 
-                self.apply_texture(obj, texture)
-                found_texture = True
-                break # 找到纹理文件，跳出循环
+            self.apply_texture(obj, texture)
+            found_texture = True
+            break # 找到纹理文件，跳出循环
 
             # 如果没有找到，则去掉名称的最后一个字符再试
             obj_name = obj_name[:-1]
@@ -97,17 +100,32 @@ class ApplyTextureOperator(bpy.types.Operator):
             nodes.remove(node)
 
         # 添加纹理节点
+        texture_node = self.create_texture_node(nodes, texture)
+
+        # 添加BSDF节点
+        bsdf_node = self.create_bsdf_node(nodes)
+
+        # 添加输出节点
+        output_node = self.create_output_node(nodes)
+
+        # 连接节点
+        self.connect_nodes(links, texture_node, bsdf_node, output_node)
+
+    def create_texture_node(self, nodes, texture):
         texture_node = nodes.new(type='ShaderNodeTexImage')
         texture_node.image = texture
         texture_node.interpolation = 'Closest'
+        return texture_node
 
-        # 添加BSDF节点
+    def create_bsdf_node(self, nodes):
         bsdf_node = nodes.new(type='ShaderNodeBsdfPrincipled')
+        return bsdf_node
 
-        # 添加输出节点
+    def create_output_node(self, nodes):
         output_node = nodes.new(type='ShaderNodeOutputMaterial')
+        return output_node
 
-        # 连接节点
+    def connect_nodes(self, links, texture_node, bsdf_node, output_node):
         links.new(texture_node.outputs['Color'], bsdf_node.inputs['Base Color'])
         links.new(bsdf_node.outputs['BSDF'], output_node.inputs['Surface'])
 
