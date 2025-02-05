@@ -182,7 +182,7 @@ class VoxelConverter(bpy.types.Operator):
         description = "定义体素化时使用的分辨率乘数",
         default = 32,
         min = 1
-    )
+    )#type: ignore
 
     @classmethod
     def poll(cls, context):
@@ -1820,7 +1820,6 @@ class OBJECT_OT_move_to_surface(bpy.types.Operator):
 
         return {"FINISHED"}
 
-
 classes = [
     OBJECT_OT_reset_z_axis,
     OBJECT_OT_clean_empty,
@@ -1851,7 +1850,6 @@ classes = [
     BoundboxGen,
     CombinObject,
     RemoveVertexGroup,
-
     QueueUp,
     RandomPlacement,
     CollectionByBoundingbox,

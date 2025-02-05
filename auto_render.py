@@ -8,7 +8,7 @@ from PIL import Image, ImageOps
 
 class AutoRenderer():
     def __init__(self, collections: list, camera_name="Camera", 
-                    output_path="./", output_name="auto_render", 
+                    output_path="./", output_name="", 
                     output_format="PNG", focus_each_object=False) -> None:
         """
         集合：字符串列表，每个字符串都是一个集合的名称
@@ -164,7 +164,7 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
     output_name: bpy.props.StringProperty(
         name="Output Name",
         description="Name of the rendered images",
-        default="auto_render"
+        default=""
     ) # type: ignore
     output_format: bpy.props.EnumProperty(
         name="Output Format",
@@ -270,7 +270,6 @@ def unregister():
     bpy.utils.unregister_class(AUTO_RENDER_OT_Execute)
     del bpy.types.Scene.auto_render_settings
     bpy.utils.unregister_class(AutoRenderSettings)
-
     bpy.utils.unregister_class(BatchRenderOperator)
     del bpy.types.Scene.render_as_animation
 

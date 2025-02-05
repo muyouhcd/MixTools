@@ -86,7 +86,6 @@ from . import BoneProcess
 
 
 def register():
-    
     operators.register()
     update.register()
     renderconfig.register()
@@ -112,7 +111,6 @@ def register():
     RenderFrame.register()
     BoneProcess.register()
     AutoRig_2.register()
-
     bpy.ops.object.refresh_json_list()
 
 def unregister():

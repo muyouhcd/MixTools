@@ -3,11 +3,11 @@ from .MaterialOperator import SetEmissionStrength
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 
 class CustomFunctionsPanel(bpy.types.Panel):
-    bl_label = "MiAO Tools"
+    bl_label = "工具盒"
     bl_idname = "VIEW3D_PT_custom_functions"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category = "MiAO TOOL BOX"
+    bl_category = "工具盒"
 
     def draw(self, context):
         layout = self.layout
@@ -19,19 +19,20 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if scene.tools_expand:
             # Edit Tools
-            layout.label(text="编辑工具:")
+            layout.label(text="编辑:")
             edit_box = layout.box()
             edit_box.operator("object.miao_remove_vertex_group", text="移除顶点组", icon='GROUP_VERTEX')
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
             edit_box.operator("object.miao_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
             edit_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='OBJECT_DATA')
+            edit_box.operator("object.miao_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
             # Animation Tools
-            layout.label(text="动画工具:")
+            layout.label(text="动画:")
             anim_box = layout.box()
             anim_box.operator("object.clear_animation_data", text="批量清空动画", icon='ANIM_DATA')
             # Generation Tools
-            layout.label(text="生成工具:")
+            layout.label(text="生成:")
             gen_box = layout.box()
             gen_box.operator("object.miao_boundbox_gen", text="生成包围盒", icon='MESH_CUBE')
             gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='MESH_CUBE')
@@ -39,7 +40,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             gen_box.operator("object.object_instance", text="转换实例化", icon='AUTOMERGE_ON')
 
             # Alignment Tools
-            layout.label(text="对齐工具:")
+            layout.label(text="对齐:")
             align_box = layout.box()
             align_box.prop(context.scene, "axis_direction_enum", text="Axis Direction")
             op = align_box.operator("object.move_origin", text="Move Origin")
@@ -51,7 +52,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # align_box.prop(operator, "axis", text="Axis")
 
             # Selection Tools
-            layout.label(text="选择工具:")
+            layout.label(text="选择:")
             select_box = layout.box()
             select_box.operator("object.match_uv", text="选取同UV物体", icon='GROUP_UVS')
             select_box.operator("object.select_large_objects", text="选择过大物体", icon='FULLSCREEN_ENTER')
@@ -59,24 +60,22 @@ class CustomFunctionsPanel(bpy.types.Panel):
             select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='FULLSCREEN_EXIT')
 
             #清理工具
-            layout.label(text="清理工具:")
+            layout.label(text="清理:")
             clean_box = layout.box()
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='FULLSCREEN_EXIT')
             clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='FULLSCREEN_EXIT')
 
-            #合并工具
-            layout.label(text="合并工具:")
+
+
+            layout.label(text="合并:")
             convert_box = layout.box()
             convert_box.operator("object.combin_same_origin_object", text="合并同原点物体", icon='MOD_REMESH')
 
-            #贴图改名工具
-            layout.label(text="贴图改名工具:")
-            convert_box = layout.box()
-            convert_box.operator("object.rename_texture_orign", text="贴图改名为原始名称", icon='MOD_REMESH')
+            
             
 # 绑定操作
         col_BindOperation = layout.column()
-        col_BindOperation.prop(scene, "BindOperation_expand", text="绑定操作集合", emboss=False,
+        col_BindOperation.prop(scene, "BindOperation_expand", text="绑定集合", emboss=False,
                                icon='TRIA_DOWN' if context.scene.BindOperation_expand else 'TRIA_RIGHT')
         if context.scene.BindOperation_expand:
 
@@ -102,7 +101,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
 # 材质操作
         col_meterialoperation = layout.column()
-        col_meterialoperation.prop(scene, "meterialoperation_expand", text="材质操作", emboss=False,
+        col_meterialoperation.prop(scene, "meterialoperation_expand", text="材质", emboss=False,
                                    icon='TRIA_DOWN' if context.scene.meterialoperation_expand else 'TRIA_RIGHT')
 
         if context.scene.meterialoperation_expand:
@@ -139,7 +138,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
 # 命名操作
         col_renameoperation = layout.column()
-        col_renameoperation.prop(scene, "renameoperation_expand", text="重命名操作", emboss=False,
+        col_renameoperation.prop(scene, "renameoperation_expand", text="重命名", emboss=False,
                                  icon='TRIA_DOWN' if context.scene.renameoperation_expand else 'TRIA_RIGHT')
 
         if context.scene.renameoperation_expand:
@@ -168,6 +167,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
             naming_convention_box.operator("object.rename_meshes", text="Mesh命名为物体", icon='OUTLINER_DATA_MESH')
             naming_convention_box.operator("object.rename_objects", text="物体命名为Mesh", icon='OBJECT_DATA')
 
+            #贴图改名工具
+            layout.label(text="贴图改名:")
+            convert_box = layout.box()
+            convert_box.operator("object.rename_texture_orign", text="贴图改名为原始名称", icon='MOD_REMESH')
+
             # Rename by Location Within Collections
             box_rename_by_collections = col_renameoperation.box()
             box_rename_by_collections.label(text="集合内位置重命名:")
@@ -186,7 +190,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
 # 旋转缩放位移操作
         col_rsm = layout.column()
-        col_rsm.prop(scene, "rsm_expand", text="旋转位移缩放操作", emboss=False,
+        col_rsm.prop(scene, "rsm_expand", text="旋转位移缩放", emboss=False,
                      icon='TRIA_DOWN' if context.scene.rsm_expand else 'TRIA_RIGHT')
         if context.scene.rsm_expand:
             # 下落至表面
@@ -230,7 +234,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
 # 导入导出操作
         col_inout = layout.column()
-        col_inout.prop(scene, "inout_expand", text="导入导出操作", emboss=False,
+        col_inout.prop(scene, "inout_expand", text="导入导出", emboss=False,
                        icon='TRIA_DOWN' if context.scene.inout_expand else 'TRIA_RIGHT')
 
         if context.scene.inout_expand:
@@ -257,20 +261,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # Add Sorted Scenes to Sequencer
             link_scenes_batch_box.operator("scene.add_sorted_scenes_to_sequencer", text="批量添加场景至时间轴", icon='SEQUENCE')
 
-# GTA导出物体处理
-        col_GTAtranslate = layout.column()
-        col_GTAtranslate.prop(scene, "GTAtranslate_expand", text="gta源文件处理", emboss=False,
-                              icon='TRIA_DOWN' if context.scene.GTAtranslate_expand else 'TRIA_RIGHT')
 
-        if context.scene.GTAtranslate_expand:
-            # 校正物体旋转
-            layout.operator("object.miao_correct_rotation")
-            #GTA导入载具一键处理
-            # layout.operator("object.process_objects")
 
 # 资产操作
         col_assestoperation = layout.column()
-        col_assestoperation.prop(scene, "assestoperation_expand", text="批量转换资产操作", emboss=False,
+        col_assestoperation.prop(scene, "assestoperation_expand", text="批量转换资产", emboss=False,
                                  icon='TRIA_DOWN' if context.scene.assestoperation_expand else 'TRIA_RIGHT')
         if context.scene.assestoperation_expand:
             box_vox = col_assestoperation.box()
@@ -311,30 +306,53 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # box_voxelizer.prop(scene, "generate_solid")
             box_voxelizer.operator("object.convert_voxelizer", text="一键转换vox")
             box_voxelizer.operator("object.convert_voxelizer_color", text="一键转换vox(带颜色)")
-# 烘焙操作
+# 烘焙
             # box_bake = layout.box()
             # box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
             # box_bake.operator("object.retopologize_and_bake_without_remesh", text="烘焙选中物体")
 
             # Conversion Tools
-            layout.label(text="转换工具:")
+            layout.label(text="转换:")
             convert_box = layout.box()
             convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='MOD_REMESH')
             convert_box.prop(scene, "resolution_factor")
 
+#批量渲染
+        # 确保自动展开部分包括新的滑动条选项
+        # 确保自动展开部分包括新的滑动条选项
+        layout = self.layout
+        scene = bpy.context.scene
 
-      
+        col_autorender = layout.column()
+        col_autorender.prop(scene, "autorender_expand", text="批量渲染", emboss=False, 
+                            icon='TRIA_DOWN' if scene.autorender_expand else 'TRIA_RIGHT')
+
+        if scene.autorender_expand:
+            box_autorender = col_autorender.box()
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_path", text="输出路径")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_name", text="输出名称")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_format", text="输出格式")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "collections", text="渲染集合")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到每个物体（正交相机）")
+            box_autorender.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离（正交相机）")
+            box_autorender.operator("auto_render.execute")
+            
+            box_autorender_blendefile = col_autorender.box()
+            box_autorender_blendefile.label(text="批量渲染.blend文件")
+            render_operator = box_autorender_blendefile.operator('auto_render.batch_render')
+            box_autorender_blendefile.prop(render_operator, 'render_as_animation', text="渲染动画")
 
 # 批量调整渲染设置
         col_renderadj = layout.column()
-        col_renderadj.prop(scene, "renderadj_expand", text="批量更改渲染设置", emboss=False,
+        col_renderadj.prop(scene, "renderadj_expand", text="批量调整渲染设置", emboss=False,
                            icon='TRIA_DOWN' if context.scene.renderadj_expand else 'TRIA_RIGHT')
 
         if context.scene.renderadj_expand:
 
             box_renderadj = col_renderadj.box()
             change_resolution_prop = context.scene.change_resolution_prop
-            box_renderadj.prop(change_resolution_prop, "input_dir",text="输入路径")
+            box_renderadj.prop(change_resolution_prop, "input_dir",text="blend文件目录")
             box_renderadj.prop(change_resolution_prop, "output_dir",text="输出路径")
             box_renderadj.prop(change_resolution_prop, "render_engine", text="渲染引擎")
             box_renderadj.prop(change_resolution_prop, "output_format", text="输出格式")
@@ -357,31 +375,17 @@ class CustomFunctionsPanel(bpy.types.Panel):
             operator_instance.resolution_percentage = str(change_resolution_prop.resolution_percentage)
             operator_instance.output_frame_rate = str(change_resolution_prop.output_frame_rate)
 
-#批量渲染
-        # 确保自动展开部分包括新的滑动条选项
-        # 确保自动展开部分包括新的滑动条选项
-        layout = self.layout
-        scene = bpy.context.scene
+# GTA导出物体处理
+        # col_GTAtranslate = layout.column()
+        # col_GTAtranslate.prop(scene, "GTAtranslate_expand", text="gta源文件处理", emboss=False,
+        #                       icon='TRIA_DOWN' if context.scene.GTAtranslate_expand else 'TRIA_RIGHT')
 
-        col_autorender = layout.column()
-        col_autorender.prop(scene, "autorender_expand", text="批量物件icon渲染", emboss=False, 
-                            icon='TRIA_DOWN' if scene.autorender_expand else 'TRIA_RIGHT')
-
-        if scene.autorender_expand:
-            box_autorender = col_autorender.box()
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_path", text="输出路径")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_name", text="输出名称")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "output_format", text="输出格式")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "collections", text="渲染集合")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机（非中文）")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到每个物体")
-            box_autorender.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离（请先设置正交相机）")
-            box_autorender.operator("auto_render.execute")
+        # if context.scene.GTAtranslate_expand:
+        #     # 校正物体旋转
+        #     layout.operator("object.miao_correct_rotation")
+        #     #GTA导入载具一键处理
+        #     # layout.operator("object.process_objects")
             
-            box_autorender_blendefile = col_autorender.box()
-            box_autorender_blendefile.label(text="批量渲染.blend文件")
-            render_operator = box_autorender_blendefile.operator('auto_render.batch_render')
-            box_autorender_blendefile.prop(render_operator, 'render_as_animation', text="渲染动画")
 def register():
     bpy.utils.register_class(CustomFunctionsPanel)
     
