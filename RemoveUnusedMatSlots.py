@@ -34,27 +34,13 @@ class UNUSED_MATERIAL_SLOTS_OT_Remove(bpy.types.Operator):
                     poly.material_index = used_material_slots.index(obj.material_slots[original_index].material)
 
         return {'FINISHED'}
-    
-# class UNUSED_MATERIAL_SLOTS_PT_Panel(bpy.types.Panel):
-#     bl_label = "Remove Unused Slots"
-#     bl_idname = "UNUSED_MATERIAL_SLOTS_PT_Panel"
-#     bl_space_type = "VIEW_3D"
-#     bl_region_type = "UI"
-#     bl_category = "Remove Unused Slots"
 
-#     def draw(self, context):
-#         layout = self.layout
-#         layout.operator("object.remove_unused_material_slots")
-
-    
 
 def register():
     bpy.utils.register_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
-    # bpy.utils.register_class(UNUSED_MATERIAL_SLOTS_PT_Panel)
 
 def unregister():
     bpy.utils.unregister_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
-    # bpy.utils.unregister_class(UNUSED_MATERIAL_SLOTS_PT_Panel)
 
 if __name__ == "__main__":
     register()
