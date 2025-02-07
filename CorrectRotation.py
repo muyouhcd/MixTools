@@ -48,6 +48,9 @@ class CorrectRotation(bpy.types.Operator):
         bpy.ops.object.rotation_clear(clear_delta=False)
         view_axis(axis='FRONT', align_active=True)
 
+        bpy.ops.object.mode_set(mode='OBJECT')
+        return {'FINISHED'}
+
 
 def register():
     bpy.utils.register_class(CorrectRotation)
