@@ -62,7 +62,7 @@ from . import operators
 from . import panels
 from . import CorrectRotation
 from . import renderconfig
-from . import remove_unused_material_slots
+from . import RemoveUnusedMatSlots
 from . import AutoRender
 from . import AutoRenameCar
 from . import ExportFbx
@@ -105,7 +105,7 @@ def register():
     RemoveObj.register()
     renderconfig.register()
     RenderFrame.register()
-    remove_unused_material_slots.register()
+    RemoveUnusedMatSlots.register()
     SelectTool.register()
     UVCleaner.register()
     UVformater.register()
@@ -134,7 +134,7 @@ def unregister():
     RemoveObj.unregister()
     renderconfig.unregister()
     RenderFrame.unregister()
-    remove_unused_material_slots.unregister()
+    RemoveUnusedMatSlots.unregister()
     SelectTool.unregister()
     UVCleaner.unregister()
     UVformater.unregister()
