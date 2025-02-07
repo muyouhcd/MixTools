@@ -24,11 +24,11 @@ class BoneDataExporterPanel(bpy.types.Panel):
         row.prop(scene, "show_bone_operators", text="骨骼操作", icon='TRIA_DOWN' if scene.show_bone_operators else 'TRIA_RIGHT', emboss=False)
         if scene.show_bone_operators:
             row = layout.row()
-            row.operator("object.export_bone_data", text="导出骨骼数据", icon='GROUP_BONE')
-            row.operator("object.restore_bone_data", text="还原骨骼数据", icon='BONE_DATA')
-            row.operator("object.restore_empty_data", text="还原空物体数据", icon='EMPTY_DATA')
+            row.operator("object.export_bone_data", text="导出骨骼", icon='GROUP_BONE')
+            row.operator("object.restore_bone_data", text="还原骨骼", icon='BONE_DATA')
+            row.operator("object.restore_empty_data", text="还原点位", icon='EMPTY_DATA')
             row = layout.row()
-            row.operator('object.reset_bone_position', text="重置骨骼端点位置(连接端点)", icon='BONE_DATA')
+            row.operator('object.reset_bone_position', text="重置端点", icon='BONE_DATA')
             row.operator('object.connect_bone', text="连接骨骼", icon='CONSTRAINT_BONE')
             
 
@@ -40,7 +40,7 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
         box_json.operator("object.refresh_json_list", text="刷新配置列表",icon='FILE_REFRESH')
         box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
-        box_json.operator("object.one_click_operator", text="一键处理64角色",icon='COMMUNITY')
+        box_json.operator("object.one_click_operator", text="一键处理角色(64)",icon='COMMUNITY')
 
         # row = layout.row()
         # layout.prop(scene.batchtool, "fbx_path", text="FBX路径")
