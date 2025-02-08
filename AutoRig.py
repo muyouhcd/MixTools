@@ -350,7 +350,7 @@ class RestoreEmptyDataOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
-    """根据 JSON 数据还原骨架和嵌套空物体并自动绑定到网格"""
+    """根据 JSON 数据还原骨架并自动绑定"""
     bl_idname = "object.restore_skeleton_from_json"
     bl_label = "从 JSON 还原骨架并自动绑定"
 
@@ -372,25 +372,16 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                 empty_coords_data = data.get("empty_coords_data", [])
                 embedded_empty_data = data.get("embedded_empty_data", [])
 
-                # 根据空物体的位置重命名场景中的物体
+                # 重命名对象
                 rename_all_children_based_on_coords(empty_coords_data)
 
-                # 收集顶级父级对象
+                # 创建和绑定骨架
                 top_level_objects = {get_top_parent(obj) for obj in context.scene.objects if obj.type == 'MESH'}
 
-                # 为每个顶级父级对象创建和绑定骨架
                 for top_object in top_level_objects:
-                    # 创建骨架
                     armature = bpy.data.armatures.new(name="Root")
                     armature_obj = bpy.data.objects.new("Root", armature)
-
-                    # 找到目标对象所属的集合并将骨架对象链接到该集合
-                    target_collection = top_object.users_collection[0] if top_object.users_collection else context.collection
-                    target_collection.objects.link(armature_obj)
-                    
-                    # 将骨架设置为顶级父级对象的子对象
-                    top_level_parent = get_top_parent(top_object)
-                    armature_obj.parent = top_level_parent
+                    context.collection.objects.link(armature_obj)
 
                     bpy.context.view_layer.objects.active = armature_obj
                     bpy.ops.object.mode_set(mode='EDIT')
@@ -398,35 +389,20 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                     created_bones = {}
                     for bone_name, bone_info in bone_data.items():
                         bone = armature.edit_bones.new(name=bone_name)
-                        bone.head = Vector(bone_info['head'])
-                        bone.tail = Vector(bone_info['tail'])
+                        bone.head = Vector(bone_info.get('head', [0, 0, 0]))
+                        bone.tail = Vector(bone_info.get('tail', [0, 0, 1]))
+                        bone.roll = bone_info.get('twist', 0)  # 使用默认值 0
+                        for prop_name, prop_value in bone_info.get('properties', {}).items():
+                            bone[prop_name] = prop_value  # 设置自定义属性
                         created_bones[bone_name] = bone
 
                     for bone_name, bone_info in bone_data.items():
-                        if bone_info["parent"]:
+                        if bone_info.get("parent"):
                             created_bones[bone_name].parent = created_bones.get(bone_info["parent"])
 
                     bpy.ops.object.mode_set(mode='OBJECT')
 
-                    # 生成嵌套空物体
-                    for empty_info in embedded_empty_data:
-                        empty_obj = bpy.data.objects.new(empty_info['name'], None)
-                        context.collection.objects.link(empty_obj)
-
-                        empty_obj.location = Vector(empty_info['location'])
-                        empty_obj.rotation_euler = Vector(empty_info['rotation'])
-                        empty_obj.scale = Vector(empty_info['scale'])
-
-                        if empty_info['parent_bone']:
-                            armature_obj = ... # 获取相关骨架对象
-                            empty_obj.parent = armature_obj
-                            empty_obj.parent_type = 'BONE'
-                            empty_obj.parent_bone = empty_info['parent_bone']
-
-                        # 不设定父级，以确保全局空间不受父级影响
-                        # if empty_info["parent"]:  # 这一行注释掉，可以保留空值，直接使用全局坐标
-
-                    # 绑定顶级父级对象的所有子对象
+                    # 绑定子对象
                     for child_obj in top_object.children:
                         if child_obj.type == 'MESH':
                             armature_modifier = child_obj.modifiers.new(name="Armature", type='ARMATURE')
@@ -443,12 +419,12 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                             # 将所有顶点添加到顶点组并设置权重为1
                             vertex_group.add(all_verts_indices, 1.0, 'ADD')
 
-                # 合并物体
+                # 合并对象
                 for names, new_name in name_groups:
                     filtered_objects = create_parent_dict(names)
                     join_objects(filtered_objects, new_name)
 
-            self.report({'INFO'}, f"骨架从 {file_name} 中成功还原并绑定")
+                self.report({'INFO'}, f"骨架从 {file_name} 中成功还原并绑定")
 
         except Exception as e:
             self.report({'ERROR'}, f"还原失败: {e}")
@@ -699,17 +675,23 @@ def get_bone_data_with_scaling(armature_name):
             bone_head_world = world_matrix @ bone.head
             bone_tail_world = world_matrix @ bone.tail
 
+            # 获取骨骼的扭转数据和其他属性
+            twist = bone.roll  # 假设扭转数据是骨骼的 roll 属性
+            custom_properties = {k: v for k, v in bone.items()}  # 自定义属性
+
             bone_data[bone.name] = {
                 "parent": bone.parent.name if bone.parent else None,
                 "head": list(bone_head_world),
-                "tail": list(bone_tail_world)
+                "tail": list(bone_tail_world),
+                "twist": twist,
+                "properties": custom_properties
             }
 
         embedded_empties = get_embedded_empty_data(template_armature)
         
         bpy.ops.object.mode_set(mode='OBJECT')
     
-    return bone_data, embedded_empties  # 返回两个值
+    return bone_data, embedded_empties
 
 def get_empty_object_data(context):
     empty_coords_data = []

@@ -67,9 +67,10 @@ def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=No
         global_scale=scale_factor,
         axis_forward='-Z',  # 调整以匹配Unity的坐标系
         axis_up='Y',  # 调整以匹配Unity的坐标系
-        add_leaf_bones=False 
-
+        add_leaf_bones=False ,
+        armature_nodetype = 'NULL'
     )
+
     print(f"导出完成：{fbx_file_path}")
 
 # 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象
