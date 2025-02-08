@@ -24,7 +24,9 @@ class UNUSED_MATERIAL_SLOTS_OT_Remove(bpy.types.Operator):
                 used_material_slots = [obj.material_slots[index].material for index in sorted(used_material_indices)]
 
                 for _ in range(len(obj.material_slots)):
-                    bpy.ops.object.material_slot_remove({'object': obj})
+
+                    bpy.ops.object.material_slot_remove()
+                    # bpy.ops.object.material_slot_remove({'object': obj})
 
                 for material in used_material_slots:
                     obj.data.materials.append(material)

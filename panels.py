@@ -218,7 +218,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             align_parent_box = layout.box()
             align_parent_box.label(text="批量对齐顶级父物体")
             align_parent_box.prop(context.scene, "collectionA", text="集合A (参考)")
-            align_parent_box.prop(context.scene, "collectionB", text="集合B (对齐的目标)")
+            align_parent_box.prop(context.scene, "collectionB", text="集合B (对齐目标)")
             align_parent_box.operator("object.align_operator")
 # 动画操作
         # col_anm = layout.column()
