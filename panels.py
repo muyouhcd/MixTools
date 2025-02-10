@@ -271,14 +271,14 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_vox = col_assestoperation.box()
             box_vox.operator("object.vox_operation", text="导入VOX一键处理",icon='ALIASED')
             #一键定位并绑定角色
-            box_character = col_assestoperation.box()
-            box_character.operator("object.miao_char_operater", text="导入VOX角色一键处理",icon='ALIASED')
+            # box_character = col_assestoperation.box()
+            # box_character.operator("object.miao_char_operater", text="导入VOX角色一键处理",icon='ALIASED')
 
             # box_character.operator("object.point_data_generator", text="角色点位数据生成", icon='AUTOMERGE_ON')
             # box_character.operator("object.bone_data_generator", text="角色骨骼数据生成", icon='AUTOMERGE_ON')
 
-            box_character.prop(scene,"assign_contact_weights")
-            box_character.prop(scene, "threshold_distance")
+            # box_character.prop(scene,"assign_contact_weights", text="是否赋予权重")
+            # box_character.prop(scene, "threshold_distance", text="接触阈值")
 
             # box_character.operator('object.char_operater_bone_weight', text="女性角色一键绑定", icon='BONE_DATA')
             # box_character.operator('object.char_operater_male_bone_weight', text="男性角色一键绑定", icon='BONE_DATA')

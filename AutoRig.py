@@ -42,6 +42,14 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
         box_json.operator("object.one_click_operator", text="一键处理角色(64)",icon='COMMUNITY')
 
+        box_step=layout.box()
+        row = box_step.row()
+        box_step.operator("object.miao_parent_byboundingbox", text="根据接触关系底部中心创建父级",icon='ARMATURE_DATA')
+        box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
+        box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
+
+        # bpy.ops.object.location_clear(clear_delta=False)
+
         # row = layout.row()
         # layout.prop(scene.batchtool, "fbx_path", text="FBX路径")
         # row = layout.row()
@@ -64,6 +72,54 @@ name_groups = [
     (["Foot", "Toe",], "Feet")
 ]
 
+def apply_change_to_scene():
+            """
+            应用场景更改的函数。
+
+            该函数遍历所有顶级父对象，将它们的缩放比例减半并重置位置到原点。
+            然后，它随机选择一个具有材质的子对象，并将该材质应用到所有子对象上。
+            """
+            def set_material_to_objects(objects, material):
+                """
+                将材质应用到对象的函数。
+
+                参数:
+                objects (list): 要应用材质的对象列表。
+                material (bpy.types.Material): 要应用的材质。
+
+                该函数遍历对象列表，检查每个对象是否已经有材质。
+                如果有，它将第一个材质替换为传入的材质。
+                如果没有，它将传入的材质添加到对象的材质列表中。
+                """
+                for obj in objects:
+                    if len(obj.data.materials):
+                        obj.data.materials[0] = material
+                    else:
+                        obj.data.materials.append(material)
+
+            # 获取所有顶级父对象，排除名称中包含 'example' 的对象
+            top_level_parents = [obj for obj in bpy.data.objects if obj.parent is None and 'example' not in obj.name.lower()]
+
+            for parent_obj in top_level_parents:
+                # 将父对象的缩放比例减半
+                parent_obj.scale *= 0.5
+                # 将父对象的位置重置到原点
+                parent_obj.location = (0, 0, 0)
+
+                # 检查父对象是否有子对象
+                if parent_obj.children:
+                    # 获取所有具有材质的子对象
+                    children_with_materials = [child for child in parent_obj.children if child.data and len(child.data.materials) > 0]
+
+                    # 如果有具有材质的子对象
+                    if children_with_materials:
+                        # 随机选择一个具有材质的子对象
+                        child_with_random_material = random.choice(children_with_materials)
+                        # 获取随机选择的子对象的第一个材质
+                        random_material = child_with_random_material.data.materials[0]
+                        # 将随机选择的材质应用到所有子对象上
+                        set_material_to_objects(parent_obj.children, random_material)
+    
 def delete_top_level_parent():
     # 检查是否有对象被选中
     if not bpy.context.selected_objects:
@@ -231,6 +287,40 @@ def set_material_for_selected_objects(material_name):
             obj.data.materials[0] = material
             print(f"Material '{material_name}' assigned to object '{obj.name}'")
 
+
+
+class ScaleAdjust(bpy.types.Operator):
+    """操作符，用于缩放调整"""
+    bl_idname = "object.scale_adjust"
+    bl_label = "缩放调整"
+
+    def execute(self, context):
+        bpy.ops.object.select_all(action='SELECT')
+        
+        bpy.ops.transform.resize(value=(0.5, 0.5, 0.5), orient_type='GLOBAL',
+                                orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+                                orient_matrix_type='GLOBAL',
+                                mirror=False,
+                                use_proportional_edit=False,
+                                proportional_edit_falloff='SMOOTH',
+                                proportional_size=1,
+                                use_proportional_connected=False, use_proportional_projected=False,
+                                snap=False,
+                                snap_elements={'INCREMENT'},
+                                use_snap_project=False, snap_target='CLOSEST',
+                                use_snap_self=True,
+                                use_snap_edit=True,
+                                use_snap_nonedit=True,
+                                use_snap_selectable=False)
+
+
+        return {'FINISHED'}
+
+
+
+
+
+
 class OneClickOperator(bpy.types.Operator):
     """一键处理当前角色"""
     bl_idname = "object.one_click_operator"
@@ -240,9 +330,25 @@ class OneClickOperator(bpy.types.Operator):
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.miao_apply_and_separate()
         bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.transform.resize(value=(0.5, 0.5, 0.5), orient_type='GLOBAL', orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)), orient_matrix_type='GLOBAL', mirror=False, use_proportional_edit=False, proportional_edit_falloff='SMOOTH', proportional_size=1, use_proportional_connected=False, use_proportional_projected=False, snap=False, snap_elements={'INCREMENT'}, use_snap_project=False, snap_target='CLOSEST', use_snap_self=True, use_snap_edit=True, use_snap_nonedit=True, use_snap_selectable=False)
+        bpy.ops.transform.resize(value=(0.25, 0.25, 0.25), orient_type='GLOBAL',
+                                orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+                                orient_matrix_type='GLOBAL',
+                                mirror=False,
+                                use_proportional_edit=False,
+                                proportional_edit_falloff='SMOOTH',
+                                proportional_size=1,
+                                use_proportional_connected=False, use_proportional_projected=False,
+                                snap=False,
+                                snap_elements={'INCREMENT'},
+                                use_snap_project=False, snap_target='CLOSEST',
+                                use_snap_self=True,
+                                use_snap_edit=True,
+                                use_snap_nonedit=True,
+                                use_snap_selectable=False)
         bpy.ops.object.select_all(action='SELECT')
+
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
         delete_top_level_parent()
         bpy.ops.object.select_all(action='SELECT')
         #清除父级关系
@@ -513,50 +619,40 @@ class RefreshJsonListOperator(bpy.types.Operator):
 class CharOperater(bpy.types.Operator):
     bl_idname = "object.miao_char_operater"
     bl_label = "角色一键处理"
-    
+
+
     def apply_transforms_recursive(self, obj):
-        obj.select_set(True)
+        if obj.data is not None and obj.data.users > 1:
+            # 如果对象是多用户的，先复制对象
+            new_obj = obj.copy()
+            new_obj.data = obj.data.copy()
+            bpy.context.collection.objects.link(new_obj)
+            
+            # 删除原来的物体
+            bpy.data.objects.remove(obj, do_unlink=True)
+            
+            obj = new_obj
+        
         bpy.context.view_layer.objects.active = obj
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        obj.select_set(False)
+        
+        for child in obj.children:
+            self.apply_transforms_recursive(child)
 
-        if obj.children:
-            for child in obj.children:
-                self.apply_transforms_recursive(child)
 
     def execute(self, context):
+
+
+
         print("开始处理顶点")
         bpy.ops.object.vox_operation()
         print("开始处理碰撞")
         bpy.ops.object.miao_parent_byboundingbox()
-
-        def apply_change_to_scene():
-            def set_material_to_objects(objects, material):
-                for obj in objects:
-                    if len(obj.data.materials):
-                        obj.data.materials[0] = material
-                    else:
-                        obj.data.materials.append(material)
-
-            top_level_parents = [obj for obj in bpy.data.objects if obj.parent is None and 'example' not in obj.name.lower()]
-
-            for parent_obj in top_level_parents:
-                parent_obj.scale *= 0.5
-                parent_obj.location = (0, 0, 0)
-
-                if parent_obj.children:
-                    children_with_materials = [child for child in parent_obj.children if len(child.data.materials) > 0]
-                    if children_with_materials:
-                        child_with_random_material = random.choice(children_with_materials)
-                        random_material = child_with_random_material.data.materials[0]
-                        set_material_to_objects(parent_obj.children, random_material)
-    
         apply_change_to_scene()
 
         for parent_obj in bpy.context.scene.objects:
             if parent_obj.parent is None:
                 self.apply_transforms_recursive(parent_obj)
-        
         bpy.ops.object.select_all(action='DESELECT')
 
         return {'FINISHED'}
@@ -757,6 +853,7 @@ def register():
     bpy.types.Scene.json_file_index = bpy.props.IntProperty()
 
     bpy.types.Scene.show_bone_operators = bpy.props.BoolProperty(default=False)
+    bpy.utils.register_class(ScaleAdjust)
 
 def unregister():
     bpy.utils.unregister_class(CharOperater)
@@ -769,6 +866,8 @@ def unregister():
     bpy.utils.unregister_class(OneClickOperator)
     bpy.utils.unregister_class(OperatorByPath)
     bpy.utils.unregister_class(OperationPath)
+    bpy.utils.unregister_class(ScaleAdjust)
+
     del bpy.types.Scene.my_tool
     del bpy.types.Scene.json_file_list
     del bpy.types.Scene.json_file_index
