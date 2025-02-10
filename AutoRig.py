@@ -44,7 +44,7 @@ class BoneDataExporterPanel(bpy.types.Panel):
 
         box_step=layout.box()
         row = box_step.row()
-        box_step.operator("object.miao_parent_byboundingbox", text="根据接触关系底部中心创建父级",icon='ARMATURE_DATA')
+        box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
         box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
         box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
 
