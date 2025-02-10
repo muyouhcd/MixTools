@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,16),
+    "version": (4,8,25),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
