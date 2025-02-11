@@ -123,6 +123,5 @@ class RetopologizeAndBakeOperator(bpy.types.Operator):
 
 def register():
     bpy.utils.register_class(RetopologizeAndBakeOperator)
-
 def unregister():
     bpy.utils.unregister_class(RetopologizeAndBakeOperator)

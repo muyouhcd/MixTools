@@ -322,6 +322,8 @@ class OneClickOperator(bpy.types.Operator):
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.miao_apply_and_separate()
         bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.reset_normals_flat_shading()
+        bpy.ops.object.select_all(action='SELECT')
         bpy.ops.transform.resize(value=(0.25, 0.25, 0.25), orient_type='GLOBAL',
                                 orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
                                 orient_matrix_type='GLOBAL',

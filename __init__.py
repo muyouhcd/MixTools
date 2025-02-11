@@ -111,8 +111,6 @@ def register():
     update.register()
     Voxelizer.register()
 
-    bpy.ops.object.refresh_json_list()
-
 def unregister():
     AutoBake.unregister()
     AutoBakeRemesh.unregister()
