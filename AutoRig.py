@@ -65,8 +65,8 @@ class OperationPath(bpy.types.PropertyGroup):
     ) # type: ignore
 
 name_groups = [
-    (["Head", "Neck"], "Face"),
-    (["Spine", "Arm", "Forearm", "Hand", "Finger"], "UpperBody"),
+    (["Head"], "Face"),
+    (["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"], "UpperBody"),
     (["Pelvis",], "Pelvis"),
     (["Thigh", "Calf","Leg"], "LowerBody"),
     (["Foot", "Toe",], "Feet")
@@ -287,8 +287,6 @@ def set_material_for_selected_objects(material_name):
             obj.data.materials[0] = material
             print(f"Material '{material_name}' assigned to object '{obj.name}'")
 
-
-
 class ScaleAdjust(bpy.types.Operator):
     """操作符，用于缩放调整"""
     bl_idname = "object.scale_adjust"
@@ -315,11 +313,6 @@ class ScaleAdjust(bpy.types.Operator):
 
 
         return {'FINISHED'}
-
-
-
-
-
 
 class OneClickOperator(bpy.types.Operator):
     """一键处理当前角色"""
