@@ -7,6 +7,15 @@ from mathutils.bvhtree import BVHTree
 import bmesh
 import random
 
+name_groups = [
+    # (["Neck"], "Neck"),
+    (["Head"], "Face"),
+    (["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"], "UpperBody"),
+    # (["Spine", "Arm", "Forearm", "Hand", "Finger"], "UpperBody"),
+    (["Thigh", "Calf","Leg","Pelvis"], "LowerBody"),
+    (["Foot", "Toe",], "Feet")
+]
+
 class BoneDataExporterPanel(bpy.types.Panel):
     """创建一个自定义面板"""
     bl_label = "自动绑定|骨骼处理"
@@ -67,14 +76,13 @@ class OperationPath(bpy.types.PropertyGroup):
         subtype='FILE_PATH'
     ) # type: ignore
 
-name_groups = [
-    # (["Neck"], "Neck"),
-    (["Head"], "Face"),
-    (["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"], "UpperBody"),
-    # (["Spine", "Arm", "Forearm", "Hand", "Finger"], "UpperBody"),
-    (["Thigh", "Calf","Leg","Pelvis"], "LowerBody"),
-    (["Foot", "Toe",], "Feet")
-]
+class OperatorByPath(bpy.types.Operator):
+    """操作符，用于根据路径操作"""
+    bl_idname = "object.operator_by_path"
+    bl_label = "根据路径批量操作"
+
+    def execute(self, context):
+        return {'FINISH'}
 
 def apply_change_to_scene():
             """
@@ -383,14 +391,6 @@ class OneClickOperator(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class OperatorByPath(bpy.types.Operator):
-    """操作符，用于根据路径操作"""
-    bl_idname = "object.operator_by_path"
-    bl_label = "根据路径批量操作"
-
-    def execute(self, context):
-        return {'FINISH'}
-
 class ExportBoneDataOperator(bpy.types.Operator):
     """操作符，用于导出骨骼数据"""
     bl_idname = "object.export_bone_data"
@@ -666,7 +666,7 @@ def create_parent_dict(name_list):
 def join_objects(parent_dict, new_name):
 
     for top_parent, objects in parent_dict.items():
-        if len(objects) <= 1:
+        if len(objects) < 1:
             continue
 
         # 确保所有对象都在 OBJECT 模式下
