@@ -67,8 +67,7 @@ class OperationPath(bpy.types.PropertyGroup):
 name_groups = [
     (["Head"], "Face"),
     (["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"], "UpperBody"),
-    (["Pelvis",], "Pelvis"),
-    (["Thigh", "Calf","Leg"], "LowerBody"),
+    (["Thigh", "Calf","Leg","Pelvis"], "LowerBody"),
     (["Foot", "Toe",], "Feet")
 ]
 

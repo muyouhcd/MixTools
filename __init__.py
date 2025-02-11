@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,26),
+    "version": (4,8,27),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "python.exe -m pip install pillow",
@@ -67,7 +67,6 @@ from . import AutoRender
 from . import AutoRenameCar
 from . import ExportFbx
 from . import Voxelizer
-# from . import AutoRig
 from . import AutoRig
 from . import AutolinkTexture
 from . import MoveOrigin
