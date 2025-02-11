@@ -1,7 +1,7 @@
 {
     "bone_data": {
         "Hips": {
-            "parent": "Root",
+            "parent": "null",
             "head": [
                 9.999999974752427e-07,
                 0.01600000075995922,
