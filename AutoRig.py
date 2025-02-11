@@ -42,6 +42,9 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
         box_json.operator("object.one_click_operator", text="一键处理角色(64)",icon='COMMUNITY')
 
+        box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
+        box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(MAX)",icon='EXPORT')
+
         box_step=layout.box()
         row = box_step.row()
         box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
@@ -65,8 +68,10 @@ class OperationPath(bpy.types.PropertyGroup):
     ) # type: ignore
 
 name_groups = [
+    # (["Neck"], "Neck"),
     (["Head"], "Face"),
     (["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"], "UpperBody"),
+    # (["Spine", "Arm", "Forearm", "Hand", "Finger"], "UpperBody"),
     (["Thigh", "Calf","Leg","Pelvis"], "LowerBody"),
     (["Foot", "Toe",], "Feet")
 ]
@@ -396,8 +401,8 @@ class ExportBoneDataOperator(bpy.types.Operator):
         if obj and obj.type == 'ARMATURE':
             bone_data, embedded_empties = get_bone_data_with_scaling(obj.name)
             empty_coords_data = get_empty_object_data(context)
-
             addon_path = get_addon_path()
+
             if not addon_path:
                 self.report({'ERROR'}, "无法找到插件目录，请确保插件安装在正确位置")
                 return {'CANCELLED'}
@@ -491,9 +496,11 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                         bone = armature.edit_bones.new(name=bone_name)
                         bone.head = Vector(bone_info.get('head', [0, 0, 0]))
                         bone.tail = Vector(bone_info.get('tail', [0, 0, 1]))
+
                         bone.roll = bone_info.get('twist', 0)  # 使用默认值 0
                         for prop_name, prop_value in bone_info.get('properties', {}).items():
                             bone[prop_name] = prop_value  # 设置自定义属性
+
                         created_bones[bone_name] = bone
 
                     for bone_name, bone_info in bone_data.items():
@@ -537,67 +544,55 @@ class RestoreBoneDataOperator(bpy.types.Operator):
     bl_label = "还原骨骼数据"
 
     def execute(self, context):
-        # 使用与保存相同的路径
+        # 获取插件路径
+        addon_path = get_addon_path()
+        if not addon_path:
+            self.report({'ERROR'}, "无法找到插件目录，请确保插件安装在正确位置")
+            return {'CANCELLED'}
+
+        # 获取当前选择的 JSON 文件索引
         index = context.scene.json_file_index
         file_list = context.scene.json_file_list
-
+        
         if index < 0 or index >= len(file_list):
             self.report({'ERROR'}, "请选择一个有效的 JSON 文件进行还原")
             return {'CANCELLED'}
 
+        # 获取文件名和路径
         file_name = file_list[index].name
-        file_path = os.path.join(get_addon_path(), file_name)
-        
+        file_path = os.path.join(addon_path, file_name)
+
+        # 加载 JSON 数据
         try:
             with open(file_path, 'r', encoding='utf-8') as json_file:
                 data = json.load(json_file)
                 bone_data = data.get("bone_data", {})
-                empty_coords_data = data.get("empty_coords_data", [])
 
-                print("Loaded bones:", bone_data)
-                print("Loaded empties:", empty_coords_data)
+                # 创建一个新的骨架对象
+                armature_data = bpy.data.armatures.new('RestoredArmature')
+                armature_obj = bpy.data.objects.new('RestoredArmature', armature_data)
+                bpy.context.collection.objects.link(armature_obj)
+                bpy.context.view_layer.objects.active = armature_obj
+                bpy.ops.object.mode_set(mode='EDIT')
 
-                # 清单的顶级对象
-                top_level_objects = {get_top_parent(obj) for obj in context.scene.objects if obj.type == 'MESH'}
+                created_bones = {}
+                for bone_name, bone_info in bone_data.items():
+                    bone = armature_data.edit_bones.new(name=bone_name)
+                    bone.head = Vector(bone_info.get('head', [0, 0, 0]))
+                    bone.tail = Vector(bone_info.get('tail', [0, 0, 1]))
+                    created_bones[bone_name] = bone
 
-                for top_object in top_level_objects:
-                    # 创建骨架
-                    armature = bpy.data.armatures.new(name=f"{top_object.name}_Armature")
-                    armature_obj = bpy.data.objects.new(f"{top_object.name}_Armature_Object", armature)
-                    context.collection.objects.link(armature_obj)
+                for bone_name, bone_info in bone_data.items():
+                    if bone_info.get("parent"):
+                        created_bones[bone_name].parent = created_bones.get(bone_info["parent"])
 
-                    # 设置骨架位置
-                    armature_obj.parent = top_object
+                bpy.ops.object.mode_set(mode='OBJECT')
 
-                    bpy.context.view_layer.objects.active = armature_obj
-                    bpy.ops.object.mode_set(mode='EDIT')
+                self.report({'INFO'}, f"骨架从 {file_name} 中成功还原")
 
-                    created_bones = {}
-                    for bone_name, bone_info in bone_data.items():
-                        bone = armature.edit_bones.new(name=bone_name)
-                        bone.head = Vector(bone_info['head'])
-                        bone.tail = Vector(bone_info['tail'])
-                        created_bones[bone_name] = bone
-
-                    # 设置骨骼父关系
-                    for bone_name, bone_info in bone_data.items():
-                        if bone_info["parent"]:
-                            created_bones[bone_name].parent = created_bones.get(bone_info["parent"])
-                    
-                    bpy.ops.object.mode_set(mode='OBJECT')
-
-                # 还原空物体位置
-                for empty_name, location in empty_coords_data:
-                    print(f"Restoring empty object {empty_name} to location {location}")
-                    empty_obj = bpy.data.objects.get(empty_name)
-                    if empty_obj and empty_obj.type == 'EMPTY':
-                        empty_obj.location = Vector(location)
-
-            self.report({'INFO'}, "骨骼数据已成功还原")
-        
         except Exception as e:
             self.report({'ERROR'}, f"还原失败: {e}")
-        
+
         return {'FINISHED'}
 
 class RefreshJsonListOperator(bpy.types.Operator):

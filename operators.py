@@ -20,7 +20,6 @@ from mathutils.bvhtree import BVHTree
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
 
-
 #转换实例化对象
 class ObjectInstancer(bpy.types.Operator):
     bl_idname = "object.object_instance"
@@ -76,7 +75,6 @@ class ObjectInstancer(bpy.types.Operator):
 
         self.report({'INFO'}, "替换完成")
         return {'FINISHED'}   
-
 
 class OBJECT_OT_reset_z_axis(Operator):
     bl_idname = "object.reset_z_axis"
@@ -219,9 +217,6 @@ class RemoveModifiers(bpy.types.Operator):
                     obj.modifiers.remove(obj.modifiers[0])
 
         return {'FINISHED'}
-
-
-
 
 #批量清空动画数据
 class ClearAnimationData(bpy.types.Operator):
@@ -1243,8 +1238,6 @@ class RenameByParent(bpy.types.Operator):
         # 在 Blender 中执行该函数
         rename_selected_objects_with_sequential_suffixes()
         return {"FINISHED"}
-
-
 
 #按照集合位置划分绑定父级
 def set_nearest_parent_for_collection(self, context):

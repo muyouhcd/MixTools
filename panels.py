@@ -270,23 +270,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
         if context.scene.assestoperation_expand:
             box_vox = col_assestoperation.box()
             box_vox.operator("object.vox_operation", text="导入VOX一键处理",icon='ALIASED')
-            #一键定位并绑定角色
-            # box_character = col_assestoperation.box()
-            # box_character.operator("object.miao_char_operater", text="导入VOX角色一键处理",icon='ALIASED')
-
             # box_character.operator("object.point_data_generator", text="角色点位数据生成", icon='AUTOMERGE_ON')
             # box_character.operator("object.bone_data_generator", text="角色骨骼数据生成", icon='AUTOMERGE_ON')
 
             # box_character.prop(scene,"assign_contact_weights", text="是否赋予权重")
             # box_character.prop(scene, "threshold_distance", text="接触阈值")
 
-            # box_character.operator('object.char_operater_bone_weight', text="女性角色一键绑定", icon='BONE_DATA')
-            # box_character.operator('object.char_operater_male_bone_weight', text="男性角色一键绑定", icon='BONE_DATA')
-
-            # box_bone = col_assestoperation.box()
-            # box_bone.operator('object.reset_bone_position', text="重置骨骼端点位置", icon='BONE_DATA')
-            # box_bone.operator('object.connect_bone', text="连接骨骼", icon='BONE_DATA')
-        
             box_assestoperation = col_assestoperation.box()
             box_assestoperation.operator("object.miao_apply_and_separate", text="1.独立化应用所有变换")
             box_assestoperation.operator("object.miao_merge_top_level", text="2.按顶级层级合并")
@@ -311,7 +300,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
             # box_bake.operator("object.retopologize_and_bake_without_remesh", text="烘焙选中物体")
 
-            # Conversion Tools
             layout.label(text="转换:")
             convert_box = layout.box()
             convert_box.operator("object.voxel_converter", text="生成体素化指令",icon='MESH_GRID')
@@ -375,16 +363,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             operator_instance.resolution_percentage = str(change_resolution_prop.resolution_percentage)
             operator_instance.output_frame_rate = str(change_resolution_prop.output_frame_rate)
 
-# GTA导出物体处理
-        # col_GTAtranslate = layout.column()
-        # col_GTAtranslate.prop(scene, "GTAtranslate_expand", text="gta源文件处理", emboss=False,
-        #                       icon='TRIA_DOWN' if context.scene.GTAtranslate_expand else 'TRIA_RIGHT')
-
-        # if context.scene.GTAtranslate_expand:
-        #     # 校正物体旋转
-        #     layout.operator("object.miao_correct_rotation")
-        #     #GTA导入载具一键处理
-        #     # layout.operator("object.process_objects")
             
 def register():
     bpy.utils.register_class(CustomFunctionsPanel)
