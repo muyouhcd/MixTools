@@ -1,22 +1,5 @@
 {
     "bone_data": {
-        "Root": {
-            "parent": null,
-            "head": [
-                0.0,
-                0.0,
-                0.0
-            ],
-            "tail": [
-                4.999999987376214e-07,
-                0.00800000037997961,
-                0.4389989972114563
-            ],
-            "twist": 0.0,
-            "properties": {
-                "MaxHandle": 386
-            }
-        },
         "Hips": {
             "parent": "Root",
             "head": [
