@@ -16,74 +16,6 @@ name_groups = [
     (["Foot", "Toe",], "Feet")
 ]
 
-class BoneDataExporterPanel(bpy.types.Panel):
-    """创建一个自定义面板"""
-    bl_label = "自动绑定|骨骼处理"
-    bl_idname = "OBJECT_PT_bone_data_exporter"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = '角色工具'
-    
-    def draw(self, context):
-
-        layout = self.layout
-        scene = context.scene
-
-        row = layout.row()
-        row.prop(scene, "show_bone_operators", text="骨骼操作", icon='TRIA_DOWN' if scene.show_bone_operators else 'TRIA_RIGHT', emboss=False)
-        if scene.show_bone_operators:
-            row = layout.row()
-            row.operator("object.export_bone_data", text="导出骨骼", icon='GROUP_BONE')
-            row.operator("object.restore_bone_data", text="还原骨骼", icon='BONE_DATA')
-            row.operator("object.restore_empty_data", text="还原点位", icon='EMPTY_DATA')
-            row = layout.row()
-            row.operator('object.reset_bone_position', text="重置端点", icon='BONE_DATA')
-            row.operator('object.connect_bone', text="连接骨骼", icon='CONSTRAINT_BONE')
-            
-
-        box_json=layout.box()
-        row = box_json.row()
-        row.alignment = 'CENTER'  # 设置行的对齐方式为居中
-        row.label(text="配置列表")
-
-        box_json.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
-        box_json.operator("object.refresh_json_list", text="刷新配置列表",icon='FILE_REFRESH')
-        box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
-        box_json.operator("object.one_click_operator", text="一键处理角色(64)",icon='COMMUNITY')
-
-        box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
-        box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(MAX)",icon='EXPORT')
-
-        box_step=layout.box()
-        row = box_step.row()
-        box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
-        box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
-        box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
-
-        # bpy.ops.object.location_clear(clear_delta=False)
-
-        # row = layout.row()
-        # layout.prop(scene.batchtool, "fbx_path", text="FBX路径")
-        # row = layout.row()
-        # row.operator("object.operator_by_path", text="批量处理目标文件夹内所有fbx（禁用）")
-
-class OperationPath(bpy.types.PropertyGroup):
-    fbx_path: bpy.props.StringProperty(
-        name="FBX路径",
-        description="输入要处理的FBX文件路径",
-        default="",
-        maxlen=1024,
-        subtype='FILE_PATH'
-    ) # type: ignore
-
-class OperatorByPath(bpy.types.Operator):
-    """操作符，用于根据路径操作"""
-    bl_idname = "object.operator_by_path"
-    bl_label = "根据路径批量操作"
-
-    def execute(self, context):
-        return {'FINISH'}
-
 def apply_change_to_scene():
             """
             应用场景更改的函数。
@@ -131,7 +63,7 @@ def apply_change_to_scene():
                         random_material = child_with_random_material.data.materials[0]
                         # 将随机选择的材质应用到所有子对象上
                         set_material_to_objects(parent_obj.children, random_material)
-    
+
 def delete_top_level_parent():
     # 检查是否有对象被选中
     if not bpy.context.selected_objects:
@@ -148,6 +80,58 @@ def delete_top_level_parent():
     
     # 删除顶级父级
     bpy.data.objects.remove(top_parent)
+
+def set_object_as_top_parent(parent_name, keep_transform=True):
+    """
+    将指定名称的物体设置为当前选择物体的顶级父级，并保持变换。
+
+    参数:
+    parent_name (str): 要设置为父级的物体名称。
+    keep_transform (bool): 如果为 True，则保持变换不变。
+    """
+    # 获取指定名称的父级对象
+    new_parent = bpy.data.objects.get(parent_name)
+    if new_parent is None:
+        print(f"未找到名称为 '{parent_name}' 的对象。")
+        return
+
+    # 确保在对象模式下操作
+    if bpy.context.view_layer.objects.active.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+    selected_objects = bpy.context.selected_objects
+
+    if not selected_objects:
+        print("没有选中的对象。")
+        return
+
+    # 遍历选定的对象，将指定对象设置为顶级父级
+    for obj in selected_objects:
+        # 找到当前对象的顶级父级
+        top_parent = obj
+        while top_parent.parent is not None:
+            top_parent = top_parent.parent
+
+        # 设置新的父级
+        bpy.ops.object.select_all(action='DESELECT')
+        top_parent.select_set(True)
+        new_parent.select_set(True)
+        bpy.context.view_layer.objects.active = new_parent
+
+        # 设置父级关系
+        bpy.ops.object.parent_set(type='OBJECT', keep_transform=keep_transform)
+
+    print(f"已将 '{parent_name}' 设置为选定对象的顶级父级。")
+
+
+
+
+def add_top_level_parent():
+    # 检查是否有对象被选中
+    if not bpy.context.selected_objects:
+        print("没有选中的对象")
+        return
+
 
 def select_top_level_parent():
     # 获取当前选定的物体
@@ -245,38 +229,125 @@ def select_armature():
     # 退出编辑模式，回到对象模式
     bpy.ops.object.mode_set(mode='OBJECT')
 
-def delete_largest_mesh_object():
+
+
+def get_largest_mesh_object():
+    """
+    获取选定对象中最大网格对象。
+
+    返回:
+    bpy.types.Object: 最大网格对象。如果没有选定网格对象，则返回 None。
+    """
     # 确保进入对象模式
     if bpy.context.view_layer.objects.active.mode != 'OBJECT':
         bpy.ops.object.mode_set(mode='OBJECT')
-    
+
+    selected_objects = bpy.context.selected_objects
+
+    if not selected_objects:
+        print("没有选中的对象。")
+        return None
+
+    max_volume = 0
+    largest_mesh_obj = None
+
+    for obj in selected_objects:
+        if obj.type == 'MESH':
+            dimensions = obj.dimensions
+            volume = dimensions.x * dimensions.y * dimensions.z
+
+            if volume > max_volume:
+                max_volume = volume
+                largest_mesh_obj = obj
+
+    return largest_mesh_obj
+
+def get_largest_mesh_object_name():
+    """
+    获取选定对象中最大网格对象的名称。
+
+    返回:
+    str: 最大网格对象的名称。如果没有选定网格对象，则返回 None。
+    """
+    largest_mesh_obj = get_largest_mesh_object()
+    if largest_mesh_obj:
+        print(f"最大网格对象的名称是: {largest_mesh_obj.name}")
+        return largest_mesh_obj.name
+    else:
+        print("未找到可识别的网格对象。")
+        return None
+
+def delete_largest_mesh_object():
+    """
+    删除选定对象中最大网格对象。
+    """
+    largest_mesh_obj = get_largest_mesh_object()
+    if largest_mesh_obj:
+        # 在删除对象之前获取其名称
+        largest_mesh_obj_name = largest_mesh_obj.name
+        bpy.data.objects.remove(largest_mesh_obj, do_unlink=True)
+        print(f"已删除最大网格对象: {largest_mesh_obj_name}")
+    else:
+        print("未找到可删除的网格对象。")
+
+def get_top_parent(obj):
+    while obj.parent is not None:
+        obj = obj.parent
+    return obj if obj else None
+
+def rename_top_level_parents(new_name):
+    """
+    重命名选定对象的顶级父级。
+
+    参数:
+    new_name (str): 要设置的新名称。
+    """
+    # 确保在对象模式下操作
+    if bpy.context.view_layer.objects.active.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+
     selected_objects = bpy.context.selected_objects
 
     if not selected_objects:
         print("没有选中的对象。")
         return
 
-    # 用于存储体积和对应的对象
-    max_volume = 0
-    largest_mesh_obj = None
-    
-    # 遍历选中的对象并计算其体积
+    renamed_parents = set()  # 用于存储已经重命名的父级，避免重复重命名
+
     for obj in selected_objects:
-        # 仅处理网格对象
-        if obj.type == 'MESH':
-            # Blender 中的体积估算，假设物体尺度均为正
-            dimensions = obj.dimensions
-            volume = dimensions.x * dimensions.y * dimensions.z
-            
-            if volume > max_volume:
-                max_volume = volume
-                largest_mesh_obj = obj
+        # 找到顶级父级
+        top_parent = obj
+        while top_parent.parent is not None:
+            top_parent = top_parent.parent
+
+        # 检查是否已经重命名过
+        if top_parent not in renamed_parents:
+            top_parent.name = new_name
+            renamed_parents.add(top_parent)
+            print(f"已重命名顶级父级: {top_parent.name}")
+
+def select_largest_mesh_object():
+    """
+    选取选定对象中体积最大的网格对象。
+    """
+    # 确保在对象模式下操作
+    if bpy.context.view_layer.objects.active.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+    # 获取最大的网格对象
+    largest_mesh_obj = get_largest_mesh_object()
+
+    # 取消选中所有对象
+    bpy.ops.object.select_all(action='DESELECT')
 
     if largest_mesh_obj:
-        # 删除最大的网格对象
-        bpy.data.objects.remove(largest_mesh_obj, do_unlink=True)
+        # 选中最大的网格对象
+        largest_mesh_obj.select_set(True)
+        bpy.context.view_layer.objects.active = largest_mesh_obj
+        print(f"已选择最大网格对象: {largest_mesh_obj.name}")
     else:
-        print("未找到可删除的网格对象。")
+        print("未找到可选择的网格对象。")
+
 
 def set_material_for_selected_objects(material_name):
     # 获取材质
@@ -298,6 +369,253 @@ def set_material_for_selected_objects(material_name):
             # 将网格的第一个材质槽分配为指定的材质
             obj.data.materials[0] = material
             print(f"Material '{material_name}' assigned to object '{obj.name}'")
+
+
+
+def create_parent_dict(name_list):
+    top_parents = {}
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH' and any(name in obj.name for name in name_list):
+            top_parent = get_top_parent(obj)
+            if top_parent is None:
+                top_parent = obj
+            if top_parent not in top_parents:
+                top_parents[top_parent] = []
+            top_parents[top_parent].append(obj)
+    return top_parents
+
+def join_objects(parent_dict, new_name):
+
+    for top_parent, objects in parent_dict.items():
+        if len(objects) < 1:
+            continue
+
+        # 确保所有对象都在 OBJECT 模式下
+        if bpy.context.mode != 'OBJECT':
+            bpy.ops.object.mode_set(mode='OBJECT')
+
+        bpy.ops.object.select_all(action='DESELECT')
+        for obj in objects:
+            obj.select_set(True)
+
+        if bpy.context.selected_objects:
+            # 设置第一个选中的对象为活动对象
+            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+            bpy.ops.object.join()
+
+        bpy.context.object.name = new_name
+
+def rename_all_children_based_on_coords(empty_coords):
+    objects_bvh = {}
+
+    def create_bvh_tree(obj):
+        bm = bmesh.new()
+        bm.from_object(obj, bpy.context.evaluated_depsgraph_get())
+        bmesh.ops.transform(bm, verts=bm.verts, matrix=obj.matrix_world)
+        bvh = BVHTree.FromBMesh(bm)
+        bm.free()
+        return bvh
+
+    for obj in bpy.context.scene.objects:
+        if obj.type == 'MESH':
+            objects_bvh[obj] = create_bvh_tree(obj)
+
+    renamed_objects = {}
+
+    for name, coord in empty_coords:
+        intersection_count = defaultdict(int)
+
+        for other_obj, bvh in objects_bvh.items():
+            ray_origin = Vector(coord)
+            ray_direction = Vector((0, 0, -1))
+
+            location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
+            while location:
+                intersection_count[other_obj] += 1
+                ray_origin = location + ray_direction * 0.00001
+                location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
+
+        for other_obj, count in intersection_count.items():
+            if count % 2 == 1:
+                new_name = name.replace("_example", "")
+                if other_obj not in renamed_objects:
+                    other_obj.name = new_name
+                    renamed_objects[other_obj] = True
+
+def strip_name_suffix(name):
+    """去掉名称的数字后缀以便于匹配."""
+    return name.rsplit('.', 1)[0]
+
+def get_embedded_empty_data(armature_object):
+    empty_data = []
+
+    for obj in armature_object.children:
+        if obj.type == 'EMPTY':
+            location_world = obj.matrix_world.translation
+            rotation_world = obj.matrix_world.to_euler()
+            scale_world = obj.matrix_world.to_scale()
+            
+            parent_bone = obj.parent_bone if obj.parent_type == 'BONE' else None
+
+            empty_data.append({
+                "name": obj.name,
+                "location": list(location_world),
+                "rotation": list(rotation_world),
+                "scale": list(scale_world),
+                "parent_bone": parent_bone,  # 记录父级骨骼
+            })
+    return empty_data
+
+def get_bone_data_with_scaling(armature_name):
+    bone_data = {}
+    embedded_empties = []  # 空物体列表
+
+    template_armature = bpy.data.objects.get(armature_name)
+    if template_armature and template_armature.type == 'ARMATURE':
+        bpy.context.view_layer.objects.active = template_armature
+        bpy.ops.object.mode_set(mode='EDIT')
+        
+        world_matrix = template_armature.matrix_world
+
+        for bone in template_armature.data.edit_bones:
+            bone_head_world = world_matrix @ bone.head
+            bone_tail_world = world_matrix @ bone.tail
+
+            # 获取骨骼的扭转数据和其他属性
+            twist = bone.roll  # 假设扭转数据是骨骼的 roll 属性
+            custom_properties = {k: v for k, v in bone.items()}  # 自定义属性
+
+            bone_data[bone.name] = {
+                "parent": bone.parent.name if bone.parent else None,
+                "head": list(bone_head_world),
+                "tail": list(bone_tail_world),
+                "twist": twist,
+                "properties": custom_properties
+            }
+
+        embedded_empties = get_embedded_empty_data(template_armature)
+        
+        bpy.ops.object.mode_set(mode='OBJECT')
+    
+    return bone_data, embedded_empties
+
+def get_empty_object_data(context):
+    empty_coords_data = []
+    for obj in context.selected_objects:
+        if obj.type == 'EMPTY':
+            empty_coords_data.append((obj.name, list(obj.location)))
+    return empty_coords_data
+
+def save_data_to_json(bone_data, empty_coords_data, file_path, embedded_empties=None):
+    data = {
+        "bone_data": bone_data,
+        "empty_coords_data": empty_coords_data,
+        "embedded_empty_data": embedded_empties or []
+    }
+    with open(file_path, 'w', encoding='utf-8') as json_file:
+        json.dump(data, json_file, indent=4, ensure_ascii=False)
+
+def update_json_file_list(context):
+    file_dir = get_addon_path()
+    
+    files = [f for f in os.listdir(file_dir) if f.endswith('.json')]
+    
+    context.scene.json_file_list.clear()
+    for f in files:
+        item = context.scene.json_file_list.add()
+        item.name = f
+
+def get_addon_path():
+    """
+    查找插件目录下的 MiaoTools\RigJson 文件夹路径。
+    """
+    # 获取当前文件的绝对路径并规范化
+    file_path = os.path.normpath(os.path.dirname(__file__))
+    
+    # 逆向查找直到找到 "addons" 文件夹
+    while os.path.basename(file_path) != "addons" and os.path.dirname(file_path) != file_path:
+        file_path = os.path.dirname(file_path)
+
+    # 确认已经找到 "addons" 文件夹
+    if os.path.basename(file_path) == "addons":
+        # 添加相对路径到 MiaoTools\RigJson
+        target_path = os.path.join(file_path, "MiaoTools", "RigJson")
+
+        # 确保该路径存在
+        if os.path.exists(target_path):
+            return target_path
+    
+    return ''  # 如果未找到则返回空字符串
+
+class BoneDataExporterPanel(bpy.types.Panel):
+    """创建一个自定义面板"""
+    bl_label = "自动绑定|骨骼处理"
+    bl_idname = "OBJECT_PT_bone_data_exporter"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = '角色工具'
+    
+    def draw(self, context):
+
+        layout = self.layout
+        scene = context.scene
+
+        row = layout.row()
+        row.prop(scene, "show_bone_operators", text="骨骼操作", icon='TRIA_DOWN' if scene.show_bone_operators else 'TRIA_RIGHT', emboss=False)
+        if scene.show_bone_operators:
+            row = layout.row()
+            row.operator("object.export_bone_data", text="导出骨骼", icon='GROUP_BONE')
+            row.operator("object.restore_bone_data", text="还原骨骼", icon='BONE_DATA')
+            row.operator("object.restore_empty_data", text="还原点位", icon='EMPTY_DATA')
+            row = layout.row()
+            row.operator('object.reset_bone_position', text="重置端点", icon='BONE_DATA')
+            row.operator('object.connect_bone', text="连接骨骼", icon='CONSTRAINT_BONE')
+            
+
+        box_json=layout.box()
+        row = box_json.row()
+        row.alignment = 'CENTER'  # 设置行的对齐方式为居中
+        row.label(text="配置列表")
+
+        box_json.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
+        box_json.operator("object.refresh_json_list", text="刷新配置列表",icon='FILE_REFRESH')
+        box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
+
+        # box_json.prop(bpy.context.scene.generate_parent_object, "generate_parent", text="添加父级对象")
+        box_json.operator("object.one_click_operator", text="一键处理角色(64)",icon='COMMUNITY')
+
+        box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
+        box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(MAX)",icon='EXPORT')
+
+        box_step=layout.box()
+        row = box_step.row()
+        box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
+        box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
+        box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
+
+        # bpy.ops.object.location_clear(clear_delta=False)
+
+        # row = layout.row()
+        # layout.prop(scene.batchtool, "fbx_path", text="FBX路径")
+        # row = layout.row()
+        # row.operator("object.operator_by_path", text="批量处理目标文件夹内所有fbx（禁用）")
+
+class OperationPath(bpy.types.PropertyGroup):
+    fbx_path: bpy.props.StringProperty(
+        name="FBX路径",
+        description="输入要处理的FBX文件路径",
+        default="",
+        maxlen=1024,
+        subtype='FILE_PATH'
+    ) # type: ignore
+
+class OperatorByPath(bpy.types.Operator):
+    """操作符，用于根据路径操作"""
+    bl_idname = "object.operator_by_path"
+    bl_label = "根据路径批量操作"
+
+    def execute(self, context):
+        return {'FINISH'}
 
 class ScaleAdjust(bpy.types.Operator):
     """操作符，用于缩放调整"""
@@ -326,16 +644,18 @@ class ScaleAdjust(bpy.types.Operator):
 
         return {'FINISHED'}
 
+def operate_char():
+    bpy.ops.object.restore_skeleton_from_json()
+
 class OneClickOperator(bpy.types.Operator):
     """一键处理当前角色"""
     bl_idname = "object.one_click_operator"
     bl_label = "一键处理当前角色(单个)"
 
     def execute(self, context):
+        #断开所有约束，清空变换
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.miao_apply_and_separate()
-        bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.object.reset_normals_flat_shading()
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.transform.resize(value=(0.25, 0.25, 0.25), orient_type='GLOBAL',
                                 orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
@@ -352,44 +672,68 @@ class OneClickOperator(bpy.types.Operator):
                                 use_snap_edit=True,
                                 use_snap_nonedit=True,
                                 use_snap_selectable=False)
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        bpy.ops.object.reset_normals_flat_shading()
+
+        #清除父级关系
+        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+
+        #清除空物体
+        bpy.ops.object.clean_empty()
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
         bpy.ops.object.select_all(action='SELECT')
 
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
-        delete_top_level_parent()
-        bpy.ops.object.select_all(action='SELECT')
-        #清除父级关系
-        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-        #清除空物体
-        bpy.ops.object.clean_empty()
-        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+
         #底部中心创建父级
         bpy.ops.object.miao_create_empty_at_bottom()
-        bpy.ops.object.select_all(action='SELECT')
         #选取顶级父级清除位移
         select_top_level_parent()
         bpy.ops.object.location_clear(clear_delta=False)
         bpy.ops.object.select_all(action='SELECT')
-        #从json数据绑定
-        bpy.ops.object.restore_skeleton_from_json()
-        bpy.ops.object.select_all(action='SELECT')
+
+        #删除父级
+        # delete_top_level_parent()
+
+
+        #设置名称为最大物体
+        name=get_largest_mesh_object_name()
+
         #删除定位框（尺寸最大物体）
         delete_largest_mesh_object()
-        #应用所有变换
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        #删除顶级父级
-        delete_top_level_parent()
-        #设置骨架为父级
-        set_armature_as_parent(keep_transform=True)
-        #设置材质
-        bpy.ops.object.miao_merge_material()
-        bpy.ops.object.select_all(action='SELECT')
-        set_material_for_selected_objects("Material")
 
+        #重命名父级为尺寸最大物体名称
+        rename_top_level_parents(name)
+
+        # 绑定操作
+        bind_skeleton()
+
+
+        #设置骨架为父级
+        # set_armature_as_parent(keep_transform=True)
+        
+        #设置指定名称物体为父级
         bpy.ops.object.select_all(action='SELECT')
-        select_armature()
+        set_object_as_top_parent(name, keep_transform=True)
+
+        #设置材质
+        set_material()
 
         return {'FINISHED'}
+
+def bind_skeleton():
+    #绑定操作
+        bpy.ops.object.select_all(action='SELECT')
+        #从json数据绑定
+        bpy.ops.object.restore_skeleton_from_json()
+
+def set_material():
+    #设置材质
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.miao_merge_material()
+    bpy.ops.object.select_all(action='SELECT')
+    set_material_for_selected_objects("Material")
 
 class ExportBoneDataOperator(bpy.types.Operator):
     """操作符，用于导出骨骼数据"""
@@ -645,186 +989,6 @@ class CharOperater(bpy.types.Operator):
         bpy.ops.object.select_all(action='DESELECT')
 
         return {'FINISHED'}
-
-def get_top_parent(obj):
-    while obj.parent is not None:
-        obj = obj.parent
-    return obj if obj else None
-
-def create_parent_dict(name_list):
-    top_parents = {}
-    for obj in bpy.context.scene.objects:
-        if obj.type == 'MESH' and any(name in obj.name for name in name_list):
-            top_parent = get_top_parent(obj)
-            if top_parent is None:
-                top_parent = obj
-            if top_parent not in top_parents:
-                top_parents[top_parent] = []
-            top_parents[top_parent].append(obj)
-    return top_parents
-
-def join_objects(parent_dict, new_name):
-
-    for top_parent, objects in parent_dict.items():
-        if len(objects) < 1:
-            continue
-
-        # 确保所有对象都在 OBJECT 模式下
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-
-        bpy.ops.object.select_all(action='DESELECT')
-        for obj in objects:
-            obj.select_set(True)
-
-        if bpy.context.selected_objects:
-            # 设置第一个选中的对象为活动对象
-            bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
-            bpy.ops.object.join()
-
-        bpy.context.object.name = new_name
-
-def rename_all_children_based_on_coords(empty_coords):
-    objects_bvh = {}
-
-    def create_bvh_tree(obj):
-        bm = bmesh.new()
-        bm.from_object(obj, bpy.context.evaluated_depsgraph_get())
-        bmesh.ops.transform(bm, verts=bm.verts, matrix=obj.matrix_world)
-        bvh = BVHTree.FromBMesh(bm)
-        bm.free()
-        return bvh
-
-    for obj in bpy.context.scene.objects:
-        if obj.type == 'MESH':
-            objects_bvh[obj] = create_bvh_tree(obj)
-
-    renamed_objects = {}
-
-    for name, coord in empty_coords:
-        intersection_count = defaultdict(int)
-
-        for other_obj, bvh in objects_bvh.items():
-            ray_origin = Vector(coord)
-            ray_direction = Vector((0, 0, -1))
-
-            location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
-            while location:
-                intersection_count[other_obj] += 1
-                ray_origin = location + ray_direction * 0.00001
-                location, _, _, _ = bvh.ray_cast(ray_origin, ray_direction)
-
-        for other_obj, count in intersection_count.items():
-            if count % 2 == 1:
-                new_name = name.replace("_example", "")
-                if other_obj not in renamed_objects:
-                    other_obj.name = new_name
-                    renamed_objects[other_obj] = True
-
-def strip_name_suffix(name):
-    """去掉名称的数字后缀以便于匹配."""
-    return name.rsplit('.', 1)[0]
-
-def get_embedded_empty_data(armature_object):
-    empty_data = []
-
-    for obj in armature_object.children:
-        if obj.type == 'EMPTY':
-            location_world = obj.matrix_world.translation
-            rotation_world = obj.matrix_world.to_euler()
-            scale_world = obj.matrix_world.to_scale()
-            
-            parent_bone = obj.parent_bone if obj.parent_type == 'BONE' else None
-
-            empty_data.append({
-                "name": obj.name,
-                "location": list(location_world),
-                "rotation": list(rotation_world),
-                "scale": list(scale_world),
-                "parent_bone": parent_bone,  # 记录父级骨骼
-            })
-    return empty_data
-
-def get_bone_data_with_scaling(armature_name):
-    bone_data = {}
-    embedded_empties = []  # 空物体列表
-
-    template_armature = bpy.data.objects.get(armature_name)
-    if template_armature and template_armature.type == 'ARMATURE':
-        bpy.context.view_layer.objects.active = template_armature
-        bpy.ops.object.mode_set(mode='EDIT')
-        
-        world_matrix = template_armature.matrix_world
-
-        for bone in template_armature.data.edit_bones:
-            bone_head_world = world_matrix @ bone.head
-            bone_tail_world = world_matrix @ bone.tail
-
-            # 获取骨骼的扭转数据和其他属性
-            twist = bone.roll  # 假设扭转数据是骨骼的 roll 属性
-            custom_properties = {k: v for k, v in bone.items()}  # 自定义属性
-
-            bone_data[bone.name] = {
-                "parent": bone.parent.name if bone.parent else None,
-                "head": list(bone_head_world),
-                "tail": list(bone_tail_world),
-                "twist": twist,
-                "properties": custom_properties
-            }
-
-        embedded_empties = get_embedded_empty_data(template_armature)
-        
-        bpy.ops.object.mode_set(mode='OBJECT')
-    
-    return bone_data, embedded_empties
-
-def get_empty_object_data(context):
-    empty_coords_data = []
-    for obj in context.selected_objects:
-        if obj.type == 'EMPTY':
-            empty_coords_data.append((obj.name, list(obj.location)))
-    return empty_coords_data
-
-def save_data_to_json(bone_data, empty_coords_data, file_path, embedded_empties=None):
-    data = {
-        "bone_data": bone_data,
-        "empty_coords_data": empty_coords_data,
-        "embedded_empty_data": embedded_empties or []
-    }
-    with open(file_path, 'w', encoding='utf-8') as json_file:
-        json.dump(data, json_file, indent=4, ensure_ascii=False)
-
-def update_json_file_list(context):
-    file_dir = get_addon_path()
-    
-    files = [f for f in os.listdir(file_dir) if f.endswith('.json')]
-    
-    context.scene.json_file_list.clear()
-    for f in files:
-        item = context.scene.json_file_list.add()
-        item.name = f
-
-def get_addon_path():
-    """
-    查找插件目录下的 MiaoTools\RigJson 文件夹路径。
-    """
-    # 获取当前文件的绝对路径并规范化
-    file_path = os.path.normpath(os.path.dirname(__file__))
-    
-    # 逆向查找直到找到 "addons" 文件夹
-    while os.path.basename(file_path) != "addons" and os.path.dirname(file_path) != file_path:
-        file_path = os.path.dirname(file_path)
-
-    # 确认已经找到 "addons" 文件夹
-    if os.path.basename(file_path) == "addons":
-        # 添加相对路径到 MiaoTools\RigJson
-        target_path = os.path.join(file_path, "MiaoTools", "RigJson")
-
-        # 确保该路径存在
-        if os.path.exists(target_path):
-            return target_path
-    
-    return ''  # 如果未找到则返回空字符串
 
 def register():
     bpy.utils.register_class(BoneDataExporterPanel)

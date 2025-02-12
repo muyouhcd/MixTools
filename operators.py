@@ -382,8 +382,6 @@ class QueueUp(bpy.types.Operator):
 
         return {"FINISHED"}# 创建父级空物体
     
-
-
 # 获取物体的顶级父物体
 def get_top_parent(obj):
     while obj.parent:

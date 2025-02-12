@@ -87,7 +87,9 @@ def export_fbx_max(obj, dest_path, col_mark=False, scale_factor=1, rotation_eule
         axis_forward='-Z',  # 调整以匹配Unity的坐标系
         axis_up='Y',  # 调整以匹配Unity的坐标系
         add_leaf_bones=False ,
-        armature_nodetype = 'NULL'
+        armature_nodetype = 'NULL',
+        bake_anim=False
+        
     )
 
     print(f"导出完成：{fbx_file_path}")
