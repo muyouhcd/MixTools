@@ -370,8 +370,6 @@ def set_material_for_selected_objects(material_name):
             obj.data.materials[0] = material
             print(f"Material '{material_name}' assigned to object '{obj.name}'")
 
-
-
 def create_parent_dict(name_list):
     top_parents = {}
     for obj in bpy.context.scene.objects:
@@ -579,7 +577,8 @@ class BoneDataExporterPanel(bpy.types.Panel):
 
         box_json.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
         box_json.operator("object.refresh_json_list", text="刷新配置列表",icon='FILE_REFRESH')
-        box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
+
+        # box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
 
         # box_json.prop(bpy.context.scene.generate_parent_object, "generate_parent", text="添加父级对象")
         box_json.operator("object.one_click_operator", text="一键处理角色(64)",icon='COMMUNITY')
@@ -587,11 +586,11 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
         box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(MAX)",icon='EXPORT')
 
-        box_step=layout.box()
-        row = box_step.row()
-        box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
-        box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
-        box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
+        # box_step=layout.box()
+        # row = box_step.row()
+        # box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
+        # box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
+        # box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
 
         # bpy.ops.object.location_clear(clear_delta=False)
 
@@ -653,9 +652,10 @@ class OneClickOperator(bpy.types.Operator):
     bl_label = "一键处理当前角色(单个)"
 
     def execute(self, context):
-        #断开所有约束，清空变换
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.miao_apply_and_separate()
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.reset_normals_flat_shading()
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.transform.resize(value=(0.25, 0.25, 0.25), orient_type='GLOBAL',
                                 orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
@@ -672,55 +672,113 @@ class OneClickOperator(bpy.types.Operator):
                                 use_snap_edit=True,
                                 use_snap_nonedit=True,
                                 use_snap_selectable=False)
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        bpy.ops.object.reset_normals_flat_shading()
-
-        #清除父级关系
-        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-
-        #清除空物体
-        bpy.ops.object.clean_empty()
-        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
         bpy.ops.object.select_all(action='SELECT')
 
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
-
+        delete_top_level_parent()
+        bpy.ops.object.select_all(action='SELECT')
+        #清除父级关系
+        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+        #清除空物体
+        bpy.ops.object.clean_empty()
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
         #底部中心创建父级
         bpy.ops.object.miao_create_empty_at_bottom()
+        bpy.ops.object.select_all(action='SELECT')
         #选取顶级父级清除位移
         select_top_level_parent()
         bpy.ops.object.location_clear(clear_delta=False)
         bpy.ops.object.select_all(action='SELECT')
-
-        #删除父级
-        # delete_top_level_parent()
-
-
-        #设置名称为最大物体
-        name=get_largest_mesh_object_name()
-
+        #从json数据绑定
+        bpy.ops.object.restore_skeleton_from_json()
+        bpy.ops.object.select_all(action='SELECT')
         #删除定位框（尺寸最大物体）
         delete_largest_mesh_object()
-
-        #重命名父级为尺寸最大物体名称
-        rename_top_level_parents(name)
-
-        # 绑定操作
-        bind_skeleton()
-
-
+        #应用所有变换
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        #删除顶级父级
+        delete_top_level_parent()
         #设置骨架为父级
-        # set_armature_as_parent(keep_transform=True)
-        
-        #设置指定名称物体为父级
-        bpy.ops.object.select_all(action='SELECT')
-        set_object_as_top_parent(name, keep_transform=True)
-
+        set_armature_as_parent(keep_transform=True)
         #设置材质
-        set_material()
+        bpy.ops.object.miao_merge_material()
+        bpy.ops.object.select_all(action='SELECT')
+        set_material_for_selected_objects("Material")
+
+        bpy.ops.object.select_all(action='SELECT')
+        select_armature()
 
         return {'FINISHED'}
+    # def execute(self, context):
+    #     #断开所有约束，清空变换
+    #     bpy.ops.object.select_all(action='SELECT')
+    #     bpy.ops.object.miao_apply_and_separate()
+    #     bpy.ops.object.select_all(action='SELECT')
+    #     bpy.ops.transform.resize(value=(0.25, 0.25, 0.25), orient_type='GLOBAL',
+    #                             orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+    #                             orient_matrix_type='GLOBAL',
+    #                             mirror=False,
+    #                             use_proportional_edit=False,
+    #                             proportional_edit_falloff='SMOOTH',
+    #                             proportional_size=1,
+    #                             use_proportional_connected=False, use_proportional_projected=False,
+    #                             snap=False,
+    #                             snap_elements={'INCREMENT'},
+    #                             use_snap_project=False, snap_target='CLOSEST',
+    #                             use_snap_self=True,
+    #                             use_snap_edit=True,
+    #                             use_snap_nonedit=True,
+    #                             use_snap_selectable=False)
+    #     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    #     bpy.ops.object.reset_normals_flat_shading()
+
+    #     #清除父级关系
+    #     bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+
+    #     #清除空物体
+    #     bpy.ops.object.clean_empty()
+    #     bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+    #     bpy.ops.object.select_all(action='SELECT')
+
+    #     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+
+
+    #     #底部中心创建父级
+    #     bpy.ops.object.miao_create_empty_at_bottom()
+    #     #选取顶级父级清除位移
+    #     select_top_level_parent()
+    #     bpy.ops.object.location_clear(clear_delta=False)
+    #     bpy.ops.object.select_all(action='SELECT')
+
+    #     #删除父级
+    #     # delete_top_level_parent()
+
+
+    #     #设置名称为最大物体
+    #     name=get_largest_mesh_object_name()
+
+    #     #删除定位框（尺寸最大物体）
+    #     delete_largest_mesh_object()
+
+    #     #重命名父级为尺寸最大物体名称
+    #     rename_top_level_parents(name)
+
+    #     # 绑定操作
+    #     bind_skeleton()
+
+
+    #     #设置骨架为父级
+    #     # set_armature_as_parent(keep_transform=True)
+        
+    #     #设置指定名称物体为父级
+    #     bpy.ops.object.select_all(action='SELECT')
+    #     set_object_as_top_parent(name, keep_transform=True)
+
+    #     #设置材质
+    #     set_material()
+
+    #     return {'FINISHED'}
 
 def bind_skeleton():
     #绑定操作
