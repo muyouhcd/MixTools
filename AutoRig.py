@@ -586,13 +586,13 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
         box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(MAX)",icon='EXPORT')
 
-        # box_step=layout.box()
-        # row = box_step.row()
-        # box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
-        # box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
-        # box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
+        box_step=layout.box()
+        row = box_step.row()
+        box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
+        box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
+        box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
 
-        # bpy.ops.object.location_clear(clear_delta=False)
+
 
         # row = layout.row()
         # layout.prop(scene.batchtool, "fbx_path", text="FBX路径")
