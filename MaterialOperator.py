@@ -135,7 +135,8 @@ class MergeMaterial(bpy.types.Operator):
             print(obj.name)
             # Delete all materials in the mesh
             for i in range(len(obj.material_slots)):
-                bpy.ops.object.material_slot_remove({'object': obj})
+                with bpy.context.temp_override(object=obj):
+                    bpy.ops.object.material_slot_remove()
             mat = bpy.data.materials.new(obj.name)
             obj.data.materials.append(mat)
         return {'FINISHED'}
