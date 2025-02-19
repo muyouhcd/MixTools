@@ -17,24 +17,9 @@ name_groups = [
 ]
 
 def apply_change_to_scene():
-            """
-            应用场景更改的函数。
 
-            该函数遍历所有顶级父对象，将它们的缩放比例减半并重置位置到原点。
-            然后，它随机选择一个具有材质的子对象，并将该材质应用到所有子对象上。
-            """
             def set_material_to_objects(objects, material):
-                """
-                将材质应用到对象的函数。
 
-                参数:
-                objects (list): 要应用材质的对象列表。
-                material (bpy.types.Material): 要应用的材质。
-
-                该函数遍历对象列表，检查每个对象是否已经有材质。
-                如果有，它将第一个材质替换为传入的材质。
-                如果没有，它将传入的材质添加到对象的材质列表中。
-                """
                 for obj in objects:
                     if len(obj.data.materials):
                         obj.data.materials[0] = material
@@ -123,15 +108,11 @@ def set_object_as_top_parent(parent_name, keep_transform=True):
 
     print(f"已将 '{parent_name}' 设置为选定对象的顶级父级。")
 
-
-
-
 def add_top_level_parent():
     # 检查是否有对象被选中
     if not bpy.context.selected_objects:
         print("没有选中的对象")
         return
-
 
 def select_top_level_parent():
     # 获取当前选定的物体
@@ -228,8 +209,6 @@ def select_armature():
     bpy.ops.object.connect_bone()
     # 退出编辑模式，回到对象模式
     bpy.ops.object.mode_set(mode='OBJECT')
-
-
 
 def get_largest_mesh_object():
     """
@@ -584,7 +563,8 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.operator("object.one_click_operator", text="一键处理角色(64)",icon='COMMUNITY')
 
         box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
-        box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(MAX)",icon='EXPORT')
+        box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(完整)",icon='EXPORT')
+        box_json.operator("scene.export_fbx_by_mesh", text="导出角色(部件)",icon='EXPORT')
 
         box_step=layout.box()
         row = box_step.row()

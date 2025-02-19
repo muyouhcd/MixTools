@@ -9,7 +9,6 @@ bpy.types.Scene.export_directory = bpy.props.StringProperty(
     subtype='DIR_PATH'
 )
 
-# 检查导出目录是否有效
 def check_dir(self, context):
     dest_path = bpy.path.abspath(context.scene.export_directory)
     if not os.path.isabs(dest_path):
@@ -19,8 +18,6 @@ def check_dir(self, context):
         self.report({'ERROR'}, "提供的路径不存在，脚本将终止。")
         return False, None
     return True, dest_path
-
-# 准备导出前的对象变换
 def prepare_obj_export(obj, recursion):
     print(f"正在记录 {obj.name} 的原始参数")
     original_state = {
@@ -32,36 +29,29 @@ def prepare_obj_export(obj, recursion):
     print(f"正在调整 {obj.name} 的比例")
     obj.scale *= 100
     obj.rotation_euler = (math.radians(-90), 0, 0)  # 转换为弧度
-    # 应用变换到所有子对象
-    apply_transform_to_descendants(obj, recursion)
 
+    print(f"正在更新视图")
+    bpy.context.view_layer.update()
+    bpy.ops.object.make_single_user_operator()
+    print(f"正在应用选定物体的变换")
+    if recursion:
+        apply_transform_to_descendants(obj)
     return original_state
 
-# 恢复对象变换
-def restore_obj_import(obj, original_state):
-    # print(f"开始恢复 {obj.name} 的旋转角度、缩放和位置")
-    # obj.scale = original_state['scale']
-    # obj.rotation_euler = original_state['rotation']
-    # obj.location = original_state['location']
-    # # 不立即更新视图
-    # print(f"{obj.name} 的状态已恢复")
-    pass
-
-# 导出FBX文件
-def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=None):
-    fbx_file_ext = "_col.fbx" if col_mark else ".fbx"
-    fbx_file_path = os.path.join(dest_path, obj.name.split('_col')[0] + fbx_file_ext)
+def export_fbx(obj, dest_path):
+    fbx_file_ext = ".fbx"
+    fbx_file_path = os.path.join(dest_path, obj.name + fbx_file_ext)
 
     print(f"设置FBX文件的导出路径为：{fbx_file_path}")
     print(f"开始导出至：{fbx_file_path}")
 
-    if rotation_euler:
-        obj.rotation_euler = rotation_euler
+
+    obj.rotation_euler = (math.radians(90), 0, 0)
 
     bpy.ops.export_scene.fbx(
         filepath=fbx_file_path,
         use_selection=True,
-        global_scale=scale_factor,
+        global_scale=0.01,
         axis_forward='-Z',  # 调整以匹配Unity的坐标系
         axis_up='Y',  # 调整以匹配Unity的坐标系
         add_leaf_bones=False ,
@@ -70,58 +60,45 @@ def export_fbx(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=No
 
     print(f"导出完成：{fbx_file_path}")
 
-def export_fbx_max(obj, dest_path, col_mark=False, scale_factor=1, rotation_euler=None):
-    fbx_file_ext = "_col.fbx" if col_mark else ".fbx"
-    fbx_file_path = os.path.join(dest_path, obj.name.split('_col')[0] + fbx_file_ext)
+def export_fbx_max(obj, dest_path):
+    fbx_file_ext = ".fbx"
+    fbx_file_path = os.path.join(dest_path, obj.name + fbx_file_ext)
 
-    print(f"设置FBX文件的导出路径为：{fbx_file_path}")
+    print(f"设置MAX FBX文件的导出路径为：{fbx_file_path}")
     print(f"开始导出至：{fbx_file_path}")
 
-    if rotation_euler:
-        obj.rotation_euler = rotation_euler
+    obj.rotation_euler = (math.radians(90), 0, 0)
 
     bpy.ops.export_scene.fbx(
         filepath=fbx_file_path,
         use_selection=True,
-        global_scale=scale_factor,
+        global_scale=0.01,
         axis_forward='-Z',  # 调整以匹配Unity的坐标系
         axis_up='Y',  # 调整以匹配Unity的坐标系
         add_leaf_bones=False ,
         armature_nodetype = 'NULL',
         bake_anim=False
-        
     )
 
     print(f"导出完成：{fbx_file_path}")
 
-# 递归地为指定对象及其所有子对象应用变换，忽略'_col'的对象及其所有子对象
-def apply_transform_to_descendants(obj, recursion):
-    if '_col' not in obj.name:
-        make_single_user(obj)  # 将对象变为单用户对象
-        obj.select_set(True)
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-
-        if recursion:
-            for child in obj.children:
-                apply_transform_to_descendants(child, recursion)  # 递归处理子对象
-
-def make_single_user(obj):
-    """将对象变为单用户对象"""
+def apply_transform_to_descendants(obj):
     if obj.data and obj.data.users > 1:
         obj.data = obj.data.copy()
+    obj.select_set(True)
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
 
-# 按照顶级父物体导出
+
 class ExportFbxByParent(bpy.types.Operator):
     bl_idname = "scene.export_fbx_by_parent"
     bl_label = "按照顶级父物体导出FBX"
 
-    # def select_children_except_col(self, obj):
-    #     """递归地选择对象的子对象，忽略'_col'的对象及其所有子对象"""
-    #     for child in obj.children:
-    #         if '_col' not in child.name:
-    #             child.select_set(True)
-    #             self.select_children_except_col(child)
+    def select_children(self, obj):
+        for child in obj.children:
+            child.select_set(True)
+            self.select_children(child)
+            print("selected: " + child.name)
 
     def execute(self, context):
         # 检查路径
@@ -135,17 +112,18 @@ class ExportFbxByParent(bpy.types.Operator):
         bpy.context.view_layer.update()
 
         for obj in parents:
-            # bpy.ops.object.select_all(action='DESELECT')
-            # self.select_children_except_col(obj)
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            self.select_children(obj)
 
-            print(f"准备导出：{obj.name}")
-            original_state = prepare_obj_export(obj, False)
-
-            print(f"开始导出：{obj.name}")
-            export_fbx(obj, dest_path, scale_factor=0.01, rotation_euler=(math.radians(90), 0, 0))
-
-            print(f"恢复对象：{obj.name}")
-            restore_obj_import(obj, original_state)
+            prepare_obj_export(obj, True)
+            
+            selected_objects = [o.name for o in bpy.context.selected_objects]
+            print(f"Selected objects for export: {selected_objects}")
+            if not selected_objects:
+                print("No objects selected for export.")
+                continue
+            export_fbx(obj, dest_path)
 
         # 最后统一更新视图
         bpy.context.view_layer.update()
@@ -156,6 +134,13 @@ class ExportFbxByParentMax(bpy.types.Operator):
     bl_idname = "scene.export_fbx_by_parent_max"
     bl_label = "按照顶级父物体导出FBX"
 
+    def select_children(self, obj):
+        for child in obj.children:
+            child.select_set(True)
+            self.select_children(child)
+            print("selected: " + child.name)
+
+
     def execute(self, context):
         # 检查路径
         check_result, dest_path = check_dir(self, context)
@@ -168,16 +153,76 @@ class ExportFbxByParentMax(bpy.types.Operator):
         bpy.context.view_layer.update()
 
         for obj in parents:
-            print(f"准备导出：{obj.name}")
-            original_state = prepare_obj_export(obj, True)
+            
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            self.select_children(obj)
 
-            print(f"开始导出：{obj.name}")
-            export_fbx_max(obj, dest_path, scale_factor=0.01, rotation_euler=(math.radians(90), 0, 0))
+            prepare_obj_export(obj, True)
 
-            print(f"恢复对象：{obj.name}")
-            restore_obj_import(obj, original_state)
+            selected_objects = [o.name for o in bpy.context.selected_objects]
+            print(f"Selected objects for export: {selected_objects}")
+            if not selected_objects:
+                print("No objects selected for export.")
+                continue
+
+            export_fbx_max(obj, dest_path)
 
         # 最后统一更新视图
+        bpy.context.view_layer.update()
+        print("所有导出操作已结束")
+        return {'FINISHED'}
+
+class ExportFbxByMesh(bpy.types.Operator):
+    bl_idname = "scene.export_fbx_by_mesh"
+    bl_label = "按Mesh导出FBX"
+
+    def execute(self, context):
+        # 检查路径
+        check_result, dest_path = check_dir(self, context)
+        if not check_result:
+            return {'CANCELLED'}
+
+        # 获取所有顶级父物体
+        parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
+
+        # 禁用自动更新
+        bpy.context.view_layer.update()
+
+        for parent in parents:
+            for obj in parent.children:
+                if obj.type == 'MESH':
+                    # 取消选择所有对象
+                    bpy.ops.object.select_all(action='DESELECT')
+                    
+                    # 选择当前的 mesh 对象
+                    obj.select_set(True)
+
+                    # 选择其他所有非 mesh 类型的对象
+                    for other_obj in bpy.context.scene.objects:
+                        if other_obj.type != 'MESH':
+                            other_obj.select_set(True)
+
+                    # 设置导出文件路径
+                    file_path = os.path.join(dest_path, f"{parent.name}_{obj.name}.fbx")
+
+                    # 使用 Blender 的 FBX 导出操作
+                    bpy.ops.export_scene.fbx(
+                        filepath=file_path,
+                        use_selection=True,
+                        global_scale=0.01,
+                        apply_unit_scale=True,
+                        axis_forward='-Z',
+                        axis_up='Y',
+                        use_space_transform=True,
+                        bake_space_transform=True,
+                        object_types={'MESH', 'ARMATURE', 'EMPTY'},  # 包含骨骼和空物体
+                        mesh_smooth_type='FACE'
+                    )
+
+
+
+        # 更新视图层
         bpy.context.view_layer.update()
         print("所有导出操作已结束")
         return {'FINISHED'}
@@ -208,19 +253,18 @@ class ExportFbxByColMark(bpy.types.Operator):
                     descendant.select_set(True)
 
                 print(f"准备导出：{highest_parent.name}")
-                original_state = prepare_obj_export(highest_parent, True)
+
 
                 print(f"开始导出：{highest_parent.name}")
                 export_fbx(highest_parent, dest_path, col_mark=True, scale_factor=0.01, rotation_euler=(math.radians(90), 0, 0))
 
                 print(f"恢复对象：{highest_parent.name}")
-                restore_obj_import(highest_parent, original_state)
+
 
         # 最后统一更新视图
         bpy.context.view_layer.update()
         print("所有导出操作已结束")
         return {'FINISHED'}
-
 # 按集合导出FBX
 class ExportFbxByCollection(bpy.types.Operator):
     bl_idname = "object.miao_output_fbx_as_collection"
@@ -239,17 +283,11 @@ class ExportFbxByCollection(bpy.types.Operator):
             for obj in collection.objects:
                 if obj.type not in {'MESH', 'ARMATURE'}:
                     continue
-
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
                 bpy.context.view_layer.objects.active = obj
-
-                original_state = prepare_obj_export(obj)
-
                 fbx_path = os.path.join(collection_dir, obj.name + ".fbx")
                 bpy.ops.export_scene.fbx(filepath=fbx_path, use_selection=True, global_scale=0.01)
-
-                restore_obj_import(obj, original_state)
 
         # 最后统一更新视图
         bpy.context.view_layer.update()
@@ -261,12 +299,14 @@ def register():
     bpy.utils.register_class(ExportFbxByColMark)
     bpy.utils.register_class(ExportFbxByCollection)
     bpy.utils.register_class(ExportFbxByParentMax)
+    bpy.utils.register_class(ExportFbxByMesh)
 
 def unregister():
     bpy.utils.unregister_class(ExportFbxByParent)
     bpy.utils.unregister_class(ExportFbxByColMark)
     bpy.utils.unregister_class(ExportFbxByCollection)
     bpy.utils.unregister_class(ExportFbxByParentMax)
+    bpy.utils.unregister_class(ExportFbxByMesh)
 
 
 if __name__ == "__main__":
