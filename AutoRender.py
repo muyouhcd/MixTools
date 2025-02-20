@@ -153,6 +153,24 @@ def get_all_cameras(self, context):
 def get_all_collections(self, context):
     return [(collection.name, collection.name, collection.name) for collection in bpy.data.collections]
 
+class AUTO_RENDER_OneClick(bpy.types.Operator):
+    bl_idname = "auto_render.oneclick"
+    bl_label = "一键处理导入模型"
+    bl_description = "一键处理导入模型"
+
+    def execute(self, context):
+
+
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.material.set_emission_strength(strength=0)
+        bpy.ops.object.set_texture_interpolation()
+        bpy.ops.object.miao_queue_up()
+        bpy.ops.object.select_all(action='DESELECT')
+
+        return {'FINISHED'}
+
+
+
 class AutoRenderSettings(bpy.types.PropertyGroup):
     output_path: bpy.props.StringProperty(
         name="Output Path",
@@ -265,6 +283,7 @@ def register():
         name="Render as Animation",
         default=False,
     )
+    bpy.utils.register_class(AUTO_RENDER_OneClick)
 
 def unregister():
     bpy.utils.unregister_class(AUTO_RENDER_OT_Execute)
@@ -272,6 +291,7 @@ def unregister():
     bpy.utils.unregister_class(AutoRenderSettings)
     bpy.utils.unregister_class(BatchRenderOperator)
     del bpy.types.Scene.render_as_animation
+    bpy.utils.unregister_class(AUTO_RENDER_OneClick)
 
 if __name__ == "__main__":
     register()

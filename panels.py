@@ -317,6 +317,9 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if scene.autorender_expand:
             box_autorender = col_autorender.box()
+
+            box_autorender.operator("auto_render.oneclick",text="一键处理模型显示效果（硬边缘、自发光为0）",icon='RENDER_STILL')
+
             box_autorender.prop(bpy.context.scene.auto_render_settings, "output_path", text="输出路径",icon='FILE_FOLDER')
             box_autorender.prop(bpy.context.scene.auto_render_settings, "output_name", text="输出名称",icon='FILE_FOLDER')
             box_autorender.prop(bpy.context.scene.auto_render_settings, "output_format", text="输出格式",icon='FILE_IMAGE')
