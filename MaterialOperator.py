@@ -163,16 +163,181 @@ class SetTextureInterpolation(bpy.types.Operator):
                             
         return {'FINISHED'}
 
+class AlphaNodeConnector(bpy.types.Operator):
+    bl_idname = "object.alpha_node_connector"
+    bl_label = "Alpha Node Connector"
+
+    def execute(self, context):
+        def link_texture_alpha_to_bsdf_alpha():
+            # 获取当前选择的物体
+            selected_objects = bpy.context.selected_objects
+            
+            for obj in selected_objects:
+                if obj.type == 'MESH':
+                    # 获取物体的材质槽
+                    for slot in obj.material_slots:
+                        material = slot.material
+                        if material is not None and material.use_nodes:
+                            # 获取材质节点树
+                            nodes = material.node_tree.nodes
+                            links = material.node_tree.links
+
+                            # 查找 Principled BSDF 和 Image Texture 节点
+                            principled_bsdf = None
+                            image_texture = None
+
+                            for node in nodes:
+                                if node.type == 'BSDF_PRINCIPLED':
+                                    principled_bsdf = node
+                                elif node.type == 'TEX_IMAGE':
+                                    image_texture = node
+
+                            # 如果找到两个节点，连接它们的 alpha
+                            if principled_bsdf and image_texture:
+                                # 检查是否已有连接
+                                already_connected = any(
+                                    link.to_node == principled_bsdf and
+                                    link.to_socket.name == 'Alpha' and
+                                    link.from_node == image_texture and
+                                    link.from_socket.name == 'Alpha'
+                                    for link in links
+                                )
+                                
+                                if not already_connected:
+                                    # 连接图像纹理的 Alpha 到 Principled BSDF 的 Alpha
+                                    links.new(image_texture.outputs['Alpha'], principled_bsdf.inputs['Alpha'])
+                                    print(f"Connected {image_texture.name}'s Alpha to {principled_bsdf.name}'s Alpha in material {material.name}")
+
+
+        link_texture_alpha_to_bsdf_alpha()
+        return {'FINISHED'}
+
+class AlphaNodeDisconnector(bpy.types.Operator):
+    bl_idname = "object.alpha_node_disconnector"
+    bl_label = "Alpha Node Disconnector"
+
+    def execute(self, context):
+        def disconnect_texture_alpha_to_bsdf_alpha():
+            # 获取当前选择的物体
+            selected_objects = bpy.context.selected_objects
+            
+            for obj in selected_objects:
+                if obj.type == 'MESH':
+                    # 获取物体的材质槽
+                    for slot in obj.material_slots:
+                        material = slot.material
+                        if material is not None and material.use_nodes:
+                            # 获取材质节点树
+                            nodes = material.node_tree.nodes
+                            links = material.node_tree.links
+
+                            # 查找 Principled BSDF 和 Image Texture 节点
+                            principled_bsdf = None
+                            image_texture = None
+
+                            for node in nodes:
+                                if node.type == 'BSDF_PRINCIPLED':
+                                    principled_bsdf = node
+                                elif node.type == 'TEX_IMAGE':
+                                    image_texture = node
+
+                            # 如果找到两个节点，检查并断开连接
+                            if principled_bsdf and image_texture:
+                                # 查找并删除所有连接
+                                for link in links:
+                                    if (link.from_node == image_texture and 
+                                        link.from_socket.name == 'Alpha' and 
+                                        link.to_node == principled_bsdf and 
+                                        link.to_socket.name == 'Alpha'):
+                                        links.remove(link)
+                                        print(f"Disconnected {image_texture.name}'s Alpha from {principled_bsdf.name}'s Alpha in material {material.name}")
+
+        disconnect_texture_alpha_to_bsdf_alpha()
+        return {'FINISHED'}
+
+class AlphaToSkin(bpy.types.Operator):
+    bl_idname = "object.alpha_to_skin"
+    bl_label = "Alpha To Skin"
+
+    def execute(self, context):
+        def link_texture_alpha_to_bsdf_alpha_with_color(target_color=(1.0, 1.0, 1.0, 1.0)):
+            # 获取当前选择的物体
+            selected_objects = bpy.context.selected_objects
+            
+            for obj in selected_objects:
+                if obj.type == 'MESH':
+                    # 获取物体的材质槽
+                    for slot in obj.material_slots:
+                        material = slot.material
+                        if material is not None and material.use_nodes:
+                            # 获取材质节点树
+                            nodes = material.node_tree.nodes
+                            links = material.node_tree.links
+
+                            # 查找 Principled BSDF 和 Image Texture 节点
+                            principled_bsdf = None
+                            image_texture = None
+
+                            for node in nodes:
+                                if node.type == 'BSDF_PRINCIPLED':
+                                    principled_bsdf = node
+                                elif node.type == 'TEX_IMAGE':
+                                    image_texture = node
+
+                            # 如果找到两个节点，连接它们的 alpha
+                            if principled_bsdf and image_texture:
+                                # 创建 Mix Shader 和 Transparent BSDF 节点
+                                mix_shader = nodes.new(type='ShaderNodeMixShader')
+                                transparent_bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
+
+                                transparent_bsdf.inputs['Base Color'].default_value = target_color
+
+                                # 连接 Image Texture 的 Alpha 到 Mix Shader 的 Fac
+                                links.new(image_texture.outputs['Alpha'], mix_shader.inputs['Fac'])
+
+                                # 连接 Transparent BSDF 到 Mix Shader
+                                links.new(transparent_bsdf.outputs['BSDF'], mix_shader.inputs[1])
+
+                                # 连接 Principled BSDF 到 Mix Shader
+                                links.new(principled_bsdf.outputs['BSDF'], mix_shader.inputs[2])
+
+                                # 查找 Material Output 节点
+                                material_output = None
+                                for node in nodes:
+                                    if node.type == 'OUTPUT_MATERIAL':
+                                        material_output = node
+                                        break
+
+                                if material_output:
+                                    # 连接 Mix Shader 到 Material Output
+                                    links.new(mix_shader.outputs['Shader'], material_output.inputs['Surface'])
+
+                                print(f"Connected {image_texture.name}'s Alpha to Mix Shader in material {material.name}")
+        
+        link_texture_alpha_to_bsdf_alpha_with_color((0.957, 0.761, 0.620, 1.0))
+        return {'FINISHED'}
+
+
+
+
+
 def register():     
     bpy.utils.register_class(SetEmissionStrength)
     bpy.utils.register_class(MaterialSort)
     bpy.utils.register_class(OBJ_OT_random_meterial)
     bpy.utils.register_class(MergeMaterial)
     bpy.utils.register_class(SetTextureInterpolation)
+    bpy.utils.register_class(AlphaNodeConnector)
+    bpy.utils.register_class(AlphaToSkin)
+    bpy.utils.register_class(AlphaNodeDisconnector)
+
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
     bpy.utils.unregister_class(MaterialSort)
     bpy.utils.unregister_class(OBJ_OT_random_meterial)
     bpy.utils.unregister_class(MergeMaterial)
     bpy.utils.unregister_class(SetTextureInterpolation)
+    bpy.utils.unregister_class(AlphaNodeConnector)
+    bpy.utils.unregister_class(AlphaToSkin)
+    bpy.utils.unregister_class(AlphaNodeDisconnector)
 

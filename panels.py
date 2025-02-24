@@ -46,10 +46,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             op = align_box.operator("object.move_origin", text="Move Origin")
             op.axis_direction = context.scene.axis_direction_enum
             align_box.operator("object.reset_z_axis", text="z轴归零")
-            
-            # align_box.operator("object.miao_alignment_ground", text="原点移至底部", icon='ALIGN_BOTTOM')
-            # operator = align_box.operator("object.move_origin_to_bottom", text="原点移至-Y中心", icon='PIVOT_BOUNDBOX')
-            # align_box.prop(operator, "axis", text="Axis")
 
             # Selection Tools
             layout.label(text="选择:")
@@ -64,8 +60,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             clean_box = layout.box()
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='BRUSH_DATA')
             clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='BRUSH_DATA')
-
-
 
             layout.label(text="合并:")
             convert_box = layout.box()
@@ -105,36 +99,43 @@ class CustomFunctionsPanel(bpy.types.Panel):
                                    icon='TRIA_DOWN' if context.scene.meterialoperation_expand else 'TRIA_RIGHT')
 
         if context.scene.meterialoperation_expand:
-            
-            layout.operator("object.uv_formater", text="UV尺寸校准", icon='UV_DATA')
-            layout.operator("object.quad_uv_aligner", text="UV铺满展开", icon='UV')
-            layout.operator("object.correct_uv_rotation", text="UV旋转矫正", icon='MOD_UVPROJECT')
+            uv_box = layout.box()
+            uv_box.label(text="UV操作:")
 
-            texture_operater_box = layout.box()
-            texture_operater_box.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
-            texture_operater_box.operator("object.apply_texture_operator", text="批量链接贴图", icon='NODE_TEXTURE')
+            uv_box.operator("object.uv_formater", text="UV尺寸校准", icon='UV_DATA')
+            uv_box.operator("object.quad_uv_aligner", text="UV铺满展开", icon='UV')
+            uv_box.operator("object.correct_uv_rotation", text="UV旋转矫正", icon='MOD_UVPROJECT')
 
-            # 材质球排序
-            layout.label(text="材质管理:")
             material_operations_box = layout.box()
-            material_operations_box.operator("object.miao_material_sort", text="材质球排序", icon='SORTSIZE')
-            
-            # Random Material
-            material_operations_box.operator("scene.random_meterial", text="随机材质", icon='OUTLINER_OB_POINTCLOUD')
-            
-            # Merge Materials
-            material_operations_box.operator("object.miao_merge_material", text="清理材质", icon='BRUSH_DATA')
-            # Remove Unused Material Slots
-            material_operations_box.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='BRUSH_DATA')
+            material_operations_box.label(text="材质球操作:")
 
-            # Set Texture Interpolation
-            material_operations_box.operator("object.set_texture_interpolation", text="设置临近采样（硬边缘）", icon='TEXTURE_DATA')
-
-            # Emission Strength Adjustment
             emission_box = layout.box()
             emission_box.label(text="发光强度调整:")
             emission_box.prop(context.scene, "emission_strength", text="强度", slider=True)
             emission_box.operator(SetEmissionStrength.bl_idname).strength = context.scene.emission_strength
+
+
+            material_operations_box.operator("object.alpha_node_connector", text="图像Alpha节点连接", icon='NODETREE')
+            material_operations_box.operator("object.alpha_node_disconnector", text="断开Alpha连接", icon='NODETREE')
+
+            material_operations_box.operator("object.alpha_to_skin", text="Alpha通道设置为肤色", icon='NODETREE')
+            material_operations_box.operator("object.set_texture_interpolation", text="设置临近采样（硬边缘）", icon='TEXTURE_DATA')
+
+            texture_operater_box = layout.box()
+            texture_operater_box.label(text="贴图自动链接")
+            texture_operater_box.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
+            texture_operater_box.operator("object.apply_texture_operator", text="批量链接贴图(完整匹配)", icon='NODE_TEXTURE')
+
+            texture_operater_box.prop(scene, "ignore_fields_input", text="忽略字段列表", icon='FILE_TEXT')
+            texture_operater_box.operator("object.apply_texture_to_selected_objects", text="批量链接贴图(忽略匹配)", icon='NODE_TEXTURE')
+
+            # 材质球排序
+            material_manager_box = layout.box()
+            material_manager_box.label(text="材质管理:")
+            material_manager_box.operator("object.miao_material_sort", text="材质球排序", icon='SORTSIZE')
+            material_manager_box.operator("scene.random_meterial", text="随机材质", icon='OUTLINER_OB_POINTCLOUD')
+            material_manager_box.operator("object.miao_merge_material", text="清理材质", icon='BRUSH_DATA')
+            material_manager_box.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='BRUSH_DATA')
 
 # 命名操作
         col_renameoperation = layout.column()
@@ -184,9 +185,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_rename_by_location.prop(context.scene, "rename_axis", text="轴向")
             box_rename_by_location.prop(context.scene, "rename_order", text="排序类型")
             box_rename_by_location.operator("object.miao_rename_location", text="按空间顺序重命名", icon='SORTSIZE')
-
-
-            
 
 # 旋转缩放位移操作
         col_rsm = layout.column()

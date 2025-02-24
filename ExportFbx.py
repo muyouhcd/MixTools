@@ -79,6 +79,7 @@ def export_fbx_max(obj, dest_path):
         armature_nodetype = 'NULL',
         bake_anim=True,
         apply_unit_scale=True,
+        
     )
 
     print(f"导出完成：{fbx_file_path}")

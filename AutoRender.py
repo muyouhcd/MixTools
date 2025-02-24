@@ -160,7 +160,6 @@ class AUTO_RENDER_OneClick(bpy.types.Operator):
 
     def execute(self, context):
 
-
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.material.set_emission_strength(strength=0)
         bpy.ops.object.set_texture_interpolation()

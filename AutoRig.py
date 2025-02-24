@@ -327,7 +327,6 @@ def select_largest_mesh_object():
     else:
         print("未找到可选择的网格对象。")
 
-
 def set_material_for_selected_objects(material_name):
     # 获取材质
     material = bpy.data.materials.get(material_name)
@@ -524,6 +523,22 @@ def get_addon_path():
     
     return ''  # 如果未找到则返回空字符串
 
+def operate_char():
+    bpy.ops.object.restore_skeleton_from_json()
+
+def bind_skeleton():
+    #绑定操作
+        bpy.ops.object.select_all(action='SELECT')
+        #从json数据绑定
+        bpy.ops.object.restore_skeleton_from_json()
+
+def set_material():
+    #设置材质
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.miao_merge_material()
+    bpy.ops.object.select_all(action='SELECT')
+    set_material_for_selected_objects("Material")
+
 class BoneDataExporterPanel(bpy.types.Panel):
     """创建一个自定义面板"""
     bl_label = "自动绑定|骨骼处理"
@@ -623,9 +638,6 @@ class ScaleAdjust(bpy.types.Operator):
 
         return {'FINISHED'}
 
-def operate_char():
-    bpy.ops.object.restore_skeleton_from_json()
-
 class OneClickOperator(bpy.types.Operator):
     """一键处理当前角色"""
     bl_idname = "object.one_click_operator"
@@ -723,7 +735,6 @@ class OneClickOperator(bpy.types.Operator):
 
     #     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
-
     #     #底部中心创建父级
     #     bpy.ops.object.miao_create_empty_at_bottom()
     #     #选取顶级父级清除位移
@@ -733,7 +744,6 @@ class OneClickOperator(bpy.types.Operator):
 
     #     #删除父级
     #     # delete_top_level_parent()
-
 
     #     #设置名称为最大物体
     #     name=get_largest_mesh_object_name()
@@ -747,7 +757,6 @@ class OneClickOperator(bpy.types.Operator):
     #     # 绑定操作
     #     bind_skeleton()
 
-
     #     #设置骨架为父级
     #     # set_armature_as_parent(keep_transform=True)
         
@@ -759,19 +768,6 @@ class OneClickOperator(bpy.types.Operator):
     #     set_material()
 
     #     return {'FINISHED'}
-
-def bind_skeleton():
-    #绑定操作
-        bpy.ops.object.select_all(action='SELECT')
-        #从json数据绑定
-        bpy.ops.object.restore_skeleton_from_json()
-
-def set_material():
-    #设置材质
-    bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.miao_merge_material()
-    bpy.ops.object.select_all(action='SELECT')
-    set_material_for_selected_objects("Material")
 
 class ExportBoneDataOperator(bpy.types.Operator):
     """操作符，用于导出骨骼数据"""

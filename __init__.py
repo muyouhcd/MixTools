@@ -1,10 +1,10 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,38),
+    "version": (4,8,39),
     "blender": (3, 6, 1),
     "location": "View3D",
-    "description": "python.exe -m pip install pillow",
+    "description": "如遇到插件无法打开请手动切换至blender的python目录运行以下指令进行安装：python.exe -m pip install pillow",
     "warning": "",
     "wiki_url": "",
     "category": "Object",
