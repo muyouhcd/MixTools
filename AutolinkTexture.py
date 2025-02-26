@@ -132,19 +132,6 @@ class ApplyTextureToSelectedObjects(bpy.types.Operator):
     bl_label = "Apply Texture to Selected Objects"
     bl_options = {'REGISTER', 'UNDO'}
 
-    # texture_dir: bpy.props.StringProperty(
-    #     name="Texture Directory",
-    #     description="Directory where the texture files are located",
-    #     default="",
-    #     subtype='DIR_PATH'
-    # ) # type: ignore
-
-    # ignore_fields_input: bpy.props.StringProperty(
-    #     name="Ignore Fields",
-    #     description="Comma-separated list of fields to ignore",
-    #     default="_Upper, _lower, ,mod_,_clothes"
-    # ) # type: ignore
-
 
     def execute(self, context):
 

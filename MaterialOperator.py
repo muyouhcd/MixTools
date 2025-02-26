@@ -5,7 +5,7 @@ import math
 bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
     name="强度",
     description="设置发光强度",
-    default=10.0,
+    default=0.0,
     min=0.0,
     max=10.0
         )
@@ -13,7 +13,7 @@ bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
 bpy.types.Scene.roughness_strength = bpy.props.FloatProperty(
     name="强度",
     description="设置光滑强度",
-    default=0.0,
+    default=10.0,
     min=0.0,
     max=10.0
         )
