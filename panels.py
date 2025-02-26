@@ -1,5 +1,5 @@
 import bpy
-from .MaterialOperator import SetEmissionStrength
+from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 
 class CustomFunctionsPanel(bpy.types.Panel):
@@ -101,23 +101,21 @@ class CustomFunctionsPanel(bpy.types.Panel):
         if context.scene.meterialoperation_expand:
             uv_box = layout.box()
             uv_box.label(text="UV操作:")
-
             uv_box.operator("object.uv_formater", text="UV尺寸校准", icon='UV_DATA')
             uv_box.operator("object.quad_uv_aligner", text="UV铺满展开", icon='UV')
             uv_box.operator("object.correct_uv_rotation", text="UV旋转矫正", icon='MOD_UVPROJECT')
 
+            emission_box = layout.box()
+            emission_box.label(text="材质强度调整:")
+            emission_box.prop(context.scene, "emission_strength", text="发光强度", slider=True)
+            emission_box.operator(SetEmissionStrength.bl_idname).strength = context.scene.emission_strength
+            emission_box.prop(context.scene, "roughness_strength", text="粗糙强度", slider=True)
+            emission_box.operator(SetMaterialRoughness.bl_idname).roughness = context.scene.roughness_strength
+
             material_operations_box = layout.box()
             material_operations_box.label(text="材质球操作:")
-
-            emission_box = layout.box()
-            emission_box.label(text="发光强度调整:")
-            emission_box.prop(context.scene, "emission_strength", text="强度", slider=True)
-            emission_box.operator(SetEmissionStrength.bl_idname).strength = context.scene.emission_strength
-
-
             material_operations_box.operator("object.alpha_node_connector", text="图像Alpha节点连接", icon='NODETREE')
             material_operations_box.operator("object.alpha_node_disconnector", text="断开Alpha连接", icon='NODETREE')
-
             material_operations_box.operator("object.alpha_to_skin", text="Alpha通道设置为肤色", icon='NODETREE')
             material_operations_box.operator("object.set_texture_interpolation", text="设置临近采样（硬边缘）", icon='TEXTURE_DATA')
 
@@ -128,6 +126,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
             texture_operater_box.prop(scene, "ignore_fields_input", text="忽略字段列表", icon='FILE_TEXT')
             texture_operater_box.operator("object.apply_texture_to_selected_objects", text="批量链接贴图(忽略匹配)", icon='NODE_TEXTURE')
+            texture_operater_box.operator("object.apply_texture_by_material_name_recursive", text="批量链接贴图(材质球名称匹配)", icon='NODE_TEXTURE')
 
             # 材质球排序
             material_manager_box = layout.box()

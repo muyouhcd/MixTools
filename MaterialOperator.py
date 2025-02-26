@@ -5,13 +5,21 @@ import math
 bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
     name="强度",
     description="设置发光强度",
-    default=0.2,
+    default=10.0,
+    min=0.0,
+    max=10.0
+        )
+
+bpy.types.Scene.roughness_strength = bpy.props.FloatProperty(
+    name="强度",
+    description="设置光滑强度",
+    default=0.0,
     min=0.0,
     max=10.0
         )
 #设置发光强度
 class SetEmissionStrength(bpy.types.Operator):
-    bl_idname = "material.set_emission_strength"
+    bl_idname = "object.set_emission_strength"
     bl_label = "设置发光强度"
 
     strength : bpy.props.FloatProperty(
@@ -42,6 +50,40 @@ class SetEmissionStrength(bpy.types.Operator):
     def execute(self, context):
         strength = self.strength  # 直接使用类的属性替代 context.scene.emission_strength
         self.process_selected_objects(strength)
+        return {'FINISHED'}
+    
+class SetMaterialRoughness(bpy.types.Operator):
+    bl_idname = "object.set_roughness"
+    bl_label = "设置材质粗糙度"
+    
+    roughness: bpy.props.FloatProperty(
+        name="粗糙度",
+        description="调整材质的粗糙度",
+        default=1.0,
+        min=0.0,
+        max=1.0
+    ) # type: ignore
+
+    def set_roughness(self, material, roughness):
+        """ 设置材质的粗糙度 """
+        if not material.use_nodes:
+            return
+        
+        for node in material.node_tree.nodes:
+            if node.type == 'BSDF_PRINCIPLED':
+                node.inputs['Roughness'].default_value = roughness
+
+    def process_selected_objects(self, roughness):
+        """ 遍历所有选中的网格对象并修改其材质 """
+        for obj in bpy.context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat.node_tree is not None:
+                        self.set_roughness(mat, roughness)
+
+    def execute(self, context):
+        roughness = self.roughness  # 直接使用类的属性
+        self.process_selected_objects(roughness)
         return {'FINISHED'}
 # 材质球排序
 class MaterialSort(bpy.types.Operator):
@@ -330,6 +372,7 @@ def register():
     bpy.utils.register_class(AlphaNodeConnector)
     bpy.utils.register_class(AlphaToSkin)
     bpy.utils.register_class(AlphaNodeDisconnector)
+    bpy.utils.register_class(SetMaterialRoughness)
 
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
@@ -340,4 +383,4 @@ def unregister():
     bpy.utils.unregister_class(AlphaNodeConnector)
     bpy.utils.unregister_class(AlphaToSkin)
     bpy.utils.unregister_class(AlphaNodeDisconnector)
-
+    bpy.utils.unregister_class(SetMaterialRoughness)

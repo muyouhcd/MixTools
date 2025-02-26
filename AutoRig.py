@@ -1055,7 +1055,7 @@ def unregister():
     bpy.utils.unregister_class(OperationPath)
     bpy.utils.unregister_class(ScaleAdjust)
 
-    del bpy.types.Scene.my_tool
+    # del bpy.types.Scene.my_tool
     del bpy.types.Scene.json_file_list
     del bpy.types.Scene.json_file_index
     del bpy.types.Scene.show_bone_operators

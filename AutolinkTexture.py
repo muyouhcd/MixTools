@@ -242,10 +242,107 @@ class ApplyTextureToSelectedObjects(bpy.types.Operator):
         apply_texture_to_selected_objects(texture_dir, ignore_fields_input)
         return {'FINISHED'}
 
+class ApplyTextureByMaterialNameRecursiveOperator(bpy.types.Operator):
+    """递归查找文件夹和对象层级，通过材质球名称匹配贴图"""
+    bl_idname = "object.apply_texture_by_material_name_recursive"
+    bl_label = "Apply Texture by Material Name (Recursive)"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        texture_dir = bpy.context.scene.texture_dir  # 获取 UI 输入的贴图目录
+        
+        if not texture_dir or not os.path.isdir(texture_dir):
+            self.report({'WARNING'}, "无效的贴图目录")
+            return {'CANCELLED'}
+        
+        # 生成 贴图路径字典 (材质名 -> 绝对路径)
+        texture_mapping = self.get_texture_mapping(texture_dir)
+
+        selected_objects = bpy.context.selected_objects
+
+        for obj in selected_objects:
+            self.apply_texture_recursively(obj, texture_mapping)
+
+        return {'FINISHED'}
+
+    def get_texture_mapping(self, root_dir):
+        """递归遍历 root_dir 及其子文件夹，存储匹配的 PNG 文件"""
+        texture_mapping = {}
+
+        for dirpath, _, filenames in os.walk(root_dir):  
+            for filename in filenames:
+                if filename.lower().endswith('.png'):  
+                    material_name = os.path.splitext(filename)[0].lower()  
+                    texture_path = os.path.join(dirpath, filename)  
+                    texture_mapping[material_name] = texture_path  
+
+        print(f"找到 {len(texture_mapping)} 个可用的材质名称-贴图对：", texture_mapping)
+        return texture_mapping
+
+    def apply_texture_recursively(self, obj, texture_mapping):
+        """递归应用纹理到物体及其所有子物体"""
+        
+        if obj.type == 'MESH' and obj.data.materials:
+            for mat in obj.data.materials:
+                if mat and mat.name:  
+                    material_name = mat.name.lower()
+                    
+                    if material_name in texture_mapping:  
+                        self.apply_texture(obj, mat, texture_mapping[material_name])
+                        print(f"已为 '{obj.name}' ({mat.name}) 应用纹理: {texture_mapping[material_name]}")
+
+        # 递归处理子物体
+        for child in obj.children:
+            self.apply_texture_recursively(child, texture_mapping)
+
+    def apply_texture(self, obj, material, image_path):
+        """应用纹理到指定材质"""
+        
+        try:
+            image = bpy.data.images.load(image_path)
+        
+            material.use_nodes = True
+            nodes = material.node_tree.nodes
+            links = material.node_tree.links
+
+            tex_node_exists = False  
+
+            for node in nodes:
+                if node.type == 'TEX_IMAGE':
+                    node.image = image
+                    tex_node_exists = True  
+
+            if not tex_node_exists: 
+                tex_node   = nodes.new(type='ShaderNodeTexImage')
+                bsdf_node  = None
+                output_node= None
+                
+                for node in nodes:
+                    if node.type == 'BSDF_PRINCIPLED':
+                        bsdf_node = node  
+                    elif node.type == 'OUTPUT_MATERIAL':
+                        output_node= node  
+
+                if not bsdf_node: 
+                    bsdf_node  = nodes.new(type='ShaderNodeBsdfPrincipled')
+                
+                if not output_node: 
+                    output_node= nodes.new(type='ShaderNodeOutputMaterial')
+
+                tex_node.image     = image
+                tex_node.location  = (-300, 300)
+                
+                links.new(tex_node.outputs['Color'], bsdf_node.inputs['Base Color'])
+
+                print(f"成功将 {image_path} 应用于 {obj.name}")
+
+        except Exception as e:
+            print(f"无法加载纹理 '{image_path}': {e}")
 
 def register():
     bpy.utils.register_class(ApplyTextureOperator)
     bpy.utils.register_class(ApplyTextureToSelectedObjects)
+    bpy.utils.register_class(ApplyTextureByMaterialNameRecursiveOperator)
 
     bpy.types.Scene.texture_dir = bpy.props.StringProperty(
         name="Texture Directory",
@@ -262,6 +359,7 @@ def register():
 def unregister():
     bpy.utils.unregister_class(ApplyTextureOperator)
     bpy.utils.unregister_class(ApplyTextureToSelectedObjects)
+    bpy.utils.unregister_class(ApplyTextureByMaterialNameRecursiveOperator)
 
     del bpy.types.Scene.texture_dir
     del bpy.types.Scene.ignore_fields_input
