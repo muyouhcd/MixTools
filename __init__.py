@@ -63,7 +63,7 @@ from . import panels
 from . import CorrectRotation
 from . import renderconfig
 from . import RemoveUnusedMatSlots
-from .AutoRender import AutoRender
+from . import AutoRender
 from . import AutoRenameCar
 from . import ExportFbx
 from . import Voxelizer
