@@ -1009,10 +1009,16 @@ class CharOperater(bpy.types.Operator):
 
     def execute(self, context):
 
-
-
         print("开始处理顶点")
         bpy.ops.object.vox_operation()
+        
+        bpy.ops.object.select_all(action='SELECT')
+
+        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+
+        bpy.ops.object.clean_empty()
+
+
         print("开始处理碰撞")
         bpy.ops.object.miao_parent_byboundingbox()
         apply_change_to_scene()
@@ -1020,6 +1026,9 @@ class CharOperater(bpy.types.Operator):
         for parent_obj in bpy.context.scene.objects:
             if parent_obj.parent is None:
                 self.apply_transforms_recursive(parent_obj)
+
+
+
         bpy.ops.object.select_all(action='DESELECT')
 
         return {'FINISHED'}
