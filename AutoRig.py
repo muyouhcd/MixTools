@@ -1063,15 +1063,11 @@ class CharOperater(bpy.types.Operator):
 
         print("开始处理顶点")
         bpy.ops.object.vox_operation()
-        
         bpy.ops.object.select_all(action='SELECT')
-
         bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-
         bpy.ops.object.miao_apply_and_separate()
-
         bpy.ops.object.clean_empty()
-
+        bpy.ops.object.reset_normals_flat_shading()
 
         print("开始处理碰撞")
         bpy.ops.object.miao_parent_byboundingbox()
