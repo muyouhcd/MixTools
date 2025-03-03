@@ -1,4 +1,22 @@
 {
+    "name_groups": [
+        [
+            ["Head"],
+            "Face"
+        ],
+        [
+            ["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"],
+            "UpperBody"
+        ],
+        [
+            ["Thigh", "Calf", "Leg", "Pelvis"],
+            "LowerBody"
+        ],
+        [
+            ["Foot", "Toe"],
+            "Feet"
+        ]
+    ],
     "bone_data": {
         "Hips": {
             "parent": null,

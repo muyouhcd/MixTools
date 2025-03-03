@@ -1,4 +1,23 @@
 {
+    "name_groups": [
+        [
+            ["Head"],
+            "Face"
+        ],
+        [
+            ["Spine1","Spine2", "Arm", "Forearm", "Hand", "Finger", "Neck"],
+            "UpperBody"
+        ],
+        [
+            ["Spine","Thigh", "Calf", "Leg", "Pelvis"],
+            "LowerBody"
+        ],
+        [
+            ["Foot", "Toe"],
+            "Feet"
+        ]
+    ],
+
     "bone_data": {
         "Root": {
             "parent": null,

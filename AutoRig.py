@@ -7,14 +7,7 @@ from mathutils.bvhtree import BVHTree
 import bmesh
 import random
 
-name_groups = [
-    # (["Neck"], "Neck"),
-    (["Head"], "Face"),
-    (["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"], "UpperBody"),
-    # (["Spine", "Arm", "Forearm", "Hand", "Finger"], "UpperBody"),
-    (["Thigh", "Calf","Leg","Pelvis"], "LowerBody"),
-    (["Foot", "Toe",], "Feet")
-]
+
 
 def apply_change_to_scene():
 
@@ -361,26 +354,28 @@ def create_parent_dict(name_list):
     return top_parents
 
 def join_objects(parent_dict, new_name):
+    for _, objects in parent_dict.items():
+        # 过滤掉非网格类型的对象
+        mesh_objects = [obj for obj in objects if obj.type == 'MESH']
+        
+        print(f"合并对象组：{[obj.name for obj in mesh_objects]} 为 {new_name}")
 
-    for top_parent, objects in parent_dict.items():
-        if len(objects) < 1:
+        if len(mesh_objects) < 1:
+            print(f"警告: 没有可供合并的网格数据在组 '{new_name}'")
             continue
 
-        # 确保所有对象都在 OBJECT 模式下
-        if bpy.context.mode != 'OBJECT':
-            bpy.ops.object.mode_set(mode='OBJECT')
-
         bpy.ops.object.select_all(action='DESELECT')
-        for obj in objects:
+        for obj in mesh_objects:
             obj.select_set(True)
 
         if bpy.context.selected_objects:
-            # 设置第一个选中的对象为活动对象
             bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
             bpy.ops.object.join()
 
         bpy.context.object.name = new_name
 
+
+        
 def rename_all_children_based_on_coords(empty_coords): 
     objects_bvh = {}
 
@@ -787,9 +782,9 @@ class WithCombinRename(bpy.types.Operator):
         try:
             with open(file_path, 'r', encoding='utf-8') as json_file:
                 data = json.load(json_file)
-                bone_data = data.get("bone_data", {})
                 empty_coords_data = data.get("empty_coords_data", [])
-                embedded_empty_data = data.get("embedded_empty_data", [])
+                name_groups = data.get("name_groups", [])
+                print(name_groups)
 
         except Exception as e:
             self.report({'ERROR'}, f"重命名失败 {e}")
@@ -800,25 +795,13 @@ class WithCombinRename(bpy.types.Operator):
         for names, new_name in name_groups:
             filtered_objects = create_parent_dict(names)
             join_objects(filtered_objects, new_name)
-
         bpy.ops.object.select_all(action='SELECT')
         #删除定位框（尺寸最大物体）
         delete_largest_mesh_object()
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         bpy.ops.object.select_all(action='DESELECT')
 
-
-        # bpy.ops.object.select_all(action='SELECT')
-        # bpy.ops.object.editmode_toggle()
-        # bpy.ops.mesh.select_all(action='SELECT')
-        # bpy.ops.mesh.normals_make_consistent(inside=False)
-
-
-
-
         return {'FINISHED'}
-
-
 
 
 class ExportBoneDataOperator(bpy.types.Operator):
@@ -906,6 +889,7 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                 bone_data = data.get("bone_data", {})
                 empty_coords_data = data.get("empty_coords_data", [])
                 embedded_empty_data = data.get("embedded_empty_data", [])
+                name_groups = data.get("name_groups", [])
 
                 # 重命名对象
                 rename_all_children_based_on_coords(empty_coords_data)
@@ -957,6 +941,8 @@ class RestoreSkeletonFromJsonOperator(bpy.types.Operator):
                             vertex_group.add(all_verts_indices, 1.0, 'ADD')
 
                 # 合并对象
+
+
                 for names, new_name in name_groups:
                     filtered_objects = create_parent_dict(names)
                     join_objects(filtered_objects, new_name)
