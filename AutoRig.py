@@ -375,7 +375,7 @@ def join_objects(parent_dict, new_name):
         bpy.context.object.name = new_name
 
 
-        
+
 def rename_all_children_based_on_coords(empty_coords): 
     objects_bvh = {}
 
@@ -481,8 +481,9 @@ def save_data_to_json(bone_data, empty_coords_data, file_path, embedded_empties=
     data = {
         "bone_data": bone_data,
         "empty_coords_data": empty_coords_data,
-        "embedded_empty_data": embedded_empties or []
-    }
+        "embedded_empty_data": embedded_empties or [],
+        "name_groups": [["Head"],"Face",["Spine", "Arm", "Forearm", "Hand", "Finger", "Neck"],"UpperBody",["Thigh", "Calf", "Leg", "Pelvis"],"LowerBody",["Foot", "Toe"],"Feet"]
+        }
     with open(file_path, 'w', encoding='utf-8') as json_file:
         json.dump(data, json_file, indent=4, ensure_ascii=False)
 
