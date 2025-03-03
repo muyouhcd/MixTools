@@ -489,18 +489,14 @@ def save_data_to_json(bone_data, empty_coords_data, file_path, embedded_empties=
 
 def update_json_file_list(context):
     file_dir = get_addon_path()
-    
     files = [f for f in os.listdir(file_dir) if f.endswith('.json')]
-    
     context.scene.json_file_list.clear()
     for f in files:
         item = context.scene.json_file_list.add()
         item.name = f
 
 def get_addon_path():
-    """
-    查找插件目录下的 MiaoTools\RigJson 文件夹路径。
-    """
+
     # 获取当前文件的绝对路径并规范化
     file_path = os.path.normpath(os.path.dirname(__file__))
     

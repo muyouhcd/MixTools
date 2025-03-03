@@ -8,18 +8,12 @@ import subprocess
 from . import bl_info
 
 def get_addon_path():
-    """
-    查找addon文件夹路径。
-    """
     file_path = os.path.normpath(os.path.dirname(__file__))
     while os.path.basename(file_path) != "addons" and os.path.dirname(file_path) != file_path:
         file_path = os.path.dirname(file_path)
     return file_path if os.path.basename(file_path) == "addons" else ''
 
 def download_file(url, save_path):
-    """
-    从指定的 URL 下载文件并保存到本地路径。
-    """
     try:
         response = requests.get(url)
         response.raise_for_status()
@@ -89,9 +83,9 @@ class UpdateAddonOperator(bpy.types.Operator):
                 download_url = latest_release_info['zipball_url']
                 self.download_latest_version(download_url, latest_version)
             else:
-                self.report({'INFO'}, 'No update available.')
+                self.report({'INFO'}, '已经是最新版本.')
         else:
-            self.report({'ERROR'}, 'Could not retrieve release information.')
+            self.report({'ERROR'}, '无法获取版本信息')
 
     def get_latest_release_info(self, user_repo):
         api_url = f"https://api.github.com/repos/{user_repo}/releases/latest"
