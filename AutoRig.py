@@ -381,7 +381,7 @@ def join_objects(parent_dict, new_name):
 
         bpy.context.object.name = new_name
 
-def rename_all_children_based_on_coords(empty_coords):
+def rename_all_children_based_on_coords(empty_coords): 
     objects_bvh = {}
 
     def create_bvh_tree(obj):
@@ -769,6 +769,65 @@ class OneClickOperator(bpy.types.Operator):
 
     #     return {'FINISHED'}
 
+class WithCombinRename(bpy.types.Operator):
+
+    bl_idname = "object.with_combin_rename"
+    bl_label = "combin重命名"
+
+    def execute(self, context):
+        # 全选所有对象
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.miao_apply_and_separate()
+        bpy.ops.object.reset_normals_flat_shading()
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        # 删除层级结构中的顶级父级对象
+        delete_top_level_parent()
+        bpy.ops.object.select_all(action='SELECT')
+        #清除父级关系
+        bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
+        #清除空物体
+        bpy.ops.object.clean_empty()
+        bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
+        #底部中心创建父级
+        bpy.ops.object.miao_create_empty_at_bottom()
+        bpy.ops.object.select_all(action='SELECT')
+        #选取顶级父级清除位移
+        select_top_level_parent()
+        bpy.ops.object.location_clear(clear_delta=False)
+        bpy.ops.object.select_all(action='SELECT')
+        #从json数据绑定
+        bpy.ops.object.restore_skeleton_from_json()
+        bpy.ops.object.select_all(action='SELECT')
+        #删除定位框（尺寸最大物体）
+        delete_largest_mesh_object()
+        #应用所有变换
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        #删除顶级父级
+        delete_top_level_parent()
+        #设置骨架为父级
+        set_armature_as_parent(keep_transform=True)
+        #设置材质
+        bpy.ops.object.miao_merge_material()
+        bpy.ops.object.select_all(action='SELECT')
+        set_material_for_selected_objects("Material")
+        bpy.ops.object.select_all(action='SELECT')
+        select_armature()
+
+
+
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.editmode_toggle()
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.normals_make_consistent(inside=False)
+
+
+
+
+        return {'FINISHED'}
+
+
+
+
 class ExportBoneDataOperator(bpy.types.Operator):
     """操作符，用于导出骨骼数据"""
     bl_idname = "object.export_bone_data"
@@ -1016,6 +1075,8 @@ class CharOperater(bpy.types.Operator):
 
         bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
 
+        bpy.ops.object.miao_apply_and_separate()
+
         bpy.ops.object.clean_empty()
 
 
@@ -1050,6 +1111,7 @@ def register():
 
     bpy.types.Scene.show_bone_operators = bpy.props.BoolProperty(default=False)
     bpy.utils.register_class(ScaleAdjust)
+    bpy.utils.register_class(WithCombinRename)
 
 def unregister():
     bpy.utils.unregister_class(CharOperater)
@@ -1063,6 +1125,7 @@ def unregister():
     bpy.utils.unregister_class(OperatorByPath)
     bpy.utils.unregister_class(OperationPath)
     bpy.utils.unregister_class(ScaleAdjust)
+    bpy.utils.unregister_class(WithCombinRename)
 
     # del bpy.types.Scene.my_tool
     del bpy.types.Scene.json_file_list
