@@ -62,7 +62,6 @@ from . import operators
 from . import panels
 from . import CorrectRotation
 from . import renderconfig
-from . import RemoveUnusedMatSlots
 from . import AutoRender
 from . import AutoRenameCar
 from . import Exporter
@@ -99,7 +98,6 @@ def register():
     RenameTool.register()
     renderconfig.register()
     RenderFrame.register()
-    RemoveUnusedMatSlots.register()
     SelectTool.register()
     Cleaner.register()
     UVformater.register()
@@ -123,7 +121,6 @@ def unregister():
     RenameTool.unregister()
     renderconfig.unregister()
     RenderFrame.unregister()
-    RemoveUnusedMatSlots.unregister()
     SelectTool.unregister()
     Cleaner.unregister()
     UVformater.unregister()

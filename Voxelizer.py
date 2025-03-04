@@ -106,7 +106,6 @@ class VOXELIZER_OT_convert_with_color(Operator):
         obj_dir = context.scene.voxelizer_tool.path
         voxelizer_path = context.scene.voxelizer_tool.voxelizer_path
         results = []
-
         for obj_file in os.listdir(obj_dir):
             if obj_file.endswith(".obj"):          
                 obj_name = os.path.splitext(obj_file)[0]    
@@ -136,7 +135,6 @@ class VOXELIZER_OT_convert_with_color(Operator):
                                  creationflags=subprocess.CREATE_NEW_CONSOLE)
 
             switch_path_command = f'cd {voxelizer_path}\n'.encode('utf-8')
-
             p.stdin.write(switch_path_command)
             p.stdin.flush()
             command = f'{result}\n'.encode('utf-8')
@@ -146,7 +144,6 @@ class VOXELIZER_OT_convert_with_color(Operator):
             p.stdin.flush()
             p.stdin.close()
             p.wait()
-   
         return {'FINISHED'}
         
 
@@ -155,16 +152,13 @@ def register():
             name="实心转换",
             default=False,
             )
-
     bpy.utils.register_class(MySettings)
     bpy.types.Scene.voxelizer_tool = bpy.props.PointerProperty(type=MySettings)
     bpy.utils.register_class(VOXELIZER_OT_convert)
     bpy.utils.register_class(VOXELIZER_OT_convert_with_color)
     
 
-    
 def unregister():
-
     bpy.utils.unregister_class(VOXELIZER_OT_convert)
     bpy.utils.unregister_class(MySettings)
     bpy.utils.unregister_class(VOXELIZER_OT_convert_with_color)
