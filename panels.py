@@ -126,8 +126,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
             texture_operater_box.prop(scene, "ignore_fields_input", text="忽略字段列表", icon='FILE_TEXT')
             texture_operater_box.operator("object.apply_texture_to_selected_objects", text="批量链接贴图(忽略匹配)", icon='NODE_TEXTURE')
-            texture_operater_box.operator("object.apply_texture_by_material_name_recursive", text="批量链接贴图(材质球名称匹配)", icon='NODE_TEXTURE')
-
+            texture_operater_box.operator("object.apply_texture_to_materials", text="批量链接贴图(材质球名称匹配)", icon='NODE_TEXTURE')
             # 材质球排序
             material_manager_box = layout.box()
             material_manager_box.label(text="材质管理:")
@@ -135,6 +134,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             material_manager_box.operator("scene.random_meterial", text="随机材质", icon='OUTLINER_OB_POINTCLOUD')
             material_manager_box.operator("object.miao_merge_material", text="清理材质", icon='BRUSH_DATA')
             material_manager_box.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='BRUSH_DATA')
+            material_manager_box.operator("object.material_cleaner", text="重复材质（.00x后缀）合并", icon='BRUSH_DATA')
 
 # 命名操作
         col_renameoperation = layout.column()

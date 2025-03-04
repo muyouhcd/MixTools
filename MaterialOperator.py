@@ -360,6 +360,46 @@ class AlphaToSkin(bpy.types.Operator):
         return {'FINISHED'}
 
 
+def clean_materials():
+    # 收集所有材质
+    materials = bpy.data.materials
+
+    # 创建一个字典用于存储不带后缀的材质
+    base_materials = {}
+
+    # 遍历所有材质
+    for mat in materials:
+        # 检查材质名是否带有后缀
+        if '.' in mat.name[-4:]:
+            base_name = mat.name.rsplit('.', 1)[0]
+            
+            # 如果没有这个基础材质，则添加到字典中
+            if base_name not in base_materials:
+                # 确保基础材质存在
+                if base_name in materials:
+                    base_materials[base_name] = materials[base_name]
+            # 如果基础材质存在，则替换物体上的材质
+            if base_name in base_materials:
+                for obj in bpy.data.objects:
+                    if obj.type == 'MESH':
+                        for slot in obj.material_slots:
+                            if slot.material == mat:
+                                slot.material = base_materials[base_name]
+
+    # 删除带有后缀的材质
+    for mat in materials:
+        if '.' in mat.name[-4:]:
+            base_name = mat.name.rsplit('.', 1)[0]
+            if base_name in base_materials:
+                bpy.data.materials.remove(mat)
+
+class MaterialCleaner(bpy.types.Operator):
+    bl_idname = "object.material_cleaner"
+    bl_label = "Material Cleaner"
+
+    def execute(self, context):
+        clean_materials()
+        return {'FINISHED'}
 
 
 
@@ -373,6 +413,7 @@ def register():
     bpy.utils.register_class(AlphaToSkin)
     bpy.utils.register_class(AlphaNodeDisconnector)
     bpy.utils.register_class(SetMaterialRoughness)
+    bpy.utils.register_class(MaterialCleaner)
 
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
@@ -384,3 +425,4 @@ def unregister():
     bpy.utils.unregister_class(AlphaToSkin)
     bpy.utils.unregister_class(AlphaNodeDisconnector)
     bpy.utils.unregister_class(SetMaterialRoughness)
+    bpy.utils.unregister_class(MaterialCleaner)
