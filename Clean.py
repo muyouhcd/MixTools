@@ -6,7 +6,6 @@ import math
 class UVCleaner(bpy.types.Operator):
     bl_idname = "object.uv_cleaner"
     bl_label = "UV清理"
-
     
     def apply_transforms_recursive(self, obj):
         obj.select_set(True)
@@ -19,10 +18,10 @@ class UVCleaner(bpy.types.Operator):
                 self.apply_transforms_recursive(child)
 
     def execute(self, context):
-        print("开始处理顶点")
-        bpy.ops.object.vox_operation()
-        print("开始处理碰撞")
-        bpy.ops.object.miao_parent_byboundingbox()
+        # print("开始处理顶点")
+        # bpy.ops.object.vox_operation()
+        # print("开始处理碰撞")
+        # bpy.ops.object.miao_parent_byboundingbox()
         def validate_and_fix_uvs():
             for mesh in bpy.data.meshes:
                 for uv_layer in mesh.uv_layers:
