@@ -74,7 +74,6 @@ from . import AutoBake
 from . import AutoBakeRemesh
 from . import Combin
 from . import RenameTool
-from . import RemoveObj
 from . import SelectTool
 from . import ExoprtObj
 from . import MaterialOperator
@@ -102,7 +101,6 @@ def register():
     operators.register()
     panels.register()
     RenameTool.register()
-    RemoveObj.register()
     renderconfig.register()
     RenderFrame.register()
     RemoveUnusedMatSlots.register()
@@ -129,7 +127,6 @@ def unregister():
     operators.unregister()
     panels.unregister()
     RenameTool.unregister()
-    RemoveObj.unregister()
     renderconfig.unregister()
     RenderFrame.unregister()
     RemoveUnusedMatSlots.unregister()
