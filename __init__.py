@@ -65,7 +65,7 @@ from . import renderconfig
 from . import RemoveUnusedMatSlots
 from . import AutoRender
 from . import AutoRenameCar
-from . import ExportFbx
+from . import Exporter
 from . import Voxelizer
 from . import AutoRig
 from . import AutolinkTexture
@@ -75,7 +75,6 @@ from . import AutoBakeRemesh
 from . import Combin
 from . import RenameTool
 from . import SelectTool
-from . import ExoprtObj
 from . import MaterialOperator
 from . import UVformater
 from . import RenderFrame
@@ -92,8 +91,7 @@ def register():
     AutolinkTexture.register()
     Combin.register()
     CorrectRotation.register()
-    ExoprtObj.register()
-    ExportFbx.register()
+    Exporter.register()
     MaterialOperator.register()
     MoveOrigin.register()
     operators.register()
@@ -117,8 +115,7 @@ def unregister():
     AutolinkTexture.unregister()
     Combin.unregister()
     CorrectRotation.unregister()
-    ExoprtObj.unregister()
-    ExportFbx.unregister()
+    Exporter.unregister()
     MaterialOperator.unregister()
     MoveOrigin.unregister()
     operators.unregister()
