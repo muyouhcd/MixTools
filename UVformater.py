@@ -123,8 +123,6 @@ def align_quad_uv_to_corners(obj):
 
     bmesh.update_edit_mesh(mesh)
     bpy.ops.object.mode_set(mode='OBJECT')
-
-
 class UVformater(bpy.types.Operator):
     bl_idname = "object.uv_formater"
     bl_label = "uv统一规格尺寸"
@@ -175,8 +173,6 @@ class QuadUVAligner(bpy.types.Operator):
             else:
                 self.report({'WARNING'}, f"{obj.name} 不是一个网格对象，跳过。")
         return {'FINISHED'}
-    
-
 def correct_uv_rotation(obj):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT')
@@ -252,7 +248,6 @@ def correct_uv_rotation(obj):
 
     bmesh.update_edit_mesh(mesh)
     bpy.ops.object.mode_set(mode='OBJECT')
-
 
 class CorrectUVRotationOperator(bpy.types.Operator):
     bl_idname = "object.correct_uv_rotation"
