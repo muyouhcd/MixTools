@@ -48,7 +48,6 @@ def apply_texture_to_material(mat, image_path):
 
     except Exception as e:
         print(f"无法加载纹理 '{image_path}': {e}")
-
 def apply_texture(obj, image_path):
     """应用纹理到对象的每个材质"""
     try:
@@ -147,7 +146,8 @@ class ApplyTextureToMaterialsOperator(bpy.types.Operator):
         # 收集所有独立的材质
         materials = set()
         for obj in selected_objects:
-            if obj.type == 'MESH':
+            # 仅处理网格对象，并且有材质的对象
+            if obj.type == 'MESH' and obj.data.materials:
                 for mat_slot in obj.material_slots:
                     if mat_slot.material:
                         materials.add(mat_slot.material)
@@ -162,7 +162,6 @@ class ApplyTextureToMaterialsOperator(bpy.types.Operator):
                 print(f"未找到材质 '{mat.name}' 的匹配纹理")
 
         return {'FINISHED'}
-
 
 def register():
     bpy.utils.register_class(ApplyTextureOperator)
