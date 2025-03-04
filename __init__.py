@@ -78,10 +78,11 @@ from . import RemoveObj
 from . import SelectTool
 from . import ExoprtObj
 from . import MaterialOperator
-from . import UVCleaner
 from . import UVformater
 from . import RenderFrame
 from . import BoneProcess
+from. import Clean
+
 
 
 def register():
@@ -106,7 +107,7 @@ def register():
     RenderFrame.register()
     RemoveUnusedMatSlots.register()
     SelectTool.register()
-    UVCleaner.register()
+    Clean.register()
     UVformater.register()
     update.register()
     Voxelizer.register()
@@ -133,7 +134,7 @@ def unregister():
     RenderFrame.unregister()
     RemoveUnusedMatSlots.unregister()
     SelectTool.unregister()
-    UVCleaner.unregister()
+    Clean.unregister()
     UVformater.unregister()
     update.unregister()
     Voxelizer.unregister()

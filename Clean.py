@@ -1,4 +1,5 @@
 import bpy
+import os
 import math
 
 
@@ -39,8 +40,35 @@ class UVCleaner(bpy.types.Operator):
 # Call the function to validate and fix UVs
 
 
+def remove_broken_images():
+    """删除所有丢失的（无法找到源路径）的图片"""
+    removed_count = 0
+    for img in list(bpy.data.images):  # 遍历所有图片
+        if img.filepath and not img.packed_file:
+            abs_path = bpy.path.abspath(img.filepath)
+            if not os.path.exists(abs_path):  # 检查文件是否存在
+                bpy.data.images.remove(img)  # 删除丢失的图片
+                removed_count += 1
+    return removed_count
+
+class IMAGE_OT_RemoveBrokenImages(bpy.types.Operator):
+    """操作类：用于清除引用但丢失的图片"""
+    
+    bl_idname = "image.remove_broken"
+    bl_label = "清除丢失的图片"
+    
+    def execute(self, context):
+        count = remove_broken_images()
+        self.report({'INFO'}, f"已移除 {count} 张丢失的图片")
+        return {'FINISHED'}
+
 def register():
+    bpy.utils.register_class(IMAGE_OT_RemoveBrokenImages)
     bpy.utils.register_class(UVCleaner)
 
 def unregister():
+    bpy.utils.unregister_class(IMAGE_OT_RemoveBrokenImages)
     bpy.utils.unregister_class(UVCleaner)
+
+if __name__ == "__main__":
+     register()

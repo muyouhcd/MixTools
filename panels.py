@@ -60,6 +60,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             clean_box = layout.box()
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='BRUSH_DATA')
             clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='BRUSH_DATA')
+            clean_box.operator("image.remove_broken", text="清理丢失图像", icon='BRUSH_DATA')
 
             layout.label(text="合并:")
             convert_box = layout.box()
