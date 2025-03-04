@@ -66,7 +66,6 @@ def merge_objects_bmesh(objects):
     for obj in objects:
         bpy.data.objects.remove(obj, do_unlink=True)
 
-
 class CombinSameOriginObject(bpy.types.Operator):
     """合并同原点物体"""
     bl_idname = "object.combin_same_origin_object"

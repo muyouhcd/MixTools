@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,47),
+    "version": (4,8,48),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "如遇到插件无法打开请手动切换至blender的python目录运行以下指令进行安装：python.exe -m pip install pillow",
@@ -79,7 +79,6 @@ from . import ExoprtObj
 from . import MaterialOperator
 from . import UVformater
 from . import RenderFrame
-from . import BoneProcess
 from. import Clean
 
 
@@ -91,7 +90,6 @@ def register():
     AutoRender.register()
     AutoRig.register()
     AutolinkTexture.register()
-    BoneProcess.register()
     Combin.register()
     CorrectRotation.register()
     ExoprtObj.register()
@@ -117,7 +115,6 @@ def unregister():
     AutoRender.unregister()
     AutoRig.unregister()
     AutolinkTexture.unregister()
-    BoneProcess.unregister()
     Combin.unregister()
     CorrectRotation.unregister()
     ExoprtObj.unregister()
