@@ -78,7 +78,7 @@ from . import SelectTool
 from . import MaterialOperator
 from . import UVformater
 from . import RenderFrame
-from. import Clean
+from. import Cleaner
 
 
 
@@ -101,7 +101,7 @@ def register():
     RenderFrame.register()
     RemoveUnusedMatSlots.register()
     SelectTool.register()
-    Clean.register()
+    Cleaner.register()
     UVformater.register()
     update.register()
     Voxelizer.register()
@@ -125,7 +125,7 @@ def unregister():
     RenderFrame.unregister()
     RemoveUnusedMatSlots.unregister()
     SelectTool.unregister()
-    Clean.unregister()
+    Cleaner.unregister()
     UVformater.unregister()
     update.unregister()
     Voxelizer.unregister()
