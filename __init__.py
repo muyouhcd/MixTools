@@ -63,7 +63,6 @@ from . import panels
 from . import CorrectRotation
 from . import renderconfig
 from . import AutoRender
-from . import AutoRenameCar
 from . import Exporter
 from . import Voxelizer
 from . import AutoRig
@@ -84,7 +83,7 @@ from. import Cleaner
 def register():
     AutoBake.register()
     AutoBakeRemesh.register()
-    AutoRenameCar.register()
+
     AutoRender.register()
     AutoRig.register()
     AutolinkTexture.register()
@@ -107,7 +106,7 @@ def register():
 def unregister():
     AutoBake.unregister()
     AutoBakeRemesh.unregister()
-    AutoRenameCar.unregister()
+
     AutoRender.unregister()
     AutoRig.unregister()
     AutolinkTexture.unregister()
