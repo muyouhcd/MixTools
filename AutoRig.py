@@ -4,7 +4,7 @@ from mathutils import Vector
 import os
 from collections import defaultdict
 from mathutils.bvhtree import BVHTree
-import bmesh
+import bmesh # type: ignore
 import random
 
 def apply_change_to_scene():

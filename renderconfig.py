@@ -8,7 +8,7 @@ class ChangeResolutionProperties(bpy.types.PropertyGroup):
         description="Directory containing input .blend files",
         default="",
         maxlen=1024,
-        subtype="DIR_PATH",
+        subtype="DIR_PATH",# type: ignore
     )
 
     output_dir: bpy.props.StringProperty(
@@ -16,21 +16,21 @@ class ChangeResolutionProperties(bpy.types.PropertyGroup):
         description="Directory to save output .blend files",
         default="",
         maxlen=1024,
-        subtype="DIR_PATH",
+        subtype="DIR_PATH",# type: ignore
     )
 
     output_resolution_x: bpy.props.IntProperty(
         name="Resolution X",
         description="Output resolution width",
         default=1920,
-        min=1,
+        min=1,# type: ignore
     )
 
     output_resolution_y: bpy.props.IntProperty(
         name="Resolution Y",
         description="Output resolution height",
         default=1080,
-        min=1,
+        min=1,# type: ignore
     )
 
     resolution_percentage: bpy.props.IntProperty(
@@ -38,7 +38,7 @@ class ChangeResolutionProperties(bpy.types.PropertyGroup):
         description="Percentage of output resolution",
         default=100,
         min=1,
-        max=100,
+        max=100,# type: ignore
     )
 
     output_frame_rate: bpy.props.IntProperty(
@@ -46,7 +46,7 @@ class ChangeResolutionProperties(bpy.types.PropertyGroup):
         description="Output frame rate",
         default=24,
         min=1,
-        max=100,
+        max=100,# type: ignore
     )
 
     render_engine: bpy.props.EnumProperty(
@@ -57,7 +57,7 @@ class ChangeResolutionProperties(bpy.types.PropertyGroup):
             ('BLENDER_WORKBENCH', "Workbench", "Workbench Render Engine"),
             ('CYCLES', "Cycles", "Cycles Render Engine"),
         ],
-        default='CYCLES',
+        default='CYCLES',# type: ignore
     )
     
     output_format: bpy.props.EnumProperty(
@@ -67,7 +67,7 @@ class ChangeResolutionProperties(bpy.types.PropertyGroup):
             ('AVI_JPEG', "AVI JPEG", "Output video in AVI JPEG format"),
             ('PNG', "PNG", "Output image in PNG format")
         ],
-        default='AVI_JPEG',
+        default='AVI_JPEG',# type: ignore
     )
     
     output_file: bpy.props.StringProperty(
@@ -75,7 +75,7 @@ class ChangeResolutionProperties(bpy.types.PropertyGroup):
         description="File path to save the output",
         default="",
         maxlen=1024,
-        subtype='FILE_PATH',
+        subtype='FILE_PATH',# type: ignore
     )
 
 
@@ -83,16 +83,16 @@ class BATCH_RESOLUTION_OT_ExecuteButton(bpy.types.Operator):
     bl_idname = "batch_resolution.execute_button"
     bl_label = "执行"
 
-    render_engine: bpy.props.StringProperty()
-    output_format: bpy.props.StringProperty()
-    input_dir: bpy.props.StringProperty()
-    output_dir: bpy.props.StringProperty()
-    output_resolution_x: bpy.props.StringProperty()
-    output_resolution_y: bpy.props.StringProperty()
-    resolution_percentage: bpy.props.StringProperty()
-    output_frame_rate: bpy.props.StringProperty()
-    output_file: bpy.props.StringProperty()
-    change_resolution_prop: bpy.props.PointerProperty(type=ChangeResolutionProperties)
+    render_engine: bpy.props.StringProperty()# type: ignore
+    output_format: bpy.props.StringProperty()# type: ignore
+    input_dir: bpy.props.StringProperty()# type: ignore
+    output_dir: bpy.props.StringProperty()# type: ignore
+    output_resolution_x: bpy.props.StringProperty()# type: ignore
+    output_resolution_y: bpy.props.StringProperty()# type: ignore
+    resolution_percentage: bpy.props.StringProperty()# type: ignore
+    output_frame_rate: bpy.props.StringProperty()# type: ignore
+    output_file: bpy.props.StringProperty()# type: ignore
+    change_resolution_prop: bpy.props.PointerProperty(type=ChangeResolutionProperties)# type: ignore
 
     def change_resolution(self, input_path, output_path):
         bpy.ops.wm.open_mainfile(filepath=input_path)

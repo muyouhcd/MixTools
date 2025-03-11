@@ -1,11 +1,9 @@
 import os
 import bpy
 import subprocess
-from bpy.props import StringProperty
-from bpy.types import Operator, Panel, PropertyGroup
-from bpy.props import BoolProperty
-
-
+from bpy.props import StringProperty # type: ignore
+from bpy.types import Operator, Panel, PropertyGroup # type: ignore
+from bpy.props import BoolProperty # type: ignore
 
 major, minor = bpy.app.version[:2]
 version2 = f"{major}.{minor}"
@@ -19,14 +17,15 @@ class MySettings(PropertyGroup):
             description="Path to Directory",
             default="",
             maxlen=1024,
-            subtype='DIR_PATH')
+            subtype='DIR_PATH')# type: ignore
+
 
     voxelizer_path : StringProperty(
             name="cuda_voxelizer文件路径",
             description="Path to Cuda Voxelizer",
             default=f"C:\\Users\\admin\\AppData\\Roaming\\Blender Foundation\\Blender\\{version2}\\scripts\\addons\\miaotools\\",
             maxlen=1024,
-            subtype='DIR_PATH')
+            subtype='DIR_PATH')# type: ignore
 
 class VOXELIZER_OT_convert(Operator):
     bl_idname = "object.convert_voxelizer"

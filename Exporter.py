@@ -90,7 +90,10 @@ def apply_transform_to_descendants(obj):
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
-
+    for child in obj.children:
+        apply_transform_to_descendants(child)
+        print("apply succesful")
+        
 class ExportFbxByParent(bpy.types.Operator):
     bl_idname = "scene.export_fbx_by_parent"
     bl_label = "按照顶级父物体导出FBX"
@@ -139,7 +142,7 @@ class ExportFbxByParentMax(bpy.types.Operator):
         for child in obj.children:
             child.select_set(True)
             self.select_children(child)
-            print("selected: " + child.name)
+            # print("selected: " + child.name)
 
 
     def execute(self, context):

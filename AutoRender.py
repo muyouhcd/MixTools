@@ -1,8 +1,10 @@
 import bpy
 import mathutils
 from bpy import context as C
-from bpy.props import BoolProperty, EnumProperty, CollectionProperty
-from bpy_extras.io_utils import ImportHelper
+
+from bpy.props import BoolProperty, EnumProperty, CollectionProperty# type: ignore
+from bpy_extras.io_utils import ImportHelper # type: ignore
+
 import os
 from PIL import Image, ImageOps
 
