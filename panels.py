@@ -19,20 +19,28 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if scene.tools_expand:
             # Edit Tools
-            layout.label(text="编辑:")
+            layout.label(text="编辑工具:")
             edit_box = layout.box()
             edit_box.operator("object.miao_remove_vertex_group", text="移除顶点组", icon='GROUP_VERTEX')
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
-            edit_box.operator("object.miao_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
-            edit_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='OBJECT_DATA')
             edit_box.operator("object.miao_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
             # Animation Tools
-            layout.label(text="动画:")
+            layout.label(text="清理工具:")
+            clean_box = layout.box()
+            clean_box.operator("object.miao_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
+            clean_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
+            clean_box.operator("object.clear_animation_data", text="批量清空动画", icon='ANIM_DATA')
+            clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='BRUSH_DATA')
+            clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='BRUSH_DATA')
+            clean_box.operator("image.remove_broken", text="清理丢失图像", icon='BRUSH_DATA')
+            
+
+            layout.label(text="动画工具:")
             anim_box = layout.box()
-            anim_box.operator("object.clear_animation_data", text="批量清空动画", icon='ANIM_DATA')
+            
             # Generation Tools
-            layout.label(text="生成:")
+            layout.label(text="生成工具:")
             gen_box = layout.box()
             gen_box.operator("object.miao_boundbox_gen", text="生成包围盒", icon='MESH_CUBE')
             gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='META_ELLIPSOID')
@@ -40,7 +48,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             gen_box.operator("object.object_instance", text="转换实例化", icon='OUTLINER_OB_GROUP_INSTANCE')
 
             # Alignment Tools
-            layout.label(text="对齐:")
+            layout.label(text="对齐工具:")
             align_box = layout.box()
             align_box.prop(context.scene, "axis_direction_enum", text="Axis Direction")
             op = align_box.operator("object.move_origin", text="Move Origin")
@@ -48,7 +56,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             align_box.operator("object.reset_z_axis", text="z轴归零")
 
             # Selection Tools
-            layout.label(text="选择:")
+            layout.label(text="选择工具:")
             select_box = layout.box()
             select_box.operator("object.match_uv", text="选取同UV物体", icon='GROUP_UVS')
             select_box.operator("object.select_large_objects", text="选择过大物体", icon='FULLSCREEN_ENTER')
@@ -56,11 +64,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='FILE_BLANK')
 
             #清理工具
-            layout.label(text="清理:")
-            clean_box = layout.box()
-            clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='BRUSH_DATA')
-            clean_box.operator("object.uv_cleaner", text="清理uv非法数据", icon='BRUSH_DATA')
-            clean_box.operator("image.remove_broken", text="清理丢失图像", icon='BRUSH_DATA')
+            
 
             layout.label(text="合并:")
             convert_box = layout.box()
