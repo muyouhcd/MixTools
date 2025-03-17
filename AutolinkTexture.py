@@ -22,6 +22,10 @@ def apply_texture_to_material(mat, image_path):
         image_path = os.path.abspath(image_path)  # Ensure the path is absolute
         image = bpy.data.images.load(image_path)
 
+        # Set alpha mode for TGA images
+        if image_path.lower().endswith('.tga'):
+            image.alpha_mode = 'CHANNEL_PACKED'  # Set alpha mode to Channel Packed
+
         mat.use_nodes = True
         nodes = mat.node_tree.nodes
         links = mat.node_tree.links
@@ -57,6 +61,10 @@ def apply_texture(obj, image_path):
         image_path = os.path.abspath(image_path)  # Ensure the path is absolute
         image = bpy.data.images.load(image_path)
 
+        # Set alpha mode for TGA images
+        if image_path.lower().endswith('.tga'):
+            image.alpha_mode = 'CHANNEL_PACKED'  # Set alpha mode to Channel Packed
+
         for mat_slot in obj.material_slots:
             mat = mat_slot.material
             if not mat:
@@ -90,7 +98,6 @@ def apply_texture(obj, image_path):
 
     except Exception as e:
         print(f"无法加载纹理 '{image_path}': {e}")
-
 class ApplyTextureOperator(bpy.types.Operator):
     """根据完整名称匹配并应用纹理"""
     bl_idname = "object.apply_texture_operator"
