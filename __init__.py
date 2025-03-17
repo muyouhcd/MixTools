@@ -24,6 +24,7 @@ def get_addon_path():
 
 def install_and_import(module_name, package_name=None, local_package_dir=None):
     package_name = package_name or module_name
+
     try:
         __import__(module_name)
         print(f"模块 '{module_name}' 已经安装。")
@@ -42,6 +43,7 @@ def install_and_import(module_name, package_name=None, local_package_dir=None):
                 cmd = f'{sys.executable} -m pip install {package_name}'
         else:
             cmd = f'{sys.executable} -m pip install {package_name}'
+
         try:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             print(result.stdout)
@@ -62,7 +64,7 @@ def install_and_import(module_name, package_name=None, local_package_dir=None):
 def check_and_install_modules():
     local_addon_path = get_addon_path()
     if local_addon_path:
-        local_package_dir = os.path.join(local_addon_path, "package")
+        local_package_dir = os.path.join(local_addon_path, "MiaoTools", "package")
     else:
         local_package_dir = None
 
@@ -70,7 +72,7 @@ def check_and_install_modules():
     for module_name, package_name in required_modules.items():
         install_and_import(module_name, package_name, local_package_dir)
 
-# 使用插件的安装目录中的 package 文件夹进行检测和安装
+# 使用插件的安装目录中的 miaotools/package 文件夹进行检测和安装
 check_and_install_modules()
 #------------------------------------------------------------------------------------------
 
