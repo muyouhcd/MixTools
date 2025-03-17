@@ -6,11 +6,12 @@ def load_textures_to_dict(texture_dir):
     texture_mapping = {}
     supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tif', '.tiff', '.exr', '.hdr')
 
+    texture_dir = os.path.abspath(texture_dir)  # Ensure the directory is an absolute path
     for dirpath, _, filenames in os.walk(texture_dir):
         for filename in filenames:
             if filename.lower().endswith(supported_formats):
                 material_name = os.path.splitext(filename)[0].lower().strip()
-                texture_path = os.path.join(dirpath, filename)
+                texture_path = os.path.abspath(os.path.join(dirpath, filename))  # Ensure the path is absolute
                 texture_mapping[material_name] = texture_path
 
     return texture_mapping
@@ -18,6 +19,7 @@ def load_textures_to_dict(texture_dir):
 def apply_texture_to_material(mat, image_path):
     """应用纹理到材质"""
     try:
+        image_path = os.path.abspath(image_path)  # Ensure the path is absolute
         image = bpy.data.images.load(image_path)
 
         mat.use_nodes = True
@@ -48,9 +50,11 @@ def apply_texture_to_material(mat, image_path):
 
     except Exception as e:
         print(f"无法加载纹理 '{image_path}': {e}")
+
 def apply_texture(obj, image_path):
     """应用纹理到对象的每个材质"""
     try:
+        image_path = os.path.abspath(image_path)  # Ensure the path is absolute
         image = bpy.data.images.load(image_path)
 
         for mat_slot in obj.material_slots:
@@ -94,8 +98,8 @@ class ApplyTextureOperator(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        texture_dir = bpy.context.scene.texture_dir
-        texture_mapping = load_textures_to_dict(os.path.abspath(texture_dir))
+        texture_dir = os.path.abspath(bpy.context.scene.texture_dir)  # Ensure the directory is absolute
+        texture_mapping = load_textures_to_dict(texture_dir)
         selected_objects = bpy.context.selected_objects
 
         for obj in selected_objects:
@@ -105,7 +109,7 @@ class ApplyTextureOperator(bpy.types.Operator):
                 print(f"已为 {obj.name} 应用纹理: {texture_mapping[obj_name]}")
             else:
                 print(f"未找到 {obj.name} 的纹理")
-        
+
         return {'FINISHED'}
 
 class ApplyTextureToSelectedObjects(bpy.types.Operator):
