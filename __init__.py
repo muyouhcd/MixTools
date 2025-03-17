@@ -12,7 +12,7 @@ bl_info = {
 import sys
 import os
 import subprocess
-
+import glob
 
 #------------------------------------------------------------------------------------------
 #自动检测缺失库进行补充安装
@@ -24,7 +24,6 @@ def get_addon_path():
 
 def install_and_import(module_name, package_name=None, local_package_dir=None):
     package_name = package_name or module_name
-
     try:
         __import__(module_name)
         print(f"模块 '{module_name}' 已经安装。")
@@ -43,7 +42,6 @@ def install_and_import(module_name, package_name=None, local_package_dir=None):
                 cmd = f'{sys.executable} -m pip install {package_name}'
         else:
             cmd = f'{sys.executable} -m pip install {package_name}'
-
         try:
             result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             print(result.stdout)
