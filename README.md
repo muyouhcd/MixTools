@@ -3,7 +3,6 @@
 MiaoTools 是一个 Blender 插件，集合了多种便捷操作工具，以提升 Blender 的操作效率。
 
 ## 工具集
-![image](https://github.com/user-attachments/assets/d788bd3b-4d44-41b4-bf25-90861a112efb)
 
 ### 编辑工具
 
