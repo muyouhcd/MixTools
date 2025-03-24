@@ -22,58 +22,39 @@ def get_addon_path():
         file_path = os.path.dirname(file_path)
     return file_path if os.path.basename(file_path) == "addons" else ''
 
-def install_and_import(module_name, package_name=None, local_package_dir=None):
-    package_name = package_name or module_name
+def install_local_whl_files(local_package_dir):
+    if not os.path.isdir(local_package_dir):
+        print(f"目录 '{local_package_dir}' 不存在。")
+        return
 
-    try:
-        __import__(module_name)
-        print(f"模块 '{module_name}' 已经安装。")
-    except ImportError:
-        print(f"模块 '{module_name}' 未安装。")
+    whl_files = glob.glob(os.path.join(local_package_dir, "*.whl"))
+    if not whl_files:
+        print(f"在目录 '{local_package_dir}' 中未找到任何 .whl 文件。")
+        return
 
-        # 检查本地目录中的 whl 文件
-        if local_package_dir:
-            whl_files = glob.glob(os.path.join(local_package_dir, f"{package_name}*.whl"))
-            if whl_files:
-                print(f"在本地目录中找到 '{package_name}' 的 whl 文件，正在安装...")
-                package_path = whl_files[0]  # 假设只有一个匹配文件
-                cmd = f'{sys.executable} -m pip install "{package_path}"'
-            else:
-                print(f"在本地目录中未找到 '{package_name}' 的 whl 文件，正在通过网络安装...")
-                cmd = f'{sys.executable} -m pip install {package_name}'
-        else:
-            cmd = f'{sys.executable} -m pip install {package_name}'
-
+    for whl_file in whl_files:
+        print(f"正在安装 '{whl_file}'...")
+        cmd = [sys.executable, "-m", "pip", "install", whl_file]
         try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            result = subprocess.run(cmd, capture_output=True, text=True)
             print(result.stdout)
-            print(result.stderr)
-
             if result.returncode != 0:
-                raise Exception(f"命令执行失败：{result.stderr}")
-
-            print(f"模块 '{package_name}' 安装成功。")
+                print(f"安装 '{whl_file}' 失败：{result.stderr}")
+            else:
+                print(f"安装 '{whl_file}' 成功。")
         except Exception as e:
-            print(f"模块 '{package_name}' 安装失败：{e}")
-            raise
-    finally:
-        globals()[module_name] = __import__(module_name)
-        print(f"模块 '{module_name}' 已经导入。")
+            print(f"安装 '{whl_file}' 时出现异常：{e}")
 
-# 检查并安装模块
-def check_and_install_modules():
+def check_and_install_local_packages():
     local_addon_path = get_addon_path()
+    print(f"-------------------------------",local_addon_path,"-------------------------------")
     if local_addon_path:
         local_package_dir = os.path.join(local_addon_path, "MiaoTools", "package")
-    else:
-        local_package_dir = None
+        install_local_whl_files(local_package_dir)
 
-    required_modules = {'PIL': 'Pillow'}
-    for module_name, package_name in required_modules.items():
-        install_and_import(module_name, package_name, local_package_dir)
 
-# 使用插件的安装目录中的 miaotools/package 文件夹进行检测和安装
-check_and_install_modules()
+check_and_install_local_packages()
+
 #------------------------------------------------------------------------------------------
 
 from . import update
@@ -97,9 +78,8 @@ from . import UVformater
 from . import RenderFrame
 from. import Cleaner
 
-
-
 def register():
+    
     AutoBake.register()
     AutoBakeRemesh.register()
     AutoRender.register()
