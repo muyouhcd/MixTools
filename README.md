@@ -2,7 +2,8 @@
 
 MiaoTools 是一个 Blender 插件，集合了多种便捷操作工具，以提升 Blender 的操作效率。
 
-## 工具集
+## 工具盒
+![image](https://github.com/user-attachments/assets/d788bd3b-4d44-41b4-bf25-90861a112efb)
 
 ### 编辑工具
 
@@ -77,6 +78,7 @@ MiaoTools 是一个 Blender 插件，集合了多种便捷操作工具，以提�
 - 对指定路径下的 Blender 文件进行批量调整，详见面板。
 
 ## 自动绑定工具（角色工具）
+![image](https://github.com/user-attachments/assets/2417383b-a1a7-4df3-90cc-2375f790a7a8)
 - **骨骼操作**:
 导出骨骼（对当前主选骨骼以及副选空物体作为模板进行导出配置）
 还原骨骼（还原所选配置中的骨骼以及空物体）
@@ -100,4 +102,6 @@ MiaoTools 是一个 Blender 插件，集合了多种便捷操作工具，以提�
 
 - **在线更新**:在插件已激活的情况下在偏好设置中可以看到更新插件的按钮选项，点击后则会自动拉取最新版本对当前版本进行覆盖。**注意：角色配置的json文件也会被覆盖，请注意保存！** 
 - **依赖包**: 该工具依赖于Pillow包进行图像处理部分的功能（自动渲染之后最图像的处理，边距等）工具包的依赖包默认自动安装本地路径下的安装包，安装包位于插件根目录的package下，如果需要在除windows外的平台使用需要自行下载对应的.tar.gz文件或者.whl文件放入该文件夹，在进行勾选激活插件时会自动将该文件夹下所有依赖包全部安装，手动安装则可以使用blender内置python进行在线安装，比如cd到blender安装目录中的python文件夹运行：python -m pip install pillow
+
+
 
