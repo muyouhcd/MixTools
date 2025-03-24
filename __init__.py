@@ -9,6 +9,7 @@ bl_info = {
     "wiki_url": "",
     "category": "Object",
 }
+
 import sys
 import os
 import subprocess
@@ -16,45 +17,43 @@ import glob
 
 #------------------------------------------------------------------------------------------
 #自动检测缺失库进行补充安装
+
 def get_addon_path():
     file_path = os.path.normpath(os.path.dirname(__file__))
     while os.path.basename(file_path) != "addons" and os.path.dirname(file_path) != file_path:
         file_path = os.path.dirname(file_path)
     return file_path if os.path.basename(file_path) == "addons" else ''
 
-def install_local_whl_files(local_package_dir):
+def install_local_packages(local_package_dir):
     if not os.path.isdir(local_package_dir):
         print(f"目录 '{local_package_dir}' 不存在。")
         return
 
-    whl_files = glob.glob(os.path.join(local_package_dir, "*.whl"))
-    if not whl_files:
-        print(f"在目录 '{local_package_dir}' 中未找到任何 .whl 文件。")
+    package_files = glob.glob(os.path.join(local_package_dir, "*.whl")) + glob.glob(os.path.join(local_package_dir, "*.tar.gz"))
+    if not package_files:
+        print(f"在目录 '{local_package_dir}' 中未找到任何可安装的文件。")
         return
 
-    for whl_file in whl_files:
-        print(f"正在安装 '{whl_file}'...")
-        cmd = [sys.executable, "-m", "pip", "install", whl_file]
+    for package_file in package_files:
+        print(f"正在安装 '{package_file}'...")
+        cmd = [sys.executable, "-m", "pip", "install", package_file]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True)
             print(result.stdout)
             if result.returncode != 0:
-                print(f"安装 '{whl_file}' 失败：{result.stderr}")
+                print(f"安装 '{package_file}' 失败：{result.stderr}")
             else:
-                print(f"安装 '{whl_file}' 成功。")
+                print(f"安装 '{package_file}' 成功。")
         except Exception as e:
-            print(f"安装 '{whl_file}' 时出现异常：{e}")
+            print(f"安装 '{package_file}' 时出现异常：{e}")
 
 def check_and_install_local_packages():
     local_addon_path = get_addon_path()
-    print(f"-------------------------------",local_addon_path,"-------------------------------")
     if local_addon_path:
         local_package_dir = os.path.join(local_addon_path, "MiaoTools", "package")
-        install_local_whl_files(local_package_dir)
-
+        install_local_packages(local_package_dir)
 
 check_and_install_local_packages()
-
 #------------------------------------------------------------------------------------------
 
 from . import update
