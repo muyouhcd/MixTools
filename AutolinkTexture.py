@@ -1,7 +1,7 @@
 import bpy
 import os
 
-def load_textures_to_dict(texture_dir):
+def load_textures_to_dict(texture_dir, ignore_fields=None):
     """加载目录中的所有纹理到字典，支持任意图片格式"""
     texture_mapping = {}
     supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tif', '.tiff', '.exr', '.hdr')
@@ -10,7 +10,15 @@ def load_textures_to_dict(texture_dir):
     for dirpath, _, filenames in os.walk(texture_dir):
         for filename in filenames:
             if filename.lower().endswith(supported_formats):
-                material_name = os.path.splitext(filename)[0].lower().strip()
+                original_name = os.path.splitext(filename)[0].lower().strip()
+                material_name = original_name
+                
+                # 如果提供了忽略字段，则从纹理名称中移除
+                if ignore_fields:
+                    for field in ignore_fields:
+                        if field.strip():
+                            material_name = material_name.replace(field.lower().strip(), "")
+                
                 texture_path = os.path.abspath(os.path.join(dirpath, filename))  # Ensure the path is absolute
                 texture_mapping[material_name] = texture_path
 
@@ -98,6 +106,7 @@ def apply_texture(obj, image_path):
 
     except Exception as e:
         print(f"无法加载纹理 '{image_path}': {e}")
+
 class ApplyTextureOperator(bpy.types.Operator):
     """根据完整名称匹配并应用纹理"""
     bl_idname = "object.apply_texture_operator"
@@ -106,14 +115,24 @@ class ApplyTextureOperator(bpy.types.Operator):
 
     def execute(self, context):
         texture_dir = os.path.abspath(bpy.context.scene.texture_dir)  # Ensure the directory is absolute
-        texture_mapping = load_textures_to_dict(texture_dir)
+        ignore_fields_input = bpy.context.scene.ignore_fields_input.split(',')
+        ignore_fields = [field.lower().strip() for field in ignore_fields_input if field.strip()]
+        
+        # 使用忽略字段加载纹理
+        texture_mapping = load_textures_to_dict(texture_dir, ignore_fields)
         selected_objects = bpy.context.selected_objects
 
         for obj in selected_objects:
-            obj_name = obj.name.lower()
-            if obj_name in texture_mapping:
-                apply_texture(obj, texture_mapping[obj_name])
-                print(f"已为 {obj.name} 应用纹理: {texture_mapping[obj_name]}")
+            original_name = obj.name.lower()
+            processed_name = original_name
+            
+            # 从对象名称中移除忽略字段
+            for field in ignore_fields:
+                processed_name = processed_name.replace(field, "")
+                
+            if processed_name in texture_mapping:
+                apply_texture(obj, texture_mapping[processed_name])
+                print(f"已为 {obj.name} 应用纹理: {texture_mapping[processed_name]}")
             else:
                 print(f"未找到 {obj.name} 的纹理")
 
@@ -128,16 +147,22 @@ class ApplyTextureToSelectedObjects(bpy.types.Operator):
     def execute(self, context):
         texture_dir = bpy.context.scene.texture_dir
         ignore_fields_input = bpy.context.scene.ignore_fields_input.split(',')
-        texture_mapping = load_textures_to_dict(os.path.abspath(texture_dir))
+        ignore_fields = [field.lower().strip() for field in ignore_fields_input if field.strip()]
+        
+        # 使用忽略字段加载纹理
+        texture_mapping = load_textures_to_dict(os.path.abspath(texture_dir), ignore_fields)
 
         for obj in bpy.context.selected_objects:
-            object_name = obj.name.lower()
-            for field in ignore_fields_input:
-                object_name = object_name.replace(field.lower(), "")
+            original_name = obj.name.lower()
+            processed_name = original_name
+            
+            # 从对象名称中移除忽略字段
+            for field in ignore_fields:
+                processed_name = processed_name.replace(field, "")
 
-            if object_name in texture_mapping:
-                apply_texture(obj, texture_mapping[object_name])
-                print(f"已为 {obj.name} 应用纹理: {texture_mapping[object_name]}")
+            if processed_name in texture_mapping:
+                apply_texture(obj, texture_mapping[processed_name])
+                print(f"已为 {obj.name} 应用纹理: {texture_mapping[processed_name]}")
             else:
                 print(f"未找到 {obj.name} 的纹理")
 
@@ -151,7 +176,11 @@ class ApplyTextureToMaterialsOperator(bpy.types.Operator):
 
     def execute(self, context):
         texture_dir = bpy.context.scene.texture_dir
-        texture_mapping = load_textures_to_dict(os.path.abspath(texture_dir))
+        ignore_fields_input = bpy.context.scene.ignore_fields_input.split(',')
+        ignore_fields = [field.lower().strip() for field in ignore_fields_input if field.strip()]
+        
+        # 使用忽略字段加载纹理
+        texture_mapping = load_textures_to_dict(os.path.abspath(texture_dir), ignore_fields)
         selected_objects = bpy.context.selected_objects
 
         # 收集所有独立的材质
@@ -165,19 +194,74 @@ class ApplyTextureToMaterialsOperator(bpy.types.Operator):
 
         # 对每个材质进行操作
         for mat in materials:
-            material_name = mat.name.lower().strip()
-            if material_name in texture_mapping:
-                apply_texture_to_material(mat, texture_mapping[material_name])
-                print(f"已为材质 '{mat.name}' 应用纹理: {texture_mapping[material_name]}")
+            original_name = mat.name.lower().strip()
+            processed_name = original_name
+            
+            # 从材质名称中移除忽略字段
+            for field in ignore_fields:
+                processed_name = processed_name.replace(field, "")
+                
+            if processed_name in texture_mapping:
+                apply_texture_to_material(mat, texture_mapping[processed_name])
+                print(f"已为材质 '{mat.name}' 应用纹理: {texture_mapping[processed_name]}")
             else:
                 print(f"未找到材质 '{mat.name}' 的匹配纹理")
 
         return {'FINISHED'}
 
+class ApplyTextureByParentOperator(bpy.types.Operator):
+    """根据顶级父级名称查找并应用纹理"""
+    bl_idname = "object.apply_texture_by_parent"
+    bl_label = "Apply Texture By Parent"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def get_top_parent(self, obj):
+        """获取对象的顶级父级"""
+        if obj.parent is None:
+            return obj
+        else:
+            return self.get_top_parent(obj.parent)
+    
+    def execute(self, context):
+        texture_dir = bpy.context.scene.texture_dir
+        ignore_fields_input = bpy.context.scene.ignore_fields_input.split(',')
+        ignore_fields = [field.lower().strip() for field in ignore_fields_input if field.strip()]
+        
+        # 使用忽略字段加载纹理
+        texture_mapping = load_textures_to_dict(os.path.abspath(texture_dir), ignore_fields)
+        selected_objects = bpy.context.selected_objects
+        
+        # 按顶级父级对象分组
+        parent_groups = {}
+        for obj in selected_objects:
+            top_parent = self.get_top_parent(obj)
+            if top_parent not in parent_groups:
+                parent_groups[top_parent] = []
+            parent_groups[top_parent].append(obj)
+        
+        # 为每个顶级父级查找纹理并应用到其所有子对象
+        for parent, objects in parent_groups.items():
+            original_name = parent.name.lower()
+            processed_name = original_name
+            
+            # 从父级名称中移除忽略字段
+            for field in ignore_fields:
+                processed_name = processed_name.replace(field, "")
+            
+            if processed_name in texture_mapping:
+                for obj in objects:
+                    apply_texture(obj, texture_mapping[processed_name])
+                print(f"已根据父级 '{parent.name}' 为 {len(objects)} 个对象应用纹理: {texture_mapping[processed_name]}")
+            else:
+                print(f"未找到父级 '{parent.name}' 的纹理")
+        
+        return {'FINISHED'}
+
 def register():
     bpy.utils.register_class(ApplyTextureOperator)
     bpy.utils.register_class(ApplyTextureToSelectedObjects)
-
+    bpy.utils.register_class(ApplyTextureToMaterialsOperator)
+    bpy.utils.register_class(ApplyTextureByParentOperator)
 
     bpy.types.Scene.texture_dir = bpy.props.StringProperty(
         name="Texture Directory",
@@ -190,12 +274,12 @@ def register():
         description="Comma-separated list of fields to ignore",
         default="_Upper, _lower, ,mod_,_clothes"
     )
-    bpy.utils.register_class(ApplyTextureToMaterialsOperator)
 
 def unregister():
     bpy.utils.unregister_class(ApplyTextureOperator)
     bpy.utils.unregister_class(ApplyTextureToSelectedObjects)
     bpy.utils.unregister_class(ApplyTextureToMaterialsOperator)
+    bpy.utils.unregister_class(ApplyTextureByParentOperator)
 
     del bpy.types.Scene.texture_dir
     del bpy.types.Scene.ignore_fields_input

@@ -128,10 +128,14 @@ class CustomFunctionsPanel(bpy.types.Panel):
             texture_operater_box.label(text="贴图自动链接")
             texture_operater_box.prop(context.scene, "texture_dir", text="贴图路径", icon='FILE_FOLDER')
             texture_operater_box.operator("object.apply_texture_operator", text="批量链接贴图(完整匹配)", icon='NODE_TEXTURE')
+            texture_operater_box.operator("object.apply_texture_by_parent", text="批量链接贴图(父级名称匹配)", icon='NODE_TEXTURE')
 
             texture_operater_box.prop(scene, "ignore_fields_input", text="忽略字段列表", icon='FILE_TEXT')
             texture_operater_box.operator("object.apply_texture_to_selected_objects", text="批量链接贴图(忽略匹配)", icon='NODE_TEXTURE')
             texture_operater_box.operator("object.apply_texture_to_materials", text="批量链接贴图(材质球名称匹配)", icon='NODE_TEXTURE')
+           
+
+
             # 材质球排序
             material_manager_box = layout.box()
             material_manager_box.label(text="材质管理:")
@@ -272,11 +276,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
         if context.scene.assestoperation_expand:
             box_vox = col_assestoperation.box()
             box_vox.operator("object.vox_operation", text="导入VOX一键处理",icon='ALIASED')
-            # box_character.operator("object.point_data_generator", text="角色点位数据生成", icon='AUTOMERGE_ON')
-            # box_character.operator("object.bone_data_generator", text="角色骨骼数据生成", icon='AUTOMERGE_ON')
-
-            # box_character.prop(scene,"assign_contact_weights", text="是否赋予权重")
-            # box_character.prop(scene, "threshold_distance", text="接触阈值")
 
             box_assestoperation = col_assestoperation.box()
             box_assestoperation.operator("object.miao_apply_and_separate", text="1.独立化应用所有变换")
@@ -297,10 +296,6 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # box_voxelizer.prop(scene, "generate_solid")
             box_voxelizer.operator("object.convert_voxelizer", text="一键转换vox",icon='ALIASED')
             box_voxelizer.operator("object.convert_voxelizer_color", text="一键转换vox(带颜色)",icon='ALIASED')
-# 烘焙
-            # box_bake = layout.box()
-            # box_bake.operator("object.retopologize_and_bake", text="烘焙选中物体(Remesh)")
-            # box_bake.operator("object.retopologize_and_bake_without_remesh", text="烘焙选中物体")
 
             layout.label(text="转换:")
             convert_box = layout.box()
@@ -308,8 +303,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             convert_box.prop(scene, "resolution_factor")
 
 #批量渲染
-        # 确保自动展开部分包括新的滑动条选项
-        # 确保自动展开部分包括新的滑动条选项
+
         layout = self.layout
         scene = bpy.context.scene
 
