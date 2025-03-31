@@ -4,7 +4,8 @@ import zipfile
 import os
 import shutil
 import subprocess
-
+import threading
+import time
 from . import bl_info
 
 def get_addon_path():
@@ -13,12 +14,28 @@ def get_addon_path():
         file_path = os.path.dirname(file_path)
     return file_path if os.path.basename(file_path) == "addons" else ''
 
-def download_file(url, save_path):
+def download_file(url, save_path, callback=None):
+    """
+    下载文件并支持进度回调
+    """
     try:
-        response = requests.get(url)
+        response = requests.get(url, stream=True)
         response.raise_for_status()
+        
+        # 获取文件大小
+        total_size = int(response.headers.get('content-length', 0))
+        block_size = 1024  # 每次读取的块大小
+        downloaded = 0
+        
         with open(save_path, 'wb') as file:
-            file.write(response.content)
+            for data in response.iter_content(block_size):
+                downloaded += len(data)
+                file.write(data)
+                if callback and total_size > 0:
+                    progress = downloaded / total_size
+                    callback(progress)
+        
+        return True
     except Exception as e:
         raise IOError(f"文件下载失败: {e}")
 
@@ -41,120 +58,274 @@ def find_new_version_directory(base_path, expected_name="MiaoTools"):
     """
     在基路径中查找预期名称的新版本目录。
     """
-    new_version_dir = os.path.join(base_path, expected_name)
-    if os.path.exists(new_version_dir):
-        return new_version_dir
+    for root, dirs, _ in os.walk(base_path):
+        for dir_name in dirs:
+            if expected_name in dir_name:
+                return os.path.join(root, dir_name)
+    
+    # 尝试查找包含预期名称的任何目录
+    extracted_dirs = next(os.walk(base_path))[1]
+    if extracted_dirs:
+        return os.path.join(base_path, extracted_dirs[0])
+        
     raise FileNotFoundError("新版本目录未找到。")
+
+# def backup_current_addon(addon_dir, backup_dir=None):
+#     """
+#     备份当前插件
+#     """
+#     if not backup_dir:
+#         backup_dir = os.path.join(os.path.dirname(addon_dir), "MiaoTools_backup_" + time.strftime("%Y%m%d%H%M%S"))
+    
+#     if os.path.exists(addon_dir):
+#         try:
+#             shutil.copytree(addon_dir, backup_dir)
+#             return backup_dir
+#         except Exception as e:
+#             print(f"备份失败: {e}")
+#     return None
 
 def version_tuple(version_string):
     """
     将字符串格式的版本号转换为整数元组。
+    支持处理非数字版本号情况
     """
-    return tuple(map(int, version_string.split(".")))
+    parts = []
+    for part in version_string.split("."):
+        try:
+            parts.append(int(part))
+        except ValueError:
+            # 处理包含非数字的部分（如 "1.2.3a"）
+            for i, char in enumerate(part):
+                if not char.isdigit():
+                    numeric_part = part[:i]
+                    parts.append(int(numeric_part) if numeric_part else 0)
+                    break
+            else:
+                parts.append(int(part))
+    return tuple(parts)
+
+def clean_temp_files(directory):
+    """
+    清理临时文件
+    """
+    try:
+        if os.path.exists(directory):
+            shutil.rmtree(directory)
+    except Exception as e:
+        print(f"清理临时文件失败: {e}")
+
+class UpdateStatus:
+    """
+    更新状态管理类
+    """
+    def __init__(self):
+        self.message = "就绪"
+        self.progress = 0
+        self.is_updating = False
+        self.error = None
+        self.complete = False
+        self.needs_restart = False
+
+    def reset(self):
+        self.message = "就绪"
+        self.progress = 0
+        self.is_updating = False
+        self.error = None
+        self.complete = False
+        self.needs_restart = False
+
+    def update(self, message, progress=None):
+        self.message = message
+        if progress is not None:
+            self.progress = progress
+
+# 全局状态对象
+update_status = UpdateStatus()
 
 class UpdateAddonOperator(bpy.types.Operator):
-    """Update Addon"""
+    """更新MiaoTools插件到最新版本"""
     bl_idname = "wm.update_addon"
     bl_label = "更新插件(仅支持blender3.4及以上版本)"
+    
+    _timer = None
+    _thread = None
 
     @classmethod
     def poll(cls, context):
-        return True
+        # 只有在未进行更新时才允许操作
+        return not update_status.is_updating
 
     def execute(self, context):
-        self.start_update_process()
-        return {'FINISHED'}
-
+        # 重置状态
+        update_status.reset()
+        update_status.is_updating = True
+        
+        # 启动后台线程检查更新
+        self._thread = threading.Thread(target=self.start_update_process)
+        self._thread.daemon = True
+        self._thread.start()
+        
+        # 启动定时器更新UI
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.5, window=context.window)
+        wm.modal_handler_add(self)
+        
+        return {'RUNNING_MODAL'}
+    
+    def modal(self, context, event):
+        if event.type == 'TIMER':
+            # 更新界面显示
+            for area in context.screen.areas:
+                if area.type == 'PREFERENCES':
+                    area.tag_redraw()
+            
+            # 检查是否完成或出错
+            if update_status.error:
+                self.report({'ERROR'}, update_status.error)
+                self.cancel(context)
+                return {'CANCELLED'}
+            
+            if update_status.complete:
+                if update_status.needs_restart:
+                    self.report({'INFO'}, "更新成功，请重启Blender以应用更改")
+                else:
+                    self.report({'INFO'}, "更新成功")
+                self.cancel(context)
+                return {'FINISHED'}
+                
+        return {'PASS_THROUGH'}
+    
+    def cancel(self, context):
+        # 清除定时器
+        if self._timer:
+            wm = context.window_manager
+            wm.event_timer_remove(self._timer)
+            self._timer = None
+        
+        # 重置状态
+        update_status.is_updating = False
+    
     def start_update_process(self):
-        print("正在查找")
-        user_repo = 'muyouhcd/MiaoTools'
-        latest_release_info = self.get_latest_release_info(user_repo)
-        current_version = bl_info["version"]
-        latest_version = latest_release_info['tag_name']
-
-        print("#####################当前版本#####################")
-        print(current_version)
-        print("#####################最新版本#####################")
-        print(latest_version)
-
-        if latest_release_info:
+        try:
+            update_status.update("正在获取最新版本信息...", 0.1)
+            user_repo = 'muyouhcd/MiaoTools'
+            latest_release_info = self.get_latest_release_info(user_repo)
+            
+            if not latest_release_info:
+                update_status.error = "无法获取版本信息"
+                return
+                
+            current_version = bl_info["version"]
+            latest_version = latest_release_info['tag_name']
+            
+            print("当前版本:", current_version)
+            print("最新版本:", latest_version)
+            update_status.update(f"当前版本: {'.'.join(map(str, current_version))}, 最新版本: {latest_version}", 0.2)
+            
             latest_ver_tuple = version_tuple(latest_version)
             if current_version < latest_ver_tuple:
                 download_url = latest_release_info['zipball_url']
+                changelog = latest_release_info.get('body', '无更新日志')
+                
+                # 显示更新信息并提示用户确认
+                update_status.update(f"发现新版本 {latest_version}\n\n更新日志:\n{changelog}", 0.3)
+                time.sleep(1)  # 给用户一些时间查看信息
+                
+                # 执行更新
                 self.download_latest_version(download_url, latest_version)
             else:
-                self.report({'INFO'}, '已经是最新版本.')
-        else:
-            self.report({'ERROR'}, '无法获取版本信息')
+                update_status.update("已经是最新版本", 1.0)
+                update_status.complete = True
+        except Exception as e:
+            update_status.error = f"更新过程出错: {str(e)}"
+            print(f"更新错误: {str(e)}")
 
     def get_latest_release_info(self, user_repo):
         api_url = f"https://api.github.com/repos/{user_repo}/releases/latest"
         try:
-            response = requests.get(api_url)
+            # 添加超时和用户代理
+            headers = {'User-Agent': 'MiaoTools-Updater/1.0'}
+            response = requests.get(api_url, headers=headers, timeout=10)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.ConnectionError:
+            update_status.error = "网络连接错误，请检查网络设置"
+            return None
+        except requests.exceptions.Timeout:
+            update_status.error = "连接超时，请稍后再试"
+            return None
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 403:
+                update_status.error = "API请求限制，请稍后再试"
+            else:
+                update_status.error = f"HTTP错误: {e.response.status_code}"
+            return None
         except Exception as e:
-            self.report({'ERROR'}, str(e))
+            update_status.error = f"获取版本信息失败: {str(e)}"
             return None
 
     def download_latest_version(self, download_url, latest_version):
         try:
-            # 发起下载请求
-            response = requests.get(download_url)
-            response.raise_for_status()
-
-            # 准备临时目录用于保存并解压zip文件
-            temp_dir = bpy.app.tempdir + "addon_update/"
-            print("临时目录用于更新：", temp_dir)
-            # 确保临时目录存在
-            os.makedirs(temp_dir, exist_ok=True)
+            # 准备临时目录
+            temp_dir = create_temp_directory(bpy.app.tempdir)
+            update_status.update("准备下载更新...", 0.3)
             
             # 指定zip文件的保存路径
             zip_path = os.path.join(temp_dir, 'addon.zip')
-            print("正在下载zip文件到：", zip_path)
-
-            # 将下载内容写入文件
-            with open(zip_path, 'wb') as file:
-                file.write(response.content)
-
-            # 解压zip文件到指定目录
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                zip_ref.extractall(temp_dir)
-            print("已解压zip文件到：", temp_dir)
-
-            # 自动寻找解压后的主目录（假设只有一个目录被解压）
-            extracted_dirs = next(os.walk(temp_dir))[1]
-            if len(extracted_dirs) == 1:
-                new_addon_dir = os.path.join(temp_dir, extracted_dirs[0])
-            else:
-                self.report({'ERROR'}, "解压后未找到唯一目录或存在多个目录")
+            
+            # 下载进度回调函数
+            def download_progress(progress):
+                update_status.update(f"正在下载更新... {int(progress * 100)}%", 0.3 + progress * 0.3)
+            
+            # 下载文件
+            download_file(download_url, zip_path, download_progress)
+            
+            update_status.update("正在解压文件...", 0.6)
+            # 解压zip文件
+            unzip_file(zip_path, temp_dir)
+            
+            # 查找解压后的目录
+            update_status.update("正在查找新版本目录...", 0.7)
+            new_addon_dir = find_new_version_directory(temp_dir)
+            
+            if not new_addon_dir or not os.path.exists(new_addon_dir):
+                update_status.error = "未在解压目录中找到预期的插件文件夹"
                 return
-
-            print("新版插件目录：", new_addon_dir)
-
-            # 插件的当前安装目录
+            
+            # 获取插件目录
             addon_dir = get_addon_path()
-
-            # 定位到MiaoTools子目录，如果不存在则创建
+            if not addon_dir:
+                update_status.error = "无法确定插件安装目录"
+                return
+                
+            # 定位MiaoTools子目录
             miao_tools_path = os.path.join(addon_dir, "MiaoTools")
             if not os.path.exists(miao_tools_path):
                 os.makedirs(miao_tools_path)
-
-            print("当前插件目录：", addon_dir)
-            print("MiaoTools子目录：", miao_tools_path)
-
-            # 拷贝新版本文件到MiaoTools子目录
-            if os.path.exists(new_addon_dir):
-                self.copy_new_version(miao_tools_path, new_addon_dir)
-            else:
-                self.report({'ERROR'}, '未在解压目录中找到预期的插件文件夹')
-
-            # 更新成功报告
-            self.report({'INFO'}, f'插件已成功更新到 {latest_version}')
+            
+            # 备份当前版本
+            update_status.update("正在备份当前版本...", 0.8)
+            # backup_path = backup_current_addon(miao_tools_path)
+            
+            # 安装新版本
+            update_status.update("正在安装新版本...", 0.9)
+            self.copy_new_version(miao_tools_path, new_addon_dir)
+            
+            # 清理临时文件
+            update_status.update("正在清理临时文件...", 0.95)
+            clean_temp_files(temp_dir)
+            
+            # 更新完成
+            update_status.update(f"更新成功! 当前版本：{latest_version}", 1.0)
+            update_status.complete = True
+            update_status.needs_restart = True
+            
         except Exception as e:
-            self.report({'ERROR'}, '下载或安装更新失败: ' + str(e))
+            update_status.error = f"更新失败: {str(e)}"
 
     def copy_new_version(self, addon_dir, new_addon_dir):
+        # 首先清除旧文件
         old_files = {f for f in os.listdir(addon_dir)}
         new_files = {f for f in os.listdir(new_addon_dir)}
         duplicate_files = old_files.intersection(new_files)
@@ -166,25 +337,92 @@ class UpdateAddonOperator(bpy.types.Operator):
             else:
                 os.remove(path_to_remove)
                 
+        # 复制新文件
         for file_name in new_files:
             src_path = os.path.join(new_addon_dir, file_name)
             dst_path = os.path.join(addon_dir, file_name)
             if os.path.isdir(src_path):
+                if os.path.exists(dst_path):
+                    shutil.rmtree(dst_path)
                 shutil.copytree(src_path, dst_path)
             else:
                 shutil.copy2(src_path, dst_path)
+
+class UpdateAddonPanel(bpy.types.Panel):
+    """显示更新状态的面板"""
+    bl_label = "插件更新状态"
+    bl_idname = "OBJECT_PT_update_status"
+    bl_space_type = 'PREFERENCES'
+    bl_region_type = 'WINDOW'
+    bl_context = "addons"
+    
+    @classmethod
+    def poll(cls, context):
+        # 只在更新过程中或有更新结果时显示
+        return update_status.is_updating or update_status.complete or update_status.error
+    
+    def draw(self, context):
+        layout = self.layout
+        
+        # 显示当前状态
+        box = layout.box()
+        box.label(text=update_status.message)
+        
+        # 如果正在更新，显示进度条
+        if update_status.is_updating:
+            progress = layout.row()
+            progress.prop(context.window_manager, "progress", text="")
+            context.window_manager.progress = update_status.progress
+        
+        # 如果更新完成，显示重启提示
+        if update_status.complete and update_status.needs_restart:
+            layout.label(text="请重启Blender以应用更改", icon='INFO')
 
 class MyAddonPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("wm.update_addon")
+        
+        # 检查是否可以显示更新按钮
+        if update_status.is_updating:
+            layout.label(text="正在更新中...", icon='LOOP_FORWARDS')
+        else:
+            row = layout.row()
+            row.operator("wm.update_addon", icon='URL')
+            
+            # 如果有错误，显示错误信息
+            if update_status.error:
+                box = layout.box()
+                box.label(text="更新出错:", icon='ERROR')
+                box.label(text=update_status.error)
+            
+            # 如果更新完成，显示成功信息
+            if update_status.complete:
+                box = layout.box()
+                box.label(text="更新成功!", icon='CHECKMARK')
+                if update_status.needs_restart:
+                    box.label(text="请重启Blender以应用更改")
 
 def register():
-    bpy.utils.register_class(MyAddonPreferences)
+    # 注册更新进度属性
+    bpy.types.WindowManager.progress = bpy.props.FloatProperty(
+        name="更新进度",
+        default=0.0,
+        min=0.0,
+        max=1.0,
+        subtype='PERCENTAGE'
+    )
+    
     bpy.utils.register_class(UpdateAddonOperator)
+    bpy.utils.register_class(UpdateAddonPanel)
+    bpy.utils.register_class(MyAddonPreferences)
 
 def unregister():
     bpy.utils.unregister_class(MyAddonPreferences)
+    bpy.utils.unregister_class(UpdateAddonPanel)
     bpy.utils.unregister_class(UpdateAddonOperator)
+    
+    # 删除属性
+    if hasattr(bpy.types.WindowManager, "progress"):
+        delattr(bpy.types.WindowManager, "progress")
