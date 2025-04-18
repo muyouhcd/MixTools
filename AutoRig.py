@@ -372,8 +372,6 @@ def join_objects(parent_dict, new_name):
 
         bpy.context.object.name = new_name
 
-
-
 def rename_all_children_based_on_coords(empty_coords): 
     objects_bvh = {}
 
@@ -798,7 +796,6 @@ class WithCombinRename(bpy.types.Operator):
 
         return {'FINISHED'}
 
-
 class ExportBoneDataOperator(bpy.types.Operator):
     """操作符，用于导出骨骼数据"""
     bl_idname = "object.export_bone_data"
@@ -1100,7 +1097,6 @@ class ResetBonePosition(bpy.types.Operator):
 
         return {'FINISHED'}
     
-
 class ConnectBone(bpy.types.Operator):
     bl_idname = "object.connect_bone"
     bl_label = "重置骨骼端点位置（连接）"
@@ -1145,10 +1141,6 @@ class ConnectBone(bpy.types.Operator):
 
         return {'FINISHED'}
     
-
-
-
-
 def register():
     bpy.utils.register_class(BoneDataExporterPanel)
     bpy.utils.register_class(ExportBoneDataOperator)
@@ -1163,7 +1155,6 @@ def register():
     bpy.types.Scene.batchtool = bpy.props.PointerProperty(type=OperationPath)
     bpy.types.Scene.json_file_list = bpy.props.CollectionProperty(type=bpy.types.PropertyGroup)
     bpy.types.Scene.json_file_index = bpy.props.IntProperty()
-
     bpy.types.Scene.show_bone_operators = bpy.props.BoolProperty(default=False)
     bpy.utils.register_class(ScaleAdjust)
     bpy.utils.register_class(WithCombinRename)
