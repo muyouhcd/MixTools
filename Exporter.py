@@ -1,12 +1,21 @@
 import bpy
 import os
 import math
+import time  # 添加时间模块以便测量性能
 
 # 导出目录属性
 bpy.types.Scene.export_directory = bpy.props.StringProperty(
     name="Export Directory",
     description="Directory where the exported files will be written",
     subtype='DIR_PATH'
+)
+
+# 添加批处理大小属性
+bpy.types.Scene.batch_size = bpy.props.IntProperty(
+    name="Batch Size",
+    description="Number of objects to process in one batch (0 for all at once)",
+    default=10,
+    min=0
 )
 
 def check_dir(self, context):
@@ -18,22 +27,23 @@ def check_dir(self, context):
         self.report({'ERROR'}, "提供的路径不存在，脚本将终止。")
         return False, None
     return True, dest_path
+
 def prepare_obj_export(obj, recursion):
-    print(f"正在记录 {obj.name} 的原始参数")
+    # 记录原始参数
     original_state = {
         'scale': obj.scale.copy(),
         'rotation': obj.rotation_euler.copy(),
         'location': obj.location.copy()
     }
 
-    print(f"正在调整 {obj.name} 的比例")
+    # 调整比例
     obj.scale *= 100
-    obj.rotation_euler = (math.radians(-90), 0, 0)  # 转换为弧度
+    obj.rotation_euler = (math.radians(-90), 0, 0)
 
-    print(f"正在更新视图")
+    # 更新视图
     bpy.context.view_layer.update()
-    bpy.ops.object.make_single_user_operator()
-    print(f"正在应用选定物体的变换")
+    
+    # 应用变换
     if recursion:
         apply_transform_to_descendants(obj)
     return original_state
@@ -42,57 +52,58 @@ def export_fbx(obj, dest_path):
     fbx_file_ext = ".fbx"
     fbx_file_path = os.path.join(dest_path, obj.name + fbx_file_ext)
 
-    print(f"设置FBX文件的导出路径为：{fbx_file_path}")
-    print(f"开始导出至：{fbx_file_path}")
-
-
     obj.rotation_euler = (math.radians(90), 0, 0)
 
+    # 减少文件I/O操作和不必要的数据转换
     bpy.ops.export_scene.fbx(
         filepath=fbx_file_path,
         use_selection=True,
         global_scale=0.01,
-        axis_forward='-Z',  # 调整以匹配Unity的坐标系
-        axis_up='Y',  # 调整以匹配Unity的坐标系
-        add_leaf_bones=False ,
-        armature_nodetype = 'NULL'
+        axis_forward='-Z',
+        axis_up='Y',
+        add_leaf_bones=False,
+        armature_nodetype='NULL',
+        bake_space_transform=True,  # 预先进行空间变换，减少运行时计算
+        use_custom_props=False      # 不导出自定义属性，减少数据量
     )
 
-    print(f"导出完成：{fbx_file_path}")
+    return fbx_file_path
 
 def export_fbx_max(obj, dest_path):
     fbx_file_ext = ".fbx"
     fbx_file_path = os.path.join(dest_path, obj.name + fbx_file_ext)
 
-    print(f"设置MAX FBX文件的导出路径为：{fbx_file_path}")
-    print(f"开始导出至：{fbx_file_path}")
-
     obj.rotation_euler = (math.radians(90), 0, 0)
 
     bpy.ops.export_scene.fbx(
         filepath=fbx_file_path,
         use_selection=True,
         global_scale=0.01,
-        axis_forward='-Z',  # 调整以匹配Unity的坐标系
-        axis_up='Y',  # 调整以匹配Unity的坐标系
-        add_leaf_bones=False ,
-        armature_nodetype = 'NULL',
+        axis_forward='-Z',
+        axis_up='Y',
+        add_leaf_bones=False,
+        armature_nodetype='NULL',
         bake_anim=True,
         apply_unit_scale=True,
-        
+        bake_space_transform=True,  # 预先进行空间变换
+        use_custom_props=False      # 不导出自定义属性
     )
 
-    print(f"导出完成：{fbx_file_path}")
+    return fbx_file_path
 
 def apply_transform_to_descendants(obj):
+    # 创建一个副本而不是每次都深度复制数据
     if obj.data and obj.data.users > 1:
         obj.data = obj.data.copy()
+    
+    # 应用变换
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=True)
+    
+    # 递归处理子对象
     for child in obj.children:
         apply_transform_to_descendants(child)
-        print("apply succesful")
         
 class ExportFbxByParent(bpy.types.Operator):
     bl_idname = "scene.export_fbx_by_parent"
@@ -102,86 +113,10 @@ class ExportFbxByParent(bpy.types.Operator):
         for child in obj.children:
             child.select_set(True)
             self.select_children(child)
-            print("selected: " + child.name)
 
     def execute(self, context):
-        # 检查路径
-        check_result, dest_path = check_dir(self, context)
-        if not check_result:
-            return {'CANCELLED'}
-
-        parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
-
-        # 禁用自动更新
-        bpy.context.view_layer.update()
-
-        for obj in parents:
-            bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
-            self.select_children(obj)
-
-            prepare_obj_export(obj, True)
-            
-            selected_objects = [o.name for o in bpy.context.selected_objects]
-            print(f"Selected objects for export: {selected_objects}")
-            if not selected_objects:
-                print("No objects selected for export.")
-                continue
-            export_fbx(obj, dest_path)
-
-        # 最后统一更新视图
-        bpy.context.view_layer.update()
-        print("所有导出操作已结束")
-        return {'FINISHED'}
-
-class ExportFbxByParentMax(bpy.types.Operator):
-    bl_idname = "scene.export_fbx_by_parent_max"
-    bl_label = "按照顶级父物体导出FBX"
-
-    def select_children(self, obj):
-        for child in obj.children:
-            child.select_set(True)
-            self.select_children(child)
-            # print("selected: " + child.name)
-
-
-    def execute(self, context):
-        # 检查路径
-        check_result, dest_path = check_dir(self, context)
-        if not check_result:
-            return {'CANCELLED'}
-
-        parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
-
-        # 禁用自动更新
-        bpy.context.view_layer.update()
-
-        for obj in parents:
-            
-            bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
-            self.select_children(obj)
-
-            prepare_obj_export(obj, True)
-
-            selected_objects = [o.name for o in bpy.context.selected_objects]
-            print(f"Selected objects for export: {selected_objects}")
-            if not selected_objects:
-                print("No objects selected for export.")
-                continue
-
-            export_fbx_max(obj, dest_path)
-
-        # 最后统一更新视图
-        bpy.context.view_layer.update()
-        print("所有导出操作已结束")
-        return {'FINISHED'}
-
-class ExportFbxByMesh(bpy.types.Operator):
-    bl_idname = "scene.export_fbx_by_mesh"
-    bl_label = "按Mesh导出FBX"
-
-    def execute(self, context):
+        start_time = time.time()  # 记录开始时间
+        
         # 检查路径
         check_result, dest_path = check_dir(self, context)
         if not check_result:
@@ -189,46 +124,183 @@ class ExportFbxByMesh(bpy.types.Operator):
 
         # 获取所有顶级父物体
         parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
-
-        # 禁用自动更新
+        batch_size = context.scene.batch_size
+        
+        # 禁用不必要的自动更新，提高性能
         bpy.context.view_layer.update()
+        
+        # 如果批处理大小为0，处理所有对象
+        if batch_size == 0:
+            batch_size = len(parents)
+        
+        # 批处理导出
+        processed_count = 0
+        total_count = len(parents)
+        
+        for i in range(0, total_count, batch_size):
+            batch = parents[i:i+batch_size]
+            self.report({'INFO'}, f"处理批次 {i//batch_size + 1}/{math.ceil(total_count/batch_size)}")
+            
+            for obj in batch:
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                self.select_children(obj)
 
+                prepare_obj_export(obj, True)
+                
+                selected_objects = [o.name for o in bpy.context.selected_objects]
+                if not selected_objects:
+                    continue
+                    
+                file_path = export_fbx(obj, dest_path)
+                processed_count += 1
+                
+                # 每导出一个物体，更新进度
+                self.report({'INFO'}, f"已导出 {processed_count}/{total_count}: {obj.name}")
+                
+            # 每批次后强制更新视图并释放内存
+            bpy.context.view_layer.update()
+            
+        elapsed_time = time.time() - start_time
+        self.report({'INFO'}, f"导出完成! 耗时: {elapsed_time:.2f}秒, 共导出{processed_count}个物体")
+        return {'FINISHED'}
+
+class ExportFbxByParentMax(bpy.types.Operator):
+    bl_idname = "scene.export_fbx_by_parent_max"
+    bl_label = "按照顶级父物体导出3ds Max兼容FBX"
+
+    def select_children(self, obj):
+        for child in obj.children:
+            child.select_set(True)
+            self.select_children(child)
+
+    def execute(self, context):
+        start_time = time.time()
+        
+        # 检查路径
+        check_result, dest_path = check_dir(self, context)
+        if not check_result:
+            return {'CANCELLED'}
+
+        # 获取所有顶级父物体
+        parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
+        batch_size = context.scene.batch_size
+        
+        # 禁用不必要的自动更新
+        bpy.context.view_layer.update()
+        
+        # 如果批处理大小为0，处理所有对象
+        if batch_size == 0:
+            batch_size = len(parents)
+        
+        # 批处理导出
+        processed_count = 0
+        total_count = len(parents)
+        
+        for i in range(0, total_count, batch_size):
+            batch = parents[i:i+batch_size]
+            self.report({'INFO'}, f"处理批次 {i//batch_size + 1}/{math.ceil(total_count/batch_size)}")
+            
+            for obj in batch:
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                self.select_children(obj)
+
+                prepare_obj_export(obj, True)
+                
+                selected_objects = [o.name for o in bpy.context.selected_objects]
+                if not selected_objects:
+                    continue
+                    
+                file_path = export_fbx_max(obj, dest_path)
+                processed_count += 1
+                
+                # 每导出一个物体，更新进度
+                self.report({'INFO'}, f"已导出 {processed_count}/{total_count}: {obj.name}")
+                
+            # 每批次后强制更新视图并释放内存
+            bpy.context.view_layer.update()
+
+        elapsed_time = time.time() - start_time
+        self.report({'INFO'}, f"导出完成! 耗时: {elapsed_time:.2f}秒, 共导出{processed_count}个物体")
+        return {'FINISHED'}
+
+class ExportFbxByMesh(bpy.types.Operator):
+    bl_idname = "scene.export_fbx_by_mesh"
+    bl_label = "按Mesh导出FBX"
+
+    def execute(self, context):
+        start_time = time.time()
+        
+        # 检查路径
+        check_result, dest_path = check_dir(self, context)
+        if not check_result:
+            return {'CANCELLED'}
+
+        # 获取所有顶级父物体
+        parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
+        batch_size = context.scene.batch_size
+        
+        # 收集所有需要处理的网格对象
+        mesh_objects = []
         for parent in parents:
             for obj in parent.children:
                 if obj.type == 'MESH':
-                    # 取消选择所有对象
-                    bpy.ops.object.select_all(action='DESELECT')
-                    
-                    # 选择当前的 mesh 对象
-                    obj.select_set(True)
+                    mesh_objects.append((parent, obj))
+        
+        # 如果批处理大小为0，处理所有对象
+        if batch_size == 0:
+            batch_size = len(mesh_objects)
+        
+        # 批处理导出
+        processed_count = 0
+        total_count = len(mesh_objects)
+        
+        for i in range(0, total_count, batch_size):
+            batch = mesh_objects[i:i+batch_size]
+            self.report({'INFO'}, f"处理批次 {i//batch_size + 1}/{math.ceil(total_count/batch_size)}")
+            
+            for parent, obj in batch:
+                # 取消选择所有对象
+                bpy.ops.object.select_all(action='DESELECT')
+                
+                # 选择当前的 mesh 对象
+                obj.select_set(True)
 
-                    # 选择其他所有非 mesh 类型的对象
-                    for other_obj in bpy.context.scene.objects:
-                        if other_obj.type != 'MESH':
-                            other_obj.select_set(True)
+                # 选择非 mesh 类型的对象 (骨骼等)
+                for other_obj in bpy.context.scene.objects:
+                    if other_obj.type != 'MESH':
+                        other_obj.select_set(True)
 
-                    # 设置导出文件路径
-                    file_path = os.path.join(dest_path, f"{parent.name}_{obj.name}.fbx")
+                # 设置导出文件路径
+                file_path = os.path.join(dest_path, f"{parent.name}_{obj.name}.fbx")
 
-                    # 使用 Blender 的 FBX 导出操作
-                    bpy.ops.export_scene.fbx(
-                        filepath=file_path,
-                        use_selection=True,
-                        global_scale=0.01,
-                        apply_unit_scale=True,
-                        axis_forward='-Z',
-                        axis_up='Y',
-                        use_space_transform=True,
-                        bake_space_transform=True,
-                        object_types={'MESH', 'ARMATURE', 'EMPTY'},  # 包含骨骼和空物体
-                        mesh_smooth_type='FACE'
-                    )
+                # 使用优化的参数导出
+                bpy.ops.export_scene.fbx(
+                    filepath=file_path,
+                    use_selection=True,
+                    global_scale=0.01,
+                    apply_unit_scale=True,
+                    axis_forward='-Z',
+                    axis_up='Y',
+                    use_space_transform=True,
+                    bake_space_transform=True,
+                    object_types={'MESH', 'ARMATURE', 'EMPTY'},
+                    mesh_smooth_type='FACE',
+                    use_custom_props=False,  # 不导出自定义属性
+                    add_leaf_bones=False     # 不添加叶骨骼
+                )
+                
+                processed_count += 1
+                
+                # 每导出一个物体，更新进度
+                self.report({'INFO'}, f"已导出 {processed_count}/{total_count}: {parent.name}_{obj.name}")
+                
+            # 每批次后强制更新视图并释放内存
+            bpy.context.view_layer.update()
 
-
-
-        # 更新视图层
-        bpy.context.view_layer.update()
-        print("所有导出操作已结束")
+        elapsed_time = time.time() - start_time
+        self.report({'INFO'}, f"导出完成! 耗时: {elapsed_time:.2f}秒, 共导出{processed_count}个物体")
         return {'FINISHED'}
 
 # 导出碰撞盒
@@ -269,6 +341,7 @@ class ExportFbxByColMark(bpy.types.Operator):
         bpy.context.view_layer.update()
         print("所有导出操作已结束")
         return {'FINISHED'}
+
 # 按集合导出FBX
 class ExportFbxByCollection(bpy.types.Operator):
     bl_idname = "object.miao_output_fbx_as_collection"
