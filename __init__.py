@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,52),
+    "version": (4,8,53),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "如遇到插件无法打开请手动切换至blender的python目录运行以下指令进行安装：python.exe -m pip install pillow",
@@ -76,6 +76,7 @@ from . import MaterialOperator
 from . import UVformater
 from . import RenderFrame
 from . import Cleaner
+from . import LightOperator
 
 def register():
     
@@ -87,6 +88,7 @@ def register():
     Combin.register()
     CorrectRotation.register()
     Exporter.register()
+    LightOperator.register()
     MaterialOperator.register()
     MoveOrigin.register()
     operators.register()
@@ -109,6 +111,7 @@ def unregister():
     Combin.unregister()
     CorrectRotation.unregister()
     Exporter.unregister()
+    LightOperator.unregister()
     MaterialOperator.unregister()
     MoveOrigin.unregister()
     operators.unregister()

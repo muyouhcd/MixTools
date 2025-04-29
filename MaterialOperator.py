@@ -515,6 +515,52 @@ class OBJECT_OT_RemoveUnusedMaterialSlots(bpy.types.Operator):
         self.report({'INFO'}, f"已删除 {removed_count} 个未使用的材质槽")
         return {'FINISHED'}
 
+# 设置材质渲染模式为Alpha Clip
+class SetMaterialAlphaClipMode(bpy.types.Operator):
+    bl_idname = "object.set_material_alpha_clip"
+    bl_label = "设置Alpha裁剪模式"
+    bl_description = "将所选物体的所有材质视图显示设置为Alpha裁剪模式"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        changed_count = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                for slot in obj.material_slots:
+                    material = slot.material
+                    if material:
+                        # 设置材质的混合模式为Alpha裁剪
+                        material.blend_method = 'CLIP'
+                        changed_count += 1
+        
+        self.report({'INFO'}, f"已将 {changed_count} 个材质设置为Alpha裁剪模式")
+        return {'FINISHED'}
+
+# 设置材质渲染模式为Alpha Blend
+class SetMaterialAlphaBlendMode(bpy.types.Operator):
+    bl_idname = "object.set_material_alpha_blend"
+    bl_label = "设置Alpha混合模式"
+    bl_description = "将所选物体的所有材质视图显示设置为Alpha混合模式"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        changed_count = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                for slot in obj.material_slots:
+                    material = slot.material
+                    if material:
+                        # 设置材质的混合模式为Alpha混合
+                        material.blend_method = 'BLEND'
+                        changed_count += 1
+        
+        self.report({'INFO'}, f"已将 {changed_count} 个材质设置为Alpha混合模式")
+        return {'FINISHED'}
+
 def register():     
     bpy.utils.register_class(SetEmissionStrength)
     bpy.utils.register_class(SetMaterialRoughness)
@@ -528,6 +574,8 @@ def register():
     bpy.utils.register_class(MaterialCleaner)
     bpy.utils.register_class(OBJECT_OT_MergeDuplicateMaterials)
     bpy.utils.register_class(OBJECT_OT_RemoveUnusedMaterialSlots)
+    bpy.utils.register_class(SetMaterialAlphaClipMode)
+    bpy.utils.register_class(SetMaterialAlphaBlendMode)
 
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
@@ -542,3 +590,5 @@ def unregister():
     bpy.utils.unregister_class(MaterialCleaner)
     bpy.utils.unregister_class(OBJECT_OT_MergeDuplicateMaterials)
     bpy.utils.unregister_class(OBJECT_OT_RemoveUnusedMaterialSlots)
+    bpy.utils.unregister_class(SetMaterialAlphaClipMode)
+    bpy.utils.unregister_class(SetMaterialAlphaBlendMode)

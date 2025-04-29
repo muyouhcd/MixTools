@@ -169,6 +169,10 @@ class CustomFunctionsPanel(bpy.types.Panel):
             row2 = material_operations_box.row(align=True)
             row2.operator("object.alpha_to_skin", text="Alpha设为肤色", icon='OUTLINER_OB_ARMATURE')
             row2.operator("object.set_texture_interpolation", text="硬边缘采样", icon='SNAP_INCREMENT')
+            
+            row3 = material_operations_box.row(align=True)
+            row3.operator("object.set_material_alpha_clip", text="设置Alpha裁剪模式", icon='CLIPUV_HLT')
+            row3.operator("object.set_material_alpha_blend", text="设置Alpha混合模式", icon='SNAP_VOLUME')
 
             # 贴图自动链接
             texture_operater_box = col_meterialoperation.box()
@@ -319,6 +323,23 @@ class CustomFunctionsPanel(bpy.types.Panel):
             col.prop(context.scene, "collectionA", text="参考集合", icon='COLLECTION_COLOR_01')
             col.prop(context.scene, "collectionB", text="目标集合", icon='COLLECTION_COLOR_02')
             align_parent_box.operator("object.align_operator", text="批量对齐顶级父物体", icon='SNAP_ON')
+
+# 灯光工具
+        col_light_tools = layout.column()
+        col_light_tools.prop(scene, "light_tools_expand", text="灯光工具", emboss=False,
+                          icon='TRIA_DOWN' if context.scene.light_tools_expand else 'TRIA_RIGHT')
+        
+        if scene.light_tools_expand:
+            # 灯光关联工具
+            light_tools_box = col_light_tools.box()
+            light_tools_box.label(text="灯光关联工具:", icon='LIGHT')
+            
+            # 容差设置
+            light_tools_box.prop(context.scene, "light_linking_tolerance", text="相似度容差")
+            
+            # 关联灯光按钮
+            op = light_tools_box.operator("object.link_similar_lights", text="关联相似灯光", icon='LINKED')
+            op.tolerance = context.scene.light_linking_tolerance
 
 # 动画操作
         # col_anm = layout.column()
@@ -515,6 +536,19 @@ def register():
     bpy.types.Scene.assestoperation_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.autorender_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.light_tools_expand = bpy.props.BoolProperty(default=False)
+    
+    # 灯光关联工具参数
+    bpy.types.Scene.light_linking_tolerance = bpy.props.FloatProperty(
+        name="相似度容差",
+        description="判断灯光相似性的容差值",
+        default=0.01,
+        min=0.001,
+        max=0.5,
+        soft_min=0.005,
+        soft_max=0.1,
+        precision=3
+    )
 
 
 def unregister():
@@ -530,3 +564,5 @@ def unregister():
     del bpy.types.Scene.assestoperation_expand
     del bpy.types.Scene.autorender_expand
     del bpy.types.Scene.renderadj_expand
+    del bpy.types.Scene.light_tools_expand
+    del bpy.types.Scene.light_linking_tolerance
