@@ -1,6 +1,7 @@
 import bpy
 import random
 import math
+import re
 
 bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
     name="强度",
@@ -401,28 +402,143 @@ class MaterialCleaner(bpy.types.Operator):
         clean_materials()
         return {'FINISHED'}
 
+# 合并带有.00x后缀的重复材质球
+class OBJECT_OT_MergeDuplicateMaterials(bpy.types.Operator):
+    bl_idname = "object.merge_duplicate_materials"
+    bl_label = "合并后缀同名材质球"
+    bl_description = "合并带有.001, .002等后缀的重复材质球"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        # 收集所有材质球
+        all_materials = bpy.data.materials
+        
+        # 用于存储基础材质名称到材质对象的映射
+        base_materials = {}
+        materials_to_replace = {}
+        
+        # 正则表达式用于匹配形如 "material.001" 的材质名称
+        pattern = re.compile(r'^(.*?)(?:\.(\d{3,}))?$')
+        
+        # 第一遍：识别并分组材质
+        for mat in all_materials:
+            match = pattern.match(mat.name)
+            if match:
+                base_name = match.group(1)
+                suffix = match.group(2)
+                
+                # 如果这是一个基础材质（没有.00X后缀）
+                if suffix is None:
+                    if base_name not in base_materials:
+                        base_materials[base_name] = mat
+                # 如果这是一个带后缀的材质
+                else:
+                    if base_name not in materials_to_replace:
+                        materials_to_replace[base_name] = []
+                    materials_to_replace[base_name].append(mat)
+        
+        # 处理没有基础材质但有后缀版本的情况
+        for base_name, duplicates in materials_to_replace.items():
+            if base_name not in base_materials and duplicates:
+                # 使用名称排序，这样.001会排在前面
+                duplicates.sort(key=lambda x: x.name)
+                # 将第一个重命名为基础名称
+                duplicates[0].name = base_name
+                base_materials[base_name] = duplicates[0]
+                # 移除已处理的第一个材质
+                duplicates.pop(0)
+        
+        # 计数器
+        replaced_count = 0
+        removed_count = 0
+        
+        # 第二遍：替换所有引用并删除重复材质
+        for base_name, duplicates in materials_to_replace.items():
+            if base_name in base_materials:
+                base_mat = base_materials[base_name]
+                
+                # 遍历所有对象
+                for obj in bpy.data.objects:
+                    if obj.type == 'MESH' and obj.material_slots:
+                        # 检查每个材质槽
+                        for slot in obj.material_slots:
+                            if slot.material in duplicates:
+                                slot.material = base_mat
+                                replaced_count += 1
+                
+                # 删除不再使用的重复材质
+                for dup_mat in duplicates:
+                    # 确保材质不再被使用
+                    if dup_mat.users == 0:
+                        bpy.data.materials.remove(dup_mat)
+                        removed_count += 1
+        
+        self.report({'INFO'}, f"合并完成：替换了 {replaced_count} 个材质引用，删除了 {removed_count} 个重复材质")
+        return {'FINISHED'}
 
+# 清理空材质槽
+class OBJECT_OT_RemoveUnusedMaterialSlots(bpy.types.Operator):
+    bl_idname = "object.remove_unused_material_slots"
+    bl_label = "清理空材质槽"
+    bl_description = "移除所有没有分配多边形的材质槽"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        
+        # 如果没有选中物体，则处理所有网格物体
+        if not selected_objects:
+            selected_objects = [obj for obj in bpy.data.objects if obj.type == 'MESH']
+        
+        removed_count = 0
+        for obj in selected_objects:
+            if obj.type != 'MESH':
+                continue
+                
+            # 获取每个材质槽的使用情况
+            used_slots = set()
+            for polygon in obj.data.polygons:
+                used_slots.add(polygon.material_index)
+            
+            # 找出未使用的材质槽
+            unused_slot_indices = []
+            for i in range(len(obj.material_slots)):
+                if i not in used_slots:
+                    unused_slot_indices.append(i)
+            
+            # 从高索引到低索引删除，以避免索引偏移问题
+            for slot_index in sorted(unused_slot_indices, reverse=True):
+                obj.active_material_index = slot_index
+                bpy.ops.object.material_slot_remove({'object': obj})
+                removed_count += 1
+                
+        self.report({'INFO'}, f"已删除 {removed_count} 个未使用的材质槽")
+        return {'FINISHED'}
 
 def register():     
     bpy.utils.register_class(SetEmissionStrength)
+    bpy.utils.register_class(SetMaterialRoughness)
     bpy.utils.register_class(MaterialSort)
     bpy.utils.register_class(OBJ_OT_random_meterial)
     bpy.utils.register_class(MergeMaterial)
     bpy.utils.register_class(SetTextureInterpolation)
     bpy.utils.register_class(AlphaNodeConnector)
-    bpy.utils.register_class(AlphaToSkin)
     bpy.utils.register_class(AlphaNodeDisconnector)
-    bpy.utils.register_class(SetMaterialRoughness)
+    bpy.utils.register_class(AlphaToSkin)
     bpy.utils.register_class(MaterialCleaner)
+    bpy.utils.register_class(OBJECT_OT_MergeDuplicateMaterials)
+    bpy.utils.register_class(OBJECT_OT_RemoveUnusedMaterialSlots)
 
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
+    bpy.utils.unregister_class(SetMaterialRoughness)
     bpy.utils.unregister_class(MaterialSort)
     bpy.utils.unregister_class(OBJ_OT_random_meterial)
     bpy.utils.unregister_class(MergeMaterial)
     bpy.utils.unregister_class(SetTextureInterpolation)
     bpy.utils.unregister_class(AlphaNodeConnector)
-    bpy.utils.unregister_class(AlphaToSkin)
     bpy.utils.unregister_class(AlphaNodeDisconnector)
-    bpy.utils.unregister_class(SetMaterialRoughness)
+    bpy.utils.unregister_class(AlphaToSkin)
     bpy.utils.unregister_class(MaterialCleaner)
+    bpy.utils.unregister_class(OBJECT_OT_MergeDuplicateMaterials)
+    bpy.utils.unregister_class(OBJECT_OT_RemoveUnusedMaterialSlots)

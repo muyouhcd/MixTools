@@ -62,7 +62,43 @@ class CustomFunctionsPanel(bpy.types.Panel):
             select_box.operator("object.select_large_objects", text="选择过大物体", icon='FULLSCREEN_ENTER')
             select_box.operator("object.select_small_objects", text="选择过小物体", icon='FULLSCREEN_EXIT')
             select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='TEXTURE')
+            
+            # 按名称列表筛选工具
+            namelist_select_box = layout.box()
+            namelist_select_box.label(text="按名称列表筛选:", icon='OUTLINER_OB_GROUP_INSTANCE')
+            
+            # 添加描述信息
+            namelist_select_box.label(text="要保留的物体名称列表:", icon='TEXT')
+            
+            # 使用简单的输入框显示当前内容
+            box_text = namelist_select_box.box()
+            if scene.object_names_list:
+                lines = scene.object_names_list.split('\n')
+                if len(lines) > 5:  # 如果超过5行，只显示前5行和计数
+                    for line in lines[:5]:
+                        box_text.label(text=line)
+                    box_text.label(text=f"... 共{len(lines)}行")
+                else:
+                    for line in lines:
+                        box_text.label(text=line)
+            else:
+                box_text.label(text="(空)")
+            
+            # 添加编辑按钮
+            edit_row = namelist_select_box.row(align=True)
+            edit_row.operator("object.edit_names_list", text="在外部编辑器中编辑列表", icon='TEXT')
+            if scene.temp_names_file_path:
+                edit_row.operator("object.read_names_from_temp_file", text="加载已编辑的列表", icon='IMPORT')
+            
+            # 添加提示
+            namelist_select_box.label(text="(编辑后保存文件，然后点击'加载已编辑的列表')")
+            
+            row = namelist_select_box.row()
+            row.prop(scene, "delete_lights_option", text="删除所有灯光")
+            row.prop(scene, "show_report_option", text="显示报告")
+            namelist_select_box.operator("object.select_and_delete_by_name_list", text="按名称列表筛选物体", icon='TRASH')
 
+            # 合并工具
             layout.label(text="合并工具:", icon='SNAP_MIDPOINT')
             convert_box = layout.box()
             convert_box.operator("object.combin_same_origin_object", text="合并同原点物体", icon='PIVOT_BOUNDBOX')
@@ -73,7 +109,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
                                icon='TRIA_DOWN' if context.scene.BindOperation_expand else 'TRIA_RIGHT')
         if context.scene.BindOperation_expand:
             # 碰撞检测与集合绑定
-            bounding_box_operations = layout.box()
+            bounding_box_operations = col_BindOperation.box()
             bounding_box_operations.label(text="碰撞检测与集合绑定:", icon='MOD_BOOLEAN')
             
             col = bounding_box_operations.column(align=True)
@@ -82,7 +118,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             col.operator("object.collection_by_attached", text="检测并合并碰撞", icon='FACE_MAPS')
             
             # 集合父级设置
-            parent_by_collections_box = layout.box()
+            parent_by_collections_box = col_BindOperation.box()
             parent_by_collections_box.label(text="集合父级设置:", icon='GROUP')
             parent_by_collections_box.label(text="以集合物体绑定子集合父级", icon='INFO')
             
@@ -92,7 +128,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             parent_by_collections_box.operator("object.miao_set_parent_collections", text="设置父级关系", icon='LINKED')
 
             # 空物体父级绑定
-            empty_parent_box = layout.box()
+            empty_parent_box = col_BindOperation.box()
             empty_parent_box.label(text="空物体父级绑定:", icon='EMPTY_DATA')
             empty_parent_box.prop(scene, "multiple_object_binding", text="为多个物体创建共同父级")
             empty_parent_box.operator("object.miao_create_empty_at_bottom", text="创建空物体父级", icon='EMPTY_ARROWS')
@@ -104,7 +140,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if context.scene.meterialoperation_expand:
             # UV操作
-            uv_box = layout.box()
+            uv_box = col_meterialoperation.box()
             uv_box.label(text="UV操作:", icon='MOD_UVPROJECT')
             row = uv_box.row(align=True)
             row.operator("object.uv_formater", text="UV尺寸校准", icon='UV_DATA')
@@ -112,7 +148,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             uv_box.operator("object.quad_uv_aligner", text="UV铺满展开", icon='FULLSCREEN_ENTER')
 
             # 材质强度调整
-            emission_box = layout.box()
+            emission_box = col_meterialoperation.box()
             emission_box.label(text="材质强度调整:", icon='MATERIAL')
             row = emission_box.row()
             row.prop(context.scene, "emission_strength", text="发光强度", slider=True)
@@ -123,7 +159,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             row.operator(SetMaterialRoughness.bl_idname, text="应用", icon='CHECKMARK').roughness = context.scene.roughness_strength
 
             # 材质节点操作
-            material_operations_box = layout.box()
+            material_operations_box = col_meterialoperation.box()
             material_operations_box.label(text="材质节点操作:", icon='NODETREE')
             
             row1 = material_operations_box.row(align=True)
@@ -135,7 +171,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             row2.operator("object.set_texture_interpolation", text="硬边缘采样", icon='SNAP_INCREMENT')
 
             # 贴图自动链接
-            texture_operater_box = layout.box()
+            texture_operater_box = col_meterialoperation.box()
             texture_operater_box.label(text="贴图自动链接", icon='TEXTURE')
             
             col = texture_operater_box.column()
@@ -161,7 +197,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
                        icon='OUTLINER_OB_EMPTY')
            
             # 材质管理
-            material_manager_box = layout.box()
+            material_manager_box = col_meterialoperation.box()
             material_manager_box.label(text="材质管理:", icon='MATERIAL_DATA')
             
             row1 = material_manager_box.row(align=True)
@@ -170,9 +206,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
             
             row2 = material_manager_box.row(align=True)
             row2.operator("object.miao_merge_material", text="清理材质", icon='TRASH')
-            row2.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='SLOT')
+            row2.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='PANEL_CLOSE')
             
-            material_manager_box.operator("object.material_cleaner", text="合并重复材质(.00x后缀)", icon='DUPLICATE')
+            row3 = material_manager_box.row(align=True)
+            row3.operator("object.material_cleaner", text="合并重复材质(.00x后缀)", icon='DUPLICATE')
+            row3.operator("object.merge_duplicate_materials", text="合并后缀同名材质球", icon='MATERIAL')
+
 
 # 命名操作
         col_renameoperation = layout.column()
@@ -238,12 +277,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
                      icon='TRIA_DOWN' if context.scene.rsm_expand else 'TRIA_RIGHT')
         if context.scene.rsm_expand:
             # 下落至表面
-            surface_box = layout.box()
+            surface_box = col_rsm.box()
             surface_box.label(text="放置与对齐:", icon='SNAP_FACE')
             surface_box.operator("object.move_to_surface", text="下落至表面", icon='ORIENTATION_NORMAL')
             
             # 列队工具
-            queue_up_box = layout.box()
+            queue_up_box = col_rsm.box()
             queue_up_box.label(text="列队排列:", icon='OUTLINER_OB_POINTCLOUD')
             
             col = queue_up_box.column()
@@ -255,7 +294,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             col.operator("object.miao_queue_up", text="执行列队排列", icon='MOD_ARRAY')
             
             # 随机放置工具
-            random_box = layout.box()
+            random_box = col_rsm.box()
             random_box.label(text="随机变换:", icon='MOD_NOISE')
             
             # 随机位置
@@ -274,7 +313,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             random_scale_box.operator("object.miao_random_scale", text="应用随机缩放", icon='ARROW_LEFTRIGHT')
             
             # 对齐集合顶级父级
-            align_parent_box = layout.box()
+            align_parent_box = col_rsm.box()
             align_parent_box.label(text="集合对齐:", icon='CON_TRACKTO')
             col = align_parent_box.column()
             col.prop(context.scene, "collectionA", text="参考集合", icon='COLLECTION_COLOR_01')
@@ -300,7 +339,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if context.scene.inout_expand:
             # 批量导出
-            export_box = layout.box()
+            export_box = col_inout.box()
             export_box.label(text="批量导出:", icon='EXPORT')
             export_box.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')
             
@@ -311,7 +350,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             col.operator("object.export_objs", text="批量导出OBJ", icon='EXPORT')
             
             # 批量关联场景
-            link_scenes_batch_box = layout.box()
+            link_scenes_batch_box = col_inout.box()
             link_scenes_batch_box.label(text="场景关联与排序:", icon='SCENE_DATA')
             link_scenes_batch_box.prop(context.scene, "export_directory", text=".Blender文件目录", icon='BLENDER')
             
@@ -348,7 +387,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             assembly_asset_box.operator("object.miao_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
 
             # Voxelizer设置
-            box_voxelizer = layout.box()
+            box_voxelizer = col_assestoperation.box()
             box_voxelizer.label(text="Voxelizer工具:", icon='CUBE')
             box_voxelizer.prop(context.scene.voxelizer_tool, "path", text="模型路径", icon='FILE_3D')
             box_voxelizer.prop(context.scene.voxelizer_tool, "voxelizer_path", text="Voxelizer路径", icon='TOOL_SETTINGS')
@@ -358,15 +397,12 @@ class CustomFunctionsPanel(bpy.types.Panel):
             row.operator("object.convert_voxelizer_color", text="转换为VOX(带颜色)", icon='COLOR')
 
             # 体素转换
-            convert_box = layout.box()
+            convert_box = col_assestoperation.box()
             convert_box.label(text="体素化设置:", icon='LIGHTPROBE_GRID')
             convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='CONSOLE')
             convert_box.prop(scene, "resolution_factor", text="分辨率因子")
 
 #批量渲染
-        layout = self.layout
-        scene = bpy.context.scene
-
         col_autorender = layout.column()
         col_autorender.prop(scene, "autorender_expand", text="渲染工具", emboss=False, 
                             icon='TRIA_DOWN' if scene.autorender_expand else 'TRIA_RIGHT')
@@ -469,6 +505,28 @@ class CustomFunctionsPanel(bpy.types.Panel):
 def register():
     bpy.utils.register_class(CustomFunctionsPanel)
     
+    bpy.types.Scene.tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.BindOperation_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.meterialoperation_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.renameoperation_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.rsm_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.anm_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.inout_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.assestoperation_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.autorender_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
+
 
 def unregister():
     bpy.utils.unregister_class(CustomFunctionsPanel)
+    
+    del bpy.types.Scene.tools_expand
+    del bpy.types.Scene.BindOperation_expand
+    del bpy.types.Scene.meterialoperation_expand
+    del bpy.types.Scene.renameoperation_expand
+    del bpy.types.Scene.rsm_expand
+    del bpy.types.Scene.anm_expand
+    del bpy.types.Scene.inout_expand
+    del bpy.types.Scene.assestoperation_expand
+    del bpy.types.Scene.autorender_expand
+    del bpy.types.Scene.renderadj_expand

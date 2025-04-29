@@ -75,7 +75,7 @@ from . import SelectTool
 from . import MaterialOperator
 from . import UVformater
 from . import RenderFrame
-from. import Cleaner
+from . import Cleaner
 
 def register():
     
