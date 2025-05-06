@@ -36,6 +36,9 @@ class UVCleaner(bpy.types.Operator):
                     if invalid_uvs:
                         print(f"UV layer '{uv_layer.name}' in mesh '{mesh.name}' had NaN values and has been fixed.")
         validate_and_fix_uvs()
+        self.report({'INFO'}, "UV已清理完成")
+        return {'FINISHED'}
+
 # Call the function to validate and fix UVs
 class OBJECT_OT_clean_meshes_without_faces(bpy.types.Operator):
     """清理没有面的物体"""
