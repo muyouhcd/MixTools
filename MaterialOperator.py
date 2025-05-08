@@ -406,8 +406,75 @@ class MaterialCleaner(bpy.types.Operator):
 class OBJECT_OT_MergeDuplicateMaterials(bpy.types.Operator):
     bl_idname = "object.merge_duplicate_materials"
     bl_label = "合并后缀同名材质球"
-    bl_description = "合并带有.001, .002等后缀的重复材质球"
+    bl_description = "合并带有.001, .002等后缀的重复材质球以及参数完全相同的材质"
     bl_options = {'REGISTER', 'UNDO'}
+    
+    def are_materials_identical(self, mat1, mat2):
+        """比较两个材质的参数是否完全相同"""
+        # 如果两个材质有不同的节点树设置（一个有节点树，一个没有）
+        if (mat1.use_nodes != mat2.use_nodes):
+            return False
+            
+        # 如果材质不使用节点，比较基本属性
+        if not mat1.use_nodes:
+            # 比较基本颜色和其他属性
+            if (mat1.diffuse_color != mat2.diffuse_color or
+                mat1.metallic != mat2.metallic or
+                mat1.roughness != mat2.roughness or
+                mat1.blend_method != mat2.blend_method):
+                return False
+            return True
+            
+        # 对于使用节点的材质，检查节点结构
+        if len(mat1.node_tree.nodes) != len(mat2.node_tree.nodes):
+            return False
+            
+        # 比较主要节点的关键参数
+        for node1 in mat1.node_tree.nodes:
+            if node1.type == 'BSDF_PRINCIPLED':
+                # 查找对应的节点
+                principled_found = False
+                for node2 in mat2.node_tree.nodes:
+                    if node2.type == 'BSDF_PRINCIPLED':
+                        principled_found = True
+                        # 比较关键输入参数
+                        if (node1.inputs['Base Color'].default_value[:] != node2.inputs['Base Color'].default_value[:] or
+                            node1.inputs['Metallic'].default_value != node2.inputs['Metallic'].default_value or
+                            node1.inputs['Roughness'].default_value != node2.inputs['Roughness'].default_value or
+                            node1.inputs['Specular'].default_value != node2.inputs['Specular'].default_value or
+                            node1.inputs['Emission Strength'].default_value != node2.inputs['Emission Strength'].default_value):
+                            return False
+                            
+                if not principled_found:
+                    return False
+                    
+            elif node1.type == 'TEX_IMAGE':
+                # 查找是否有对应的图像纹理节点
+                image_found = False
+                for node2 in mat2.node_tree.nodes:
+                    if node2.type == 'TEX_IMAGE':
+                        # 如果两者都有图像
+                        if node1.image and node2.image:
+                            if node1.image.name == node2.image.name:
+                                image_found = True
+                                break
+                        # 如果两者都没有图像
+                        elif not node1.image and not node2.image:
+                            image_found = True
+                            break
+                                
+                # 如果没有找到对应的图像节点
+                if not image_found and node1.image:
+                    return False
+        
+        # 检查材质的渲染设置
+        if (mat1.blend_method != mat2.blend_method or
+            mat1.shadow_method != mat2.shadow_method or
+            mat1.alpha_threshold != mat2.alpha_threshold):
+            return False
+            
+        # 通过所有检查，认为材质参数相同
+        return True
     
     def execute(self, context):
         # 收集所有材质球
@@ -451,6 +518,7 @@ class OBJECT_OT_MergeDuplicateMaterials(bpy.types.Operator):
         # 计数器
         replaced_count = 0
         removed_count = 0
+        identical_count = 0
         
         # 第二遍：替换所有引用并删除重复材质
         for base_name, duplicates in materials_to_replace.items():
@@ -473,7 +541,42 @@ class OBJECT_OT_MergeDuplicateMaterials(bpy.types.Operator):
                         bpy.data.materials.remove(dup_mat)
                         removed_count += 1
         
-        self.report({'INFO'}, f"合并完成：替换了 {replaced_count} 个材质引用，删除了 {removed_count} 个重复材质")
+        # 第三遍：寻找并合并参数完全相同的材质（不限于同名）
+        for i, mat1 in enumerate(all_materials):
+            # 如果材质已被删除，跳过
+            if mat1.name not in bpy.data.materials:
+                continue
+                
+            for j in range(i + 1, len(all_materials)):
+                # 获取第二个材质（如果它还存在）
+                if j >= len(all_materials):
+                    break
+                    
+                mat2_name = all_materials[j].name
+                if mat2_name not in bpy.data.materials:
+                    continue
+                    
+                mat2 = bpy.data.materials[mat2_name]
+                
+                # 如果两个材质参数完全相同
+                if self.are_materials_identical(mat1, mat2):
+                    print(f"发现完全相同的材质: {mat1.name} 和 {mat2.name}")
+                    
+                    # 遍历所有对象，将引用mat2的材质替换为mat1
+                    for obj in bpy.data.objects:
+                        if obj.type == 'MESH' and obj.material_slots:
+                            # 检查每个材质槽
+                            for slot in obj.material_slots:
+                                if slot.material == mat2:
+                                    slot.material = mat1
+                                    identical_count += 1
+                    
+                    # 如果mat2不再被使用，删除它
+                    if mat2.users == 0:
+                        bpy.data.materials.remove(mat2)
+                        removed_count += 1
+        
+        self.report({'INFO'}, f"合并完成：替换了 {replaced_count} 个同名材质引用，{identical_count} 个相同参数材质引用，删除了 {removed_count} 个重复材质")
         return {'FINISHED'}
 
 # 清理空材质槽
@@ -601,6 +704,62 @@ class SetShadowVisible(bpy.types.Operator):
         self.report({'INFO'}, f"已将 {changed_count} 个物体的阴影设置为可见（视图和渲染中均显示阴影）")
         return {'FINISHED'}
 
+# 清理物体中未使用的材质和插槽
+class CleanUnusedMaterials(bpy.types.Operator):
+    bl_idname = "object.clean_unused_materials"
+    bl_label = "清理未使用材质"
+    bl_description = "清理物体中未使用的材质球及其插槽"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        materials_removed = 0
+        slots_removed = 0
+        
+        for obj in selected_objects:
+            if obj.type != 'MESH' or not obj.data.materials:
+                continue
+                
+            # 获取每个多边形使用的材质索引
+            used_indices = set()
+            for polygon in obj.data.polygons:
+                used_indices.add(polygon.material_index)
+            
+            # 创建一个映射，将旧索引映射到新索引（考虑到删除后的偏移）
+            index_mapping = {}
+            current_new_index = 0
+            
+            # 标记要保留的材质
+            materials_to_keep = []
+            
+            # 遍历所有材质槽，确定哪些需要保留
+            for i, slot in enumerate(obj.material_slots):
+                if i in used_indices:
+                    index_mapping[i] = current_new_index
+                    materials_to_keep.append(slot.material)
+                    current_new_index += 1
+                else:
+                    slots_removed += 1
+            
+            # 调整多边形的材质索引
+            for polygon in obj.data.polygons:
+                if polygon.material_index in index_mapping:
+                    polygon.material_index = index_mapping[polygon.material_index]
+            
+            # 清除所有材质槽
+            while len(obj.material_slots) > 0:
+                obj.active_material_index = 0
+                bpy.ops.object.material_slot_remove({'object': obj})
+            
+            # 重新添加需要保留的材质
+            for mat in materials_to_keep:
+                obj.data.materials.append(mat)
+            
+            materials_removed += len(obj.material_slots) - len(materials_to_keep)
+        
+        self.report({'INFO'}, f"已清理 {slots_removed} 个未使用的材质槽，移除了 {materials_removed} 个未使用的材质")
+        return {'FINISHED'}
+
 def register():     
     bpy.utils.register_class(SetEmissionStrength)
     bpy.utils.register_class(SetMaterialRoughness)
@@ -618,6 +777,7 @@ def register():
     bpy.utils.register_class(SetMaterialAlphaBlendMode)
     bpy.utils.register_class(SetShadowInvisible)
     bpy.utils.register_class(SetShadowVisible)
+    bpy.utils.register_class(CleanUnusedMaterials)
 
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
@@ -636,3 +796,4 @@ def unregister():
     bpy.utils.unregister_class(SetMaterialAlphaBlendMode)
     bpy.utils.unregister_class(SetShadowInvisible)
     bpy.utils.unregister_class(SetShadowVisible)
+    bpy.utils.unregister_class(CleanUnusedMaterials)

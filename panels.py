@@ -213,12 +213,15 @@ class CustomFunctionsPanel(bpy.types.Panel):
             row1.operator("scene.random_meterial", text="随机材质", icon='NODE_TEXTURE')
             
             row2 = material_manager_box.row(align=True)
-            row2.operator("object.miao_merge_material", text="清理材质", icon='TRASH')
+            row2.operator("object.miao_merge_material", text="清除材质", icon='TRASH')
             row2.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='PANEL_CLOSE')
             
             row3 = material_manager_box.row(align=True)
             row3.operator("object.material_cleaner", text="合并重复材质(.00x后缀)", icon='DUPLICATE')
-            row3.operator("object.merge_duplicate_materials", text="合并后缀同名材质球", icon='MATERIAL')
+            row3.operator("object.merge_duplicate_materials", text="合并同名及相同参数材质", icon='MATERIAL')
+            
+            row4 = material_manager_box.row(align=True)
+            row4.operator("object.clean_unused_materials", text="清理未使用材质及插槽", icon='X')
 
 
 # 命名操作
