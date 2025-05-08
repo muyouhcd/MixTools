@@ -173,6 +173,10 @@ class CustomFunctionsPanel(bpy.types.Panel):
             row3 = material_operations_box.row(align=True)
             row3.operator("object.set_material_alpha_clip", text="设置Alpha裁剪模式", icon='CLIPUV_HLT')
             row3.operator("object.set_material_alpha_blend", text="设置Alpha混合模式", icon='SNAP_VOLUME')
+            
+            row4 = material_operations_box.row(align=True)
+            row4.operator("object.set_shadow_invisible", text="设置选中物体阴影不可见", icon='GHOST_ENABLED')
+            row4.operator("object.set_shadow_visible", text="设置选中物体阴影可见", icon='GHOST_DISABLED')
 
             # 贴图自动链接
             texture_operater_box = col_meterialoperation.box()

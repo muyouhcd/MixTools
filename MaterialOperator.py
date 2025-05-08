@@ -561,6 +561,46 @@ class SetMaterialAlphaBlendMode(bpy.types.Operator):
         self.report({'INFO'}, f"已将 {changed_count} 个材质设置为Alpha混合模式")
         return {'FINISHED'}
 
+# 设置所选物体阴影不可见
+class SetShadowInvisible(bpy.types.Operator):
+    bl_idname = "object.set_shadow_invisible"
+    bl_label = "设置阴影不可见"
+    bl_description = "将所选物体在视图和渲染中的阴影设置为不可见"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        changed_count = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                # 设置对象的阴影模式为不可见，此设置同时影响视图和渲染
+                obj.visible_shadow = False
+                changed_count += 1
+        
+        self.report({'INFO'}, f"已将 {changed_count} 个物体的阴影设置为不可见（视图和渲染中均不显示阴影）")
+        return {'FINISHED'}
+
+# 设置所选物体阴影可见
+class SetShadowVisible(bpy.types.Operator):
+    bl_idname = "object.set_shadow_visible"
+    bl_label = "设置阴影可见"
+    bl_description = "将所选物体在视图和渲染中的阴影设置为可见"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        changed_count = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                # 设置对象的阴影模式为可见，此设置同时影响视图和渲染
+                obj.visible_shadow = True
+                changed_count += 1
+        
+        self.report({'INFO'}, f"已将 {changed_count} 个物体的阴影设置为可见（视图和渲染中均显示阴影）")
+        return {'FINISHED'}
+
 def register():     
     bpy.utils.register_class(SetEmissionStrength)
     bpy.utils.register_class(SetMaterialRoughness)
@@ -576,6 +616,8 @@ def register():
     bpy.utils.register_class(OBJECT_OT_RemoveUnusedMaterialSlots)
     bpy.utils.register_class(SetMaterialAlphaClipMode)
     bpy.utils.register_class(SetMaterialAlphaBlendMode)
+    bpy.utils.register_class(SetShadowInvisible)
+    bpy.utils.register_class(SetShadowVisible)
 
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
@@ -592,3 +634,5 @@ def unregister():
     bpy.utils.unregister_class(OBJECT_OT_RemoveUnusedMaterialSlots)
     bpy.utils.unregister_class(SetMaterialAlphaClipMode)
     bpy.utils.unregister_class(SetMaterialAlphaBlendMode)
+    bpy.utils.unregister_class(SetShadowInvisible)
+    bpy.utils.unregister_class(SetShadowVisible)

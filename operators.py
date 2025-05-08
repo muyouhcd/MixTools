@@ -1237,6 +1237,19 @@ class RenameByParent(bpy.types.Operator):
         rename_selected_objects_with_sequential_suffixes()
         return {"FINISHED"}
 
+# 添加center和distance函数定义
+def distance(vecA, vecB):
+    return (vecA - vecB).length
+
+def center(collection):
+    centers = []
+    for obj in collection.objects:
+        if obj.type == 'MESH':
+            world_vertex_coordinates = [obj.matrix_world @ v.co for v in obj.data.vertices]
+            center = sum(world_vertex_coordinates, Vector()) / len(world_vertex_coordinates) if world_vertex_coordinates else Vector()
+            centers.append(center)
+    return sum(centers, Vector()) / len(centers) if centers else Vector()
+
 #按照集合位置划分绑定父级
 def set_nearest_parent_for_collection(self, context):
     collectionA = context.scene.collectionA
