@@ -398,50 +398,26 @@ class CustomFunctionsPanel(Panel):
             
             # 骨架操作工具
             armature_tools_box = col_animation.box()
-            armature_tools_box.label(text="骨架操作工具:", icon='ARMATURE_DATA')
+            armature_tools_box.label(text="骨架操作工具（测试）:", icon='ARMATURE_DATA')
             
-            # 骨架匹配设置
-            match_col = armature_tools_box.column()
-            match_col.operator("animation.match_armature_bones", text="复制骨架姿势到T-pose", icon='BONE_DATA')
-            match_col.prop(context.scene, "match_armature_apply_to_mesh", text="蒙皮网格跟随变换")
-            match_col.prop(context.scene, "match_armature_reset_modifiers", text="重新应用修改器")
-            match_col.prop(context.scene, "match_armature_preserve_volume", text="保持体积")
-            match_col.label(text="(使用方法：姿势骨架为活动对象，T-pose骨架也需要选中)", icon='INFO')
+            # 添加骨骼动画转移面板
+            transfer_box = armature_tools_box.box()
+            transfer_box.label(text="骨骼动画转移:", icon='ARMATURE_DATA')
             
-            # T-pose应用与动画重计算
-            tpose_box = armature_tools_box.box()
-            tpose_box.label(text="T-pose应用与动画重计算:", icon='ACTION')
+            # 源骨架选择
+            transfer_box.prop(context.scene, "source_armature", text="源骨架")
             
-            # T-pose参考骨架选择
-            tpose_box.prop(context.scene, "tpose_reference_armature", text="T-pose参考骨架")
+            # 目标骨架选择
+            transfer_box.prop(context.scene, "target_armature", text="目标骨架")
             
-            # 性能优化选项
-            opt_col = tpose_box.column()
-            opt_col.label(text="性能优化选项:", icon='PREFERENCES')
-            
-            row = opt_col.row(align=True)
-            row.prop(context.scene, "tpose_keyframe_sample_rate", text="关键帧采样率")
-            row.prop(context.scene, "tpose_max_keyframes", text="最大关键帧数")
-            
-            # 添加新的内存管理选项
-            row2 = opt_col.row(align=True)
-            row2.prop(context.scene, "tpose_batch_size", text="批处理帧数")
-            row2.prop(context.scene, "tpose_memory_threshold", text="内存警告阈值(MB)")
-            
-            opt_col.prop(context.scene, "tpose_process_only_selected", text="仅处理选中的骨骼")
-            opt_col.prop(context.scene, "tpose_show_detailed_info", text="显示详细信息")
+            # 高级选项
+            transfer_box.label(text="高级选项:")
+            transfer_box.prop(context.scene, "transfer_bone_animation_keyframe_sample_rate", text="关键帧采样率")
+            transfer_box.prop(context.scene, "transfer_bone_animation_batch_size", text="批处理帧数")
+            transfer_box.prop(context.scene, "transfer_bone_animation_show_detailed_info", text="显示详细信息")
             
             # 操作按钮
-            op = tpose_box.operator("animation.apply_tpose_recalculate", text="应用T-pose并重计算动画", icon='IPO_BOUNCE')
-            op.keyframe_sample_rate = context.scene.tpose_keyframe_sample_rate
-            op.max_keyframes = context.scene.tpose_max_keyframes
-            op.process_only_selected_bones = context.scene.tpose_process_only_selected
-            op.show_detailed_info = context.scene.tpose_show_detailed_info
-            op.batch_size = context.scene.tpose_batch_size
-            op.memory_warning_threshold = context.scene.tpose_memory_threshold
-            
-            tpose_box.label(text="(使用方法：目标骨架为活动对象，T-pose参考骨架在上方选择)", icon='INFO')
-            tpose_box.label(text="(若处理较慢，可增加采样率、限制关键帧数或使用批处理模式)", icon='ERROR')
+            transfer_box.operator("animation.transfer_bone_animation", text="转移动画", icon='ARMATURE_DATA')
 
 # 导入导出操作
         col_inout = layout.column()
@@ -718,70 +694,7 @@ def register():
     bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.light_tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.animation_tools_expand = bpy.props.BoolProperty(default=False)
-    
-    # 骨架匹配工具参数
-    bpy.types.Scene.match_armature_apply_to_mesh = bpy.props.BoolProperty(
-        name="蒙皮网格跟随变换",
-        description="将T-pose蒙皮网格调整为与姿势骨架匹配的姿势，保持绑定关系",
-        default=True
-    )
-    
-    bpy.types.Scene.match_armature_reset_modifiers = bpy.props.BoolProperty(
-        name="重新应用修改器",
-        description="应用当前修改器并重新添加，确保蒙皮在新姿势下正确应用",
-        default=True
-    )
-    
-    bpy.types.Scene.match_armature_preserve_volume = bpy.props.BoolProperty(
-        name="保持体积",
-        description="在变形过程中保持网格体积",
-        default=True
-    )
-    
-    # T-pose应用与动画重计算参数
-    bpy.types.Scene.tpose_keyframe_sample_rate = bpy.props.IntProperty(
-        name="关键帧采样率",
-        description="处理关键帧的采样率，较低的值处理更少的关键帧（更快但可能精度更低）",
-        default=1,
-        min=1,
-        max=10
-    )
-    
-    bpy.types.Scene.tpose_max_keyframes = bpy.props.IntProperty(
-        name="最大关键帧数",
-        description="处理的最大关键帧数，设置为0表示处理所有关键帧",
-        default=0,
-        min=0
-    )
-    
-    bpy.types.Scene.tpose_process_only_selected = bpy.props.BoolProperty(
-        name="仅处理选中的骨骼",
-        description="仅处理姿势模式下选中的骨骼",
-        default=False
-    )
-    
-    bpy.types.Scene.tpose_show_detailed_info = bpy.props.BoolProperty(
-        name="显示详细信息",
-        description="在T-pose应用与动画重计算中显示详细信息",
-        default=False
-    )
-    
-    # 添加批处理和内存管理参数
-    bpy.types.Scene.tpose_batch_size = bpy.props.IntProperty(
-        name="批处理帧数",
-        description="为大型动画设置批处理帧数，减少内存使用（0表示不分批）",
-        default=0,
-        min=0,
-        max=1000
-    )
-    
-    bpy.types.Scene.tpose_memory_threshold = bpy.props.FloatProperty(
-        name="内存警告阈值",
-        description="当估计内存使用超过此值（MB）时发出警告",
-        default=1000.0,  # 1GB
-        min=100.0,
-        max=10000.0,
-    )
+
     
     # 灯光关联工具参数
     bpy.types.Scene.light_linking_tolerance = bpy.props.FloatProperty(
@@ -793,6 +706,22 @@ def register():
         soft_min=0.005,
         soft_max=0.1,
         precision=3
+    )
+
+    # 源骨架属性
+    bpy.types.Scene.source_armature = bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name="源骨架",
+        description="选择带动画的源骨架",
+        poll=lambda self, obj: obj.type == 'ARMATURE'
+    )
+
+    # 目标骨架属性
+    bpy.types.Scene.target_armature = bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name="目标骨架",
+        description="选择要接收动画的目标骨架",
+        poll=lambda self, obj: obj.type == 'ARMATURE'
     )
 
 def unregister():
