@@ -77,6 +77,7 @@ from . import UVformater
 from . import RenderFrame
 from . import Cleaner
 from . import LightOperator
+from . import animationoperater
 
 def register():
     
@@ -101,6 +102,7 @@ def register():
     UVformater.register()
     update.register()
     Voxelizer.register()
+    animationoperater.register()
 
 def unregister():
     AutoBake.unregister()
@@ -124,6 +126,7 @@ def unregister():
     UVformater.unregister()
     update.unregister()
     Voxelizer.unregister()
+    animationoperater.unregister()
 
 if __name__ == "__main__":
     register()

@@ -1,8 +1,17 @@
 import bpy
+from bpy.props import StringProperty, FloatProperty, BoolProperty, EnumProperty, PointerProperty, CollectionProperty
+from bpy.types import Panel, PropertyGroup
 from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 
-class CustomFunctionsPanel(bpy.types.Panel):
+# 材质属性组
+class MaterialPropertyGroup(PropertyGroup):
+    material: PointerProperty(
+        type=bpy.types.Material,
+        name="材质"
+    )
+
+class CustomFunctionsPanel(Panel):
     bl_label = "工具箱"
     bl_idname = "VIEW3D_PT_custom_functions"
     bl_space_type = 'VIEW_3D'
@@ -222,7 +231,28 @@ class CustomFunctionsPanel(bpy.types.Panel):
             
             row4 = material_manager_box.row(align=True)
             row4.operator("object.clean_unused_materials", text="清理未使用材质及插槽", icon='X')
-
+            
+            # 材质替换功能
+            material_replace_box = col_meterialoperation.box()
+            material_replace_box.label(text="材质替换:", icon='MATERIAL')
+            
+            # 添加和清空按钮放在顶部
+            row = material_replace_box.row(align=True)
+            row.operator("object.add_source_material", text="添加源材质", icon='ADD')
+            row.operator("object.clear_source_materials", text="清空列表", icon='TRASH')
+            
+            # 源材质列表
+            material_replace_box.label(text="源材质列表:")
+            for i, item in enumerate(context.scene.source_materials):
+                row = material_replace_box.row(align=True)
+                row.prop(item, "material", text="")
+                row.operator("object.remove_source_material", text="", icon='X').index = i
+            
+            # 目标材质选择
+            material_replace_box.prop(context.scene, "target_material", text="目标材质")
+            
+            # 执行替换按钮
+            material_replace_box.operator("object.replace_material", text="执行材质替换", icon='MATERIAL')
 
 # 命名操作
         col_renameoperation = layout.column()
@@ -348,17 +378,70 @@ class CustomFunctionsPanel(bpy.types.Panel):
             op = light_tools_box.operator("object.link_similar_lights", text="关联相似灯光", icon='LINKED')
             op.tolerance = context.scene.light_linking_tolerance
 
-# 动画操作
-        # col_anm = layout.column()
-        # col_anm.prop(scene, "anm_expand", text="动画操作", emboss=False,
-        #             icon='TRIA_DOWN' if context.scene.anm_expand else 'TRIA_RIGHT')
-
-        # if context.scene.anm_expand:
-        #     anim_box = layout.box()
-        #     anim_box.prop(context.scene, "rv_start_frame")
-        #     anim_box.prop(context.scene, "rv_end_frame")
-        #     anim_box.prop(context.scene, "rv_initial_visibility")
-        #     anim_box.operator("object.set_render_visibility")
+# 动画处理工具
+        col_animation = layout.column()
+        col_animation.prop(scene, "animation_tools_expand", text="动画处理工具", emboss=False,
+                          icon='TRIA_DOWN' if context.scene.animation_tools_expand else 'TRIA_RIGHT')
+        
+        if scene.animation_tools_expand:
+            # 动画清理工具
+            animation_tools_box = col_animation.box()
+            animation_tools_box.label(text="动画清理工具:", icon='ANIM_DATA')
+            
+            row1 = animation_tools_box.row(align=True)
+            row1.operator("animation.clear_scale_animation", text="清除缩放动画", icon='FULLSCREEN_ENTER')
+            row1.operator("animation.clear_location_animation", text="清除位移动画", icon='ANCHOR_TOP')
+            
+            row2 = animation_tools_box.row(align=True)
+            row2.operator("animation.clear_rotation_animation", text="清除旋转动画", icon='DRIVER_ROTATIONAL_DIFFERENCE')
+            row2.operator("animation.clear_all_animation", text="清除所有动画", icon='CANCEL')
+            
+            # 骨架操作工具
+            armature_tools_box = col_animation.box()
+            armature_tools_box.label(text="骨架操作工具:", icon='ARMATURE_DATA')
+            
+            # 骨架匹配设置
+            match_col = armature_tools_box.column()
+            match_col.operator("animation.match_armature_bones", text="复制骨架姿势到T-pose", icon='BONE_DATA')
+            match_col.prop(context.scene, "match_armature_apply_to_mesh", text="蒙皮网格跟随变换")
+            match_col.prop(context.scene, "match_armature_reset_modifiers", text="重新应用修改器")
+            match_col.prop(context.scene, "match_armature_preserve_volume", text="保持体积")
+            match_col.label(text="(使用方法：姿势骨架为活动对象，T-pose骨架也需要选中)", icon='INFO')
+            
+            # T-pose应用与动画重计算
+            tpose_box = armature_tools_box.box()
+            tpose_box.label(text="T-pose应用与动画重计算:", icon='ACTION')
+            
+            # T-pose参考骨架选择
+            tpose_box.prop(context.scene, "tpose_reference_armature", text="T-pose参考骨架")
+            
+            # 性能优化选项
+            opt_col = tpose_box.column()
+            opt_col.label(text="性能优化选项:", icon='PREFERENCES')
+            
+            row = opt_col.row(align=True)
+            row.prop(context.scene, "tpose_keyframe_sample_rate", text="关键帧采样率")
+            row.prop(context.scene, "tpose_max_keyframes", text="最大关键帧数")
+            
+            # 添加新的内存管理选项
+            row2 = opt_col.row(align=True)
+            row2.prop(context.scene, "tpose_batch_size", text="批处理帧数")
+            row2.prop(context.scene, "tpose_memory_threshold", text="内存警告阈值(MB)")
+            
+            opt_col.prop(context.scene, "tpose_process_only_selected", text="仅处理选中的骨骼")
+            opt_col.prop(context.scene, "tpose_show_detailed_info", text="显示详细信息")
+            
+            # 操作按钮
+            op = tpose_box.operator("animation.apply_tpose_recalculate", text="应用T-pose并重计算动画", icon='IPO_BOUNCE')
+            op.keyframe_sample_rate = context.scene.tpose_keyframe_sample_rate
+            op.max_keyframes = context.scene.tpose_max_keyframes
+            op.process_only_selected_bones = context.scene.tpose_process_only_selected
+            op.show_detailed_info = context.scene.tpose_show_detailed_info
+            op.batch_size = context.scene.tpose_batch_size
+            op.memory_warning_threshold = context.scene.tpose_memory_threshold
+            
+            tpose_box.label(text="(使用方法：目标骨架为活动对象，T-pose参考骨架在上方选择)", icon='INFO')
+            tpose_box.label(text="(若处理较慢，可增加采样率、限制关键帧数或使用批处理模式)", icon='ERROR')
 
 # 导入导出操作
         col_inout = layout.column()
@@ -530,8 +613,98 @@ class CustomFunctionsPanel(bpy.types.Panel):
             operator_instance.output_frame_rate = str(change_resolution_prop.output_frame_rate)
 
             
+class AddSourceMaterialOperator(bpy.types.Operator):
+    bl_idname = "object.add_source_material"
+    bl_label = "添加源材质"
+    bl_description = "添加材质到源材质列表"
+    
+    def execute(self, context):
+        # 直接添加一个空的材质槽
+        new_item = context.scene.source_materials.add()
+        new_item.material = None
+        return {'FINISHED'}
+
+class RemoveSourceMaterialOperator(bpy.types.Operator):
+    bl_idname = "object.remove_source_material"
+    bl_label = "移除源材质"
+    bl_description = "从源材质列表移除材质"
+    
+    index: bpy.props.IntProperty(
+        name="索引",
+        default=0
+    ) # type: ignore
+    
+    def execute(self, context):
+        if 0 <= self.index < len(context.scene.source_materials):
+            context.scene.source_materials.remove(self.index)
+            return {'FINISHED'}
+        return {'CANCELLED'}
+
+class ClearSourceMaterialsOperator(bpy.types.Operator):
+    bl_idname = "object.clear_source_materials"
+    bl_label = "清空源材质列表"
+    bl_description = "清空源材质列表"
+    
+    def execute(self, context):
+        context.scene.source_materials.clear()
+        return {'FINISHED'}
+
+class ReplaceMaterialOperator(bpy.types.Operator):
+    bl_idname = "object.replace_material"
+    bl_label = "执行材质替换"
+    bl_description = "将选中的源材质替换为目标材质"
+    
+    def execute(self, context):
+        # 检查是否有目标材质
+        if not context.scene.target_material:
+            self.report({'ERROR'}, "请选择目标材质")
+            return {'CANCELLED'}
+            
+        # 获取所有非空的源材质
+        source_materials = [item.material for item in context.scene.source_materials if item.material is not None]
+        if not source_materials:
+            self.report({'WARNING'}, "没有有效的源材质")
+            return {'CANCELLED'}
+            
+        # 移除重复的源材质
+        source_materials = list(set(source_materials))
+        
+        # 统计替换结果
+        replaced_count = 0
+        affected_objects = set()
+        
+        # 遍历所有选中的物体
+        for obj in context.selected_objects:
+            if obj.type == 'MESH':
+                # 遍历物体的所有材质槽
+                for slot in obj.material_slots:
+                    if slot.material in source_materials:
+                        slot.material = context.scene.target_material
+                        replaced_count += 1
+                        affected_objects.add(obj.name)
+        
+        # 显示结果
+        if replaced_count > 0:
+            self.report({'INFO'}, f"已替换 {replaced_count} 个材质，影响 {len(affected_objects)} 个物体")
+        else:
+            self.report({'WARNING'}, "没有找到需要替换的材质")
+            
+        return {'FINISHED'}
+
 def register():
+    bpy.utils.register_class(MaterialPropertyGroup)
     bpy.utils.register_class(CustomFunctionsPanel)
+    bpy.utils.register_class(AddSourceMaterialOperator)
+    bpy.utils.register_class(RemoveSourceMaterialOperator)
+    bpy.utils.register_class(ClearSourceMaterialsOperator)
+    bpy.utils.register_class(ReplaceMaterialOperator)
+    
+    # 注册场景属性
+    bpy.types.Scene.source_materials = CollectionProperty(type=MaterialPropertyGroup)
+    bpy.types.Scene.target_material = PointerProperty(
+        type=bpy.types.Material,
+        name="目标材质"
+    )
     
     bpy.types.Scene.tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.BindOperation_expand = bpy.props.BoolProperty(default=False)
@@ -544,6 +717,71 @@ def register():
     bpy.types.Scene.autorender_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.light_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.animation_tools_expand = bpy.props.BoolProperty(default=False)
+    
+    # 骨架匹配工具参数
+    bpy.types.Scene.match_armature_apply_to_mesh = bpy.props.BoolProperty(
+        name="蒙皮网格跟随变换",
+        description="将T-pose蒙皮网格调整为与姿势骨架匹配的姿势，保持绑定关系",
+        default=True
+    )
+    
+    bpy.types.Scene.match_armature_reset_modifiers = bpy.props.BoolProperty(
+        name="重新应用修改器",
+        description="应用当前修改器并重新添加，确保蒙皮在新姿势下正确应用",
+        default=True
+    )
+    
+    bpy.types.Scene.match_armature_preserve_volume = bpy.props.BoolProperty(
+        name="保持体积",
+        description="在变形过程中保持网格体积",
+        default=True
+    )
+    
+    # T-pose应用与动画重计算参数
+    bpy.types.Scene.tpose_keyframe_sample_rate = bpy.props.IntProperty(
+        name="关键帧采样率",
+        description="处理关键帧的采样率，较低的值处理更少的关键帧（更快但可能精度更低）",
+        default=1,
+        min=1,
+        max=10
+    )
+    
+    bpy.types.Scene.tpose_max_keyframes = bpy.props.IntProperty(
+        name="最大关键帧数",
+        description="处理的最大关键帧数，设置为0表示处理所有关键帧",
+        default=0,
+        min=0
+    )
+    
+    bpy.types.Scene.tpose_process_only_selected = bpy.props.BoolProperty(
+        name="仅处理选中的骨骼",
+        description="仅处理姿势模式下选中的骨骼",
+        default=False
+    )
+    
+    bpy.types.Scene.tpose_show_detailed_info = bpy.props.BoolProperty(
+        name="显示详细信息",
+        description="在T-pose应用与动画重计算中显示详细信息",
+        default=False
+    )
+    
+    # 添加批处理和内存管理参数
+    bpy.types.Scene.tpose_batch_size = bpy.props.IntProperty(
+        name="批处理帧数",
+        description="为大型动画设置批处理帧数，减少内存使用（0表示不分批）",
+        default=0,
+        min=0,
+        max=1000
+    )
+    
+    bpy.types.Scene.tpose_memory_threshold = bpy.props.FloatProperty(
+        name="内存警告阈值",
+        description="当估计内存使用超过此值（MB）时发出警告",
+        default=1000.0,  # 1GB
+        min=100.0,
+        max=10000.0,
+    )
     
     # 灯光关联工具参数
     bpy.types.Scene.light_linking_tolerance = bpy.props.FloatProperty(
@@ -557,10 +795,40 @@ def register():
         precision=3
     )
 
-
 def unregister():
-    bpy.utils.unregister_class(CustomFunctionsPanel)
+    # 注销场景属性
+    del bpy.types.Scene.target_material
+    del bpy.types.Scene.source_materials
     
+    # 注销类
+    bpy.utils.unregister_class(ClearSourceMaterialsOperator)
+    bpy.utils.unregister_class(RemoveSourceMaterialOperator)
+    bpy.utils.unregister_class(AddSourceMaterialOperator)
+    bpy.utils.unregister_class(ReplaceMaterialOperator)
+    bpy.utils.unregister_class(CustomFunctionsPanel)
+    bpy.utils.unregister_class(MaterialPropertyGroup)
+    
+    # 清理骨架匹配工具参数
+    del bpy.types.Scene.match_armature_apply_to_mesh
+    del bpy.types.Scene.match_armature_reset_modifiers
+    del bpy.types.Scene.match_armature_preserve_volume
+    
+    # 清理T-pose应用与动画重计算参数
+    del bpy.types.Scene.tpose_reference_armature
+    del bpy.types.Scene.tpose_keyframe_sample_rate
+    del bpy.types.Scene.tpose_max_keyframes
+    del bpy.types.Scene.tpose_process_only_selected
+    del bpy.types.Scene.tpose_show_detailed_info
+    del bpy.types.Scene.tpose_batch_size
+    del bpy.types.Scene.tpose_memory_threshold
+    
+    # 清理灯光关联工具参数
+    del bpy.types.Scene.light_linking_tolerance
+    
+    # 删除批量调整渲染设置参数
+    del bpy.types.Scene.change_resolution_prop
+    
+    # 清理其他场景属性
     del bpy.types.Scene.tools_expand
     del bpy.types.Scene.BindOperation_expand
     del bpy.types.Scene.meterialoperation_expand
@@ -572,4 +840,4 @@ def unregister():
     del bpy.types.Scene.autorender_expand
     del bpy.types.Scene.renderadj_expand
     del bpy.types.Scene.light_tools_expand
-    del bpy.types.Scene.light_linking_tolerance
+    del bpy.types.Scene.animation_tools_expand

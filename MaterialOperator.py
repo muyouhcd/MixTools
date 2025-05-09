@@ -22,14 +22,14 @@ bpy.types.Scene.roughness_strength = bpy.props.FloatProperty(
 class SetEmissionStrength(bpy.types.Operator):
     bl_idname = "object.set_emission_strength"
     bl_label = "设置发光强度"
-
+    
     strength : bpy.props.FloatProperty(
         name="强度",
         description="设置发光强度",
         default=0.0,
         min=0.0
     ) # type: ignore
-
+    
     def set_emission_strength(self, material, strength):
         if not material.use_nodes:
             return
@@ -52,7 +52,7 @@ class SetEmissionStrength(bpy.types.Operator):
         strength = self.strength  # 直接使用类的属性替代 context.scene.emission_strength
         self.process_selected_objects(strength)
         return {'FINISHED'}
-    
+
 class SetMaterialRoughness(bpy.types.Operator):
     bl_idname = "object.set_roughness"
     bl_label = "设置材质粗糙度"
@@ -64,7 +64,7 @@ class SetMaterialRoughness(bpy.types.Operator):
         min=0.0,
         max=1.0
     ) # type: ignore
-
+    
     def set_roughness(self, material, roughness):
         """ 设置材质的粗糙度 """
         if not material.use_nodes:
@@ -86,6 +86,7 @@ class SetMaterialRoughness(bpy.types.Operator):
         roughness = self.roughness  # 直接使用类的属性
         self.process_selected_objects(roughness)
         return {'FINISHED'}
+
 # 材质球排序
 class MaterialSort(bpy.types.Operator):
     bl_idname = "object.miao_material_sort"
@@ -760,6 +761,50 @@ class CleanUnusedMaterials(bpy.types.Operator):
         self.report({'INFO'}, f"已清理 {slots_removed} 个未使用的材质槽，移除了 {materials_removed} 个未使用的材质")
         return {'FINISHED'}
 
+# 材质替换操作符
+class ReplaceMaterialOperator(bpy.types.Operator):
+    bl_idname = "object.replace_material"
+    bl_label = "替换材质"
+    bl_description = "将选中物体中的指定材质替换为目标材质"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        if not context.scene.source_materials or not context.scene.target_material:
+            self.report({'ERROR'}, "请选择至少一个源材质和目标材质")
+            return {'CANCELLED'}
+            
+        # 检查目标材质是否在源材质列表中
+        if context.scene.target_material in context.scene.source_materials:
+            self.report({'WARNING'}, "目标材质不能是源材质之一")
+            return {'CANCELLED'}
+            
+        replaced_count = 0
+        affected_objects = 0
+        
+        # 遍历所有选中的物体
+        for obj in context.selected_objects:
+            if obj.type not in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'}:
+                continue
+                
+            material_changed = False
+            
+            # 遍历物体的所有材质槽
+            for slot in obj.material_slots:
+                if slot.material in context.scene.source_materials:
+                    slot.material = context.scene.target_material
+                    replaced_count += 1
+                    material_changed = True
+            
+            if material_changed:
+                affected_objects += 1
+        
+        if replaced_count > 0:
+            self.report({'INFO'}, f"已在 {affected_objects} 个物体中替换了 {replaced_count} 个材质槽")
+        else:
+            self.report({'WARNING'}, "未找到需要替换的材质")
+            
+        return {'FINISHED'}
+
 def register():     
     bpy.utils.register_class(SetEmissionStrength)
     bpy.utils.register_class(SetMaterialRoughness)
@@ -778,6 +823,19 @@ def register():
     bpy.utils.register_class(SetShadowInvisible)
     bpy.utils.register_class(SetShadowVisible)
     bpy.utils.register_class(CleanUnusedMaterials)
+    bpy.utils.register_class(ReplaceMaterialOperator)
+    
+    # 注册材质替换操作符的属性
+    bpy.types.Scene.source_materials = bpy.props.CollectionProperty(
+        type=bpy.types.PropertyGroup,
+        name="源材质列表",
+        description="要替换的材质列表"
+    )
+    bpy.types.Scene.target_material = bpy.props.PointerProperty(
+        name="目标材质",
+        type=bpy.types.Material,
+        description="替换后的材质"
+    )
 
 def unregister():
     bpy.utils.unregister_class(SetEmissionStrength)
@@ -797,3 +855,8 @@ def unregister():
     bpy.utils.unregister_class(SetShadowInvisible)
     bpy.utils.unregister_class(SetShadowVisible)
     bpy.utils.unregister_class(CleanUnusedMaterials)
+    bpy.utils.unregister_class(ReplaceMaterialOperator)
+    
+    # 注销材质替换操作符的属性
+    del bpy.types.Scene.source_materials
+    del bpy.types.Scene.target_material
