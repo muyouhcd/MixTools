@@ -6,23 +6,49 @@ def load_textures_to_dict(texture_dir, ignore_fields=None):
     texture_mapping = {}
     supported_formats = ('.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tif', '.tiff', '.exr', '.hdr')
 
-    texture_dir = os.path.abspath(texture_dir)  # Ensure the directory is an absolute path
-    for dirpath, _, filenames in os.walk(texture_dir):
-        for filename in filenames:
-            if filename.lower().endswith(supported_formats):
-                original_name = os.path.splitext(filename)[0].lower().strip()
-                material_name = original_name
-                
-                # 如果提供了忽略字段，则从纹理名称中移除
-                if ignore_fields:
-                    for field in ignore_fields:
-                        if field.strip():
-                            material_name = material_name.replace(field.lower().strip(), "")
-                
-                texture_path = os.path.abspath(os.path.join(dirpath, filename))  # Ensure the path is absolute
-                texture_mapping[material_name] = texture_path
+    try:
+        # 使用Blender的路径处理函数
+        texture_dir = bpy.path.abspath(texture_dir)
+        
+        # 如果路径是相对路径，尝试解析
+        if not os.path.isabs(texture_dir):
+            blend_file_path = bpy.data.filepath
+            if blend_file_path:
+                blend_dir = os.path.dirname(blend_file_path)
+                texture_dir = os.path.join(blend_dir, texture_dir)
+        
+        texture_dir = os.path.normpath(texture_dir)
+        
+        if not os.path.exists(texture_dir):
+            print(f"ERROR: Texture directory does not exist: {texture_dir}")
+            return texture_mapping
 
-    return texture_mapping
+        # 首先收集所有文件
+        all_files = []
+        for dirpath, _, filenames in os.walk(texture_dir):
+            for filename in filenames:
+                if filename.lower().endswith(supported_formats):
+                    all_files.append((dirpath, filename))
+
+        # 批量处理文件
+        for dirpath, filename in all_files:
+            original_name = os.path.splitext(filename)[0]
+            material_name = original_name.lower().strip()
+            
+            # 如果提供了忽略字段，则从纹理名称中移除
+            if ignore_fields:
+                for field in ignore_fields:
+                    if field.strip():
+                        material_name = material_name.replace(field.lower().strip(), "")
+            
+            texture_path = os.path.abspath(os.path.join(dirpath, filename))
+            texture_mapping[material_name] = texture_path
+
+        return texture_mapping
+        
+    except Exception as e:
+        print(f"Error processing texture directory: {str(e)}")
+        return texture_mapping
 
 def apply_texture_to_material(mat, image_path):
     """应用纹理到材质"""
@@ -176,23 +202,52 @@ class ApplyTextureToMaterialsOperator(bpy.types.Operator):
 
     def execute(self, context):
         texture_dir = bpy.context.scene.texture_dir
+        if not texture_dir:
+            self.report({'ERROR'}, "Texture directory is not set!")
+            return {'CANCELLED'}
+            
+        try:
+            texture_dir = bpy.path.abspath(texture_dir)
+            if not os.path.isabs(texture_dir):
+                blend_file_path = bpy.data.filepath
+                if blend_file_path:
+                    blend_dir = os.path.dirname(blend_file_path)
+                    texture_dir = os.path.join(blend_dir, texture_dir)
+            texture_dir = os.path.normpath(texture_dir)
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"Invalid texture directory path: {str(e)}")
+            return {'CANCELLED'}
+            
         ignore_fields_input = bpy.context.scene.ignore_fields_input.split(',')
         ignore_fields = [field.lower().strip() for field in ignore_fields_input if field.strip()]
         
         # 使用忽略字段加载纹理
-        texture_mapping = load_textures_to_dict(os.path.abspath(texture_dir), ignore_fields)
+        texture_mapping = load_textures_to_dict(texture_dir, ignore_fields)
+        
+        if not texture_mapping:
+            self.report({'WARNING'}, "No texture files found in the specified directory!")
+            return {'CANCELLED'}
+            
         selected_objects = bpy.context.selected_objects
+        if not selected_objects:
+            self.report({'WARNING'}, "No objects selected!")
+            return {'CANCELLED'}
 
         # 收集所有独立的材质
         materials = set()
         for obj in selected_objects:
-            # 仅处理网格对象，并且有材质的对象
             if obj.type == 'MESH' and obj.data.materials:
                 for mat_slot in obj.material_slots:
                     if mat_slot.material:
                         materials.add(mat_slot.material)
 
-        # 对每个材质进行操作
+        if not materials:
+            self.report({'WARNING'}, "No materials found in selected objects!")
+            return {'CANCELLED'}
+
+        # 批量处理材质
+        matched_count = 0
         for mat in materials:
             original_name = mat.name.lower().strip()
             processed_name = original_name
@@ -203,9 +258,12 @@ class ApplyTextureToMaterialsOperator(bpy.types.Operator):
                 
             if processed_name in texture_mapping:
                 apply_texture_to_material(mat, texture_mapping[processed_name])
-                print(f"已为材质 '{mat.name}' 应用纹理: {texture_mapping[processed_name]}")
-            else:
-                print(f"未找到材质 '{mat.name}' 的匹配纹理")
+                matched_count += 1
+
+        if matched_count > 0:
+            self.report({'INFO'}, f"Successfully applied textures to {matched_count} materials")
+        else:
+            self.report({'WARNING'}, "No matching textures found for any materials")
 
         return {'FINISHED'}
 

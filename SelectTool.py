@@ -293,6 +293,7 @@ def register():
 
 
 def unregister():
+    # 注销操作符类
     bpy.utils.unregister_class(SelectSmallObjectsOperator)
     bpy.utils.unregister_class(SelectLargeObjectsOperator)
     bpy.utils.unregister_class(SelectObjectsWithoutTextureOperator)
@@ -300,12 +301,23 @@ def unregister():
     bpy.utils.unregister_class(SelectAndDeleteByNameListOperator)
     bpy.utils.unregister_class(EditNamesListOperator)
     bpy.utils.unregister_class(ReadNamesFromTempFileOperator)
-    del bpy.types.Scene.select_large_objects_threshold
-    del bpy.types.Scene.select_small_objects_threshold
-    del bpy.types.Scene.object_names_list
-    del bpy.types.Scene.temp_names_file_path
-    del bpy.types.Scene.delete_lights_option
-    del bpy.types.Scene.show_report_option
+    
+    # 注销场景属性
+    properties_to_remove = [
+        "select_large_objects_threshold",
+        "select_small_objects_threshold",
+        "object_names_list",
+        "temp_names_file_path",
+        "delete_lights_option",
+        "show_report_option"
+    ]
+    
+    # 安全地删除所有属性
+    for prop in properties_to_remove:
+        try:
+            delattr(bpy.types.Scene, prop)
+        except AttributeError:
+            pass  # 如果属性不存在，就跳过
 
 if __name__ == "__main__":
     register()

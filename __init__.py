@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,54),
+    "version": (4,8,55),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "如遇到插件无法打开请手动切换至blender的python目录运行以下指令进行安装：python.exe -m pip install pillow",
@@ -78,9 +78,14 @@ from . import RenderFrame
 from . import Cleaner
 from . import LightOperator
 from . import animationoperater
+from . import RoleReplacer
 
 def register():
+    # 先注册基础模块
+    update.register()
+    operators.register()
     
+    # 注册功能模块
     AutoBake.register()
     AutoBakeRemesh.register()
     AutoRender.register()
@@ -92,41 +97,48 @@ def register():
     LightOperator.register()
     MaterialOperator.register()
     MoveOrigin.register()
-    operators.register()
-    panels.register()
     RenameTool.register()
     renderconfig.register()
     RenderFrame.register()
     SelectTool.register()
     Cleaner.register()
     UVformater.register()
-    update.register()
     Voxelizer.register()
     animationoperater.register()
+    RoleReplacer.register()
+    
+    # 最后注册UI面板
+    panels.register()
 
 def unregister():
-    AutoBake.unregister()
-    AutoBakeRemesh.unregister()
-    AutoRender.unregister()
-    AutoRig.unregister()
-    AutolinkTexture.unregister()
-    Combin.unregister()
-    CorrectRotation.unregister()
-    Exporter.unregister()
-    LightOperator.unregister()
-    MaterialOperator.unregister()
-    MoveOrigin.unregister()
-    operators.unregister()
+    # 先注销UI面板
     panels.unregister()
-    RenameTool.unregister()
-    renderconfig.unregister()
-    RenderFrame.unregister()
-    SelectTool.unregister()
-    Cleaner.unregister()
-    UVformater.unregister()
-    update.unregister()
-    Voxelizer.unregister()
+    
+    # 注销功能模块
+    RoleReplacer.unregister()
     animationoperater.unregister()
+    Voxelizer.unregister()
+    UVformater.unregister()
+    Cleaner.unregister()
+    SelectTool.unregister()
+    RenderFrame.unregister()
+    renderconfig.unregister()
+    RenameTool.unregister()
+    MoveOrigin.unregister()
+    MaterialOperator.unregister()
+    LightOperator.unregister()
+    Exporter.unregister()
+    CorrectRotation.unregister()
+    Combin.unregister()
+    AutolinkTexture.unregister()
+    AutoRig.unregister()
+    AutoRender.unregister()
+    AutoBakeRemesh.unregister()
+    AutoBake.unregister()
+    
+    # 最后注销基础模块
+    operators.unregister()
+    update.unregister()
 
 if __name__ == "__main__":
     register()

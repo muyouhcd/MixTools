@@ -310,40 +310,6 @@ class TransferBoneAnimation(bpy.types.Operator):
         
         return matching_bones
 
-class BONE_ANIMATION_PT_transfer(bpy.types.Panel):
-    bl_label = "骨骼动画转移"
-    bl_idname = "BONE_ANIMATION_PT_transfer"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = '骨骼动画'
-    
-    def draw(self, context):
-        layout = self.layout
-        
-        # 源骨架选择
-        box = layout.box()
-        box.label(text="源骨架（带动画的骨架）:")
-        box.prop(context.scene, "source_armature", text="")
-        
-        # 目标骨架选择
-        box = layout.box()
-        box.label(text="目标骨架:")
-        box.prop(context.scene, "target_armature", text="")
-        
-        # 操作按钮
-        layout.operator("animation.transfer_bone_animation", text="转移动画")
-        
-        # 高级选项
-        box = layout.box()
-        box.label(text="高级选项:")
-        
-        # 获取操作符属性
-        op = bpy.ops.animation.transfer_bone_animation.get_rna_type()
-        
-        # 显示操作符的属性
-        for prop in op.properties:
-            if prop.identifier not in {'rna_type', 'bl_rna'}:
-                box.prop(context.scene, f"transfer_bone_animation_{prop.identifier}", text=prop.name)
 
 def register():
     bpy.utils.register_class(ClearScaleAnimation)
@@ -351,7 +317,6 @@ def register():
     bpy.utils.register_class(ClearLocationAnimation)
     bpy.utils.register_class(ClearRotationAnimation)
     bpy.utils.register_class(TransferBoneAnimation)
-    bpy.utils.register_class(BONE_ANIMATION_PT_transfer)
     
     # 添加属性用于存储源骨架和目标骨架
     bpy.types.Scene.source_armature = bpy.props.PointerProperty(
@@ -381,7 +346,6 @@ def unregister():
     bpy.utils.unregister_class(ClearLocationAnimation)
     bpy.utils.unregister_class(ClearRotationAnimation)
     bpy.utils.unregister_class(TransferBoneAnimation)
-    bpy.utils.unregister_class(BONE_ANIMATION_PT_transfer)
     
     # 删除属性
     del bpy.types.Scene.source_armature

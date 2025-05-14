@@ -620,26 +620,20 @@ class OBJECT_OT_RemoveUnusedMaterialSlots(bpy.types.Operator):
         return {'FINISHED'}
 
 # 设置材质渲染模式为Alpha Clip
-class SetMaterialAlphaClipMode(bpy.types.Operator):
+class MIAO_OT_SetMaterialAlphaClipMode(bpy.types.Operator):
     bl_idname = "object.set_material_alpha_clip"
     bl_label = "设置Alpha裁剪模式"
     bl_description = "将所选物体的所有材质视图显示设置为Alpha裁剪模式"
     bl_options = {'REGISTER', 'UNDO'}
-    
+
     def execute(self, context):
         selected_objects = context.selected_objects
-        changed_count = 0
-        
         for obj in selected_objects:
             if obj.type == 'MESH':
                 for slot in obj.material_slots:
-                    material = slot.material
-                    if material:
-                        # 设置材质的混合模式为Alpha裁剪
-                        material.blend_method = 'CLIP'
-                        changed_count += 1
-        
-        self.report({'INFO'}, f"已将 {changed_count} 个材质设置为Alpha裁剪模式")
+                    if slot.material:
+                        slot.material.blend_method = 'CLIP'
+                        slot.material.shadow_method = 'CLIP'
         return {'FINISHED'}
 
 # 设置材质渲染模式为Alpha Blend
@@ -805,26 +799,7 @@ class ReplaceMaterialOperator(bpy.types.Operator):
             
         return {'FINISHED'}
 
-def register():     
-    bpy.utils.register_class(SetEmissionStrength)
-    bpy.utils.register_class(SetMaterialRoughness)
-    bpy.utils.register_class(MaterialSort)
-    bpy.utils.register_class(OBJ_OT_random_meterial)
-    bpy.utils.register_class(MergeMaterial)
-    bpy.utils.register_class(SetTextureInterpolation)
-    bpy.utils.register_class(AlphaNodeConnector)
-    bpy.utils.register_class(AlphaNodeDisconnector)
-    bpy.utils.register_class(AlphaToSkin)
-    bpy.utils.register_class(MaterialCleaner)
-    bpy.utils.register_class(OBJECT_OT_MergeDuplicateMaterials)
-    bpy.utils.register_class(OBJECT_OT_RemoveUnusedMaterialSlots)
-    bpy.utils.register_class(SetMaterialAlphaClipMode)
-    bpy.utils.register_class(SetMaterialAlphaBlendMode)
-    bpy.utils.register_class(SetShadowInvisible)
-    bpy.utils.register_class(SetShadowVisible)
-    bpy.utils.register_class(CleanUnusedMaterials)
-    bpy.utils.register_class(ReplaceMaterialOperator)
-    
+def register():
     # 注册材质替换操作符的属性
     bpy.types.Scene.source_materials = bpy.props.CollectionProperty(
         type=bpy.types.PropertyGroup,
@@ -836,27 +811,67 @@ def register():
         type=bpy.types.Material,
         description="替换后的材质"
     )
+    
+    # 注册操作符类
+    classes = [
+        SetEmissionStrength,
+        SetMaterialRoughness,
+        MaterialSort,
+        OBJ_OT_random_meterial,
+        MergeMaterial,
+        SetTextureInterpolation,
+        AlphaNodeConnector,
+        AlphaNodeDisconnector,
+        AlphaToSkin,
+        MaterialCleaner,
+        OBJECT_OT_MergeDuplicateMaterials,
+        OBJECT_OT_RemoveUnusedMaterialSlots,
+        MIAO_OT_SetMaterialAlphaClipMode,
+        SetMaterialAlphaBlendMode,
+        SetShadowInvisible,
+        SetShadowVisible,
+        CleanUnusedMaterials,
+        ReplaceMaterialOperator
+    ]
+    
+    for cls in classes:
+        try:
+            bpy.utils.register_class(cls)
+        except Exception as e:
+            print(f"Error registering {cls.__name__}: {str(e)}")
 
 def unregister():
-    bpy.utils.unregister_class(SetEmissionStrength)
-    bpy.utils.unregister_class(SetMaterialRoughness)
-    bpy.utils.unregister_class(MaterialSort)
-    bpy.utils.unregister_class(OBJ_OT_random_meterial)
-    bpy.utils.unregister_class(MergeMaterial)
-    bpy.utils.unregister_class(SetTextureInterpolation)
-    bpy.utils.unregister_class(AlphaNodeConnector)
-    bpy.utils.unregister_class(AlphaNodeDisconnector)
-    bpy.utils.unregister_class(AlphaToSkin)
-    bpy.utils.unregister_class(MaterialCleaner)
-    bpy.utils.unregister_class(OBJECT_OT_MergeDuplicateMaterials)
-    bpy.utils.unregister_class(OBJECT_OT_RemoveUnusedMaterialSlots)
-    bpy.utils.unregister_class(SetMaterialAlphaClipMode)
-    bpy.utils.unregister_class(SetMaterialAlphaBlendMode)
-    bpy.utils.unregister_class(SetShadowInvisible)
-    bpy.utils.unregister_class(SetShadowVisible)
-    bpy.utils.unregister_class(CleanUnusedMaterials)
-    bpy.utils.unregister_class(ReplaceMaterialOperator)
+    # 注销操作符类（反向顺序）
+    classes = [
+        ReplaceMaterialOperator,
+        CleanUnusedMaterials,
+        SetShadowVisible,
+        SetShadowInvisible,
+        SetMaterialAlphaBlendMode,
+        MIAO_OT_SetMaterialAlphaClipMode,
+        OBJECT_OT_RemoveUnusedMaterialSlots,
+        OBJECT_OT_MergeDuplicateMaterials,
+        MaterialCleaner,
+        AlphaToSkin,
+        AlphaNodeDisconnector,
+        AlphaNodeConnector,
+        SetTextureInterpolation,
+        MergeMaterial,
+        OBJ_OT_random_meterial,
+        MaterialSort,
+        SetMaterialRoughness,
+        SetEmissionStrength
+    ]
+    
+    for cls in classes:
+        try:
+            bpy.utils.unregister_class(cls)
+        except Exception as e:
+            print(f"Error unregistering {cls.__name__}: {str(e)}")
     
     # 注销材质替换操作符的属性
-    del bpy.types.Scene.source_materials
-    del bpy.types.Scene.target_material
+    try:
+        del bpy.types.Scene.source_materials
+        del bpy.types.Scene.target_material
+    except Exception as e:
+        print(f"Error removing properties: {str(e)}")

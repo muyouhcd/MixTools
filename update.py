@@ -414,14 +414,33 @@ def register():
         subtype='PERCENTAGE'
     )
     
-    bpy.utils.register_class(UpdateAddonOperator)
-    bpy.utils.register_class(UpdateAddonPanel)
-    bpy.utils.register_class(MyAddonPreferences)
+    # 安全地注册类
+    classes = [
+        UpdateAddonOperator,
+        UpdateAddonPanel,
+        MyAddonPreferences
+    ]
+    
+    for cls in classes:
+        try:
+            bpy.utils.unregister_class(cls)
+        except:
+            pass
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(MyAddonPreferences)
-    bpy.utils.unregister_class(UpdateAddonPanel)
-    bpy.utils.unregister_class(UpdateAddonOperator)
+    # 注销类
+    classes = [
+        MyAddonPreferences,
+        UpdateAddonPanel,
+        UpdateAddonOperator
+    ]
+    
+    for cls in classes:
+        try:
+            bpy.utils.unregister_class(cls)
+        except:
+            pass
     
     # 删除属性
     if hasattr(bpy.types.WindowManager, "progress"):

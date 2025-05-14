@@ -34,6 +34,9 @@ class CustomFunctionsPanel(Panel):
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='UNLINKED')
             edit_box.operator("object.miao_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
+            
+
+            
             # Animation Tools
             layout.label(text="清理工具:", icon='BRUSH_DATA')
             clean_box = layout.box()
@@ -384,6 +387,13 @@ class CustomFunctionsPanel(Panel):
                           icon='TRIA_DOWN' if context.scene.animation_tools_expand else 'TRIA_RIGHT')
         
         if scene.animation_tools_expand:
+            # 角色部件替换工具
+            role_replace_box = col_animation.box()
+            role_replace_box.label(text="角色部件替换:", icon='OUTLINER_OB_ARMATURE')
+            role_replace_box.prop(context.scene, "collectionA", text="源集合", icon='COLLECTION_COLOR_01')
+            role_replace_box.prop(context.scene, "collectionB", text="目标集合", icon='COLLECTION_COLOR_04')
+            role_replace_box.operator("object.miao_role_replacer", text="执行部件替换", icon='ARMATURE_DATA')
+
             # 动画清理工具
             animation_tools_box = col_animation.box()
             animation_tools_box.label(text="动画清理工具:", icon='ANIM_DATA')
@@ -725,48 +735,38 @@ def register():
     )
 
 def unregister():
-    # 注销场景属性
-    del bpy.types.Scene.target_material
-    del bpy.types.Scene.source_materials
-    
-    # 注销类
-    bpy.utils.unregister_class(ClearSourceMaterialsOperator)
-    bpy.utils.unregister_class(RemoveSourceMaterialOperator)
-    bpy.utils.unregister_class(AddSourceMaterialOperator)
-    bpy.utils.unregister_class(ReplaceMaterialOperator)
+    # 注销操作符类
     bpy.utils.unregister_class(CustomFunctionsPanel)
     bpy.utils.unregister_class(MaterialPropertyGroup)
+    bpy.utils.unregister_class(AddSourceMaterialOperator)
+    bpy.utils.unregister_class(RemoveSourceMaterialOperator)
+    bpy.utils.unregister_class(ClearSourceMaterialsOperator)
+    bpy.utils.unregister_class(ReplaceMaterialOperator)
     
-    # 清理骨架匹配工具参数
-    del bpy.types.Scene.match_armature_apply_to_mesh
-    del bpy.types.Scene.match_armature_reset_modifiers
-    del bpy.types.Scene.match_armature_preserve_volume
+    # 注销场景属性
+    properties_to_remove = [
+        # 基础属性
+        "tools_expand",
+        "BindOperation_expand",
+        "meterialoperation_expand",
+        "renameoperation_expand",
+        "rsm_expand",
+        "anm_expand",
+        "inout_expand",
+        "assestoperation_expand",
+        "autorender_expand",
+        "renderadj_expand",
+        "light_tools_expand",
+        "animation_tools_expand",
+        
+        # 材质相关属性
+        "source_materials",
+        "target_material"
+    ]
     
-    # 清理T-pose应用与动画重计算参数
-    del bpy.types.Scene.tpose_reference_armature
-    del bpy.types.Scene.tpose_keyframe_sample_rate
-    del bpy.types.Scene.tpose_max_keyframes
-    del bpy.types.Scene.tpose_process_only_selected
-    del bpy.types.Scene.tpose_show_detailed_info
-    del bpy.types.Scene.tpose_batch_size
-    del bpy.types.Scene.tpose_memory_threshold
-    
-    # 清理灯光关联工具参数
-    del bpy.types.Scene.light_linking_tolerance
-    
-    # 删除批量调整渲染设置参数
-    del bpy.types.Scene.change_resolution_prop
-    
-    # 清理其他场景属性
-    del bpy.types.Scene.tools_expand
-    del bpy.types.Scene.BindOperation_expand
-    del bpy.types.Scene.meterialoperation_expand
-    del bpy.types.Scene.renameoperation_expand
-    del bpy.types.Scene.rsm_expand
-    del bpy.types.Scene.anm_expand
-    del bpy.types.Scene.inout_expand
-    del bpy.types.Scene.assestoperation_expand
-    del bpy.types.Scene.autorender_expand
-    del bpy.types.Scene.renderadj_expand
-    del bpy.types.Scene.light_tools_expand
-    del bpy.types.Scene.animation_tools_expand
+    # 安全地删除所有属性
+    for prop in properties_to_remove:
+        try:
+            delattr(bpy.types.Scene, prop)
+        except AttributeError:
+            pass  # 如果属性不存在，就跳过
