@@ -190,6 +190,9 @@ class CustomFunctionsPanel(Panel):
             row4.operator("object.set_shadow_invisible", text="设置选中物体阴影不可见", icon='GHOST_ENABLED')
             row4.operator("object.set_shadow_visible", text="设置选中物体阴影可见", icon='GHOST_DISABLED')
 
+            row5 = material_operations_box.row(align=True)
+            row5.operator("object.set_texture_alpha_packing", text="设置Alpha通道打包", icon='PACKAGE')
+
             # 贴图自动链接
             texture_operater_box = col_meterialoperation.box()
             texture_operater_box.label(text="贴图自动链接", icon='TEXTURE')

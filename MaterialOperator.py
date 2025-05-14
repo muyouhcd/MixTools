@@ -799,6 +799,30 @@ class ReplaceMaterialOperator(bpy.types.Operator):
             
         return {'FINISHED'}
 
+# 设置贴图Alpha通道打包模式
+class SetTextureAlphaPacking(bpy.types.Operator):
+    bl_idname = "object.set_texture_alpha_packing"
+    bl_label = "设置贴图Alpha通道打包"
+    bl_description = "将所选物体的所有贴图设置为Alpha通道打包模式"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        changed_count = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                for slot in obj.material_slots:
+                    material = slot.material
+                    if material and material.use_nodes:
+                        for node in material.node_tree.nodes:
+                            if node.type == 'TEX_IMAGE' and node.image:
+                                node.image.alpha_mode = 'CHANNEL_PACKED'
+                                changed_count += 1
+        
+        self.report({'INFO'}, f"已将 {changed_count} 个贴图设置为Alpha通道打包模式")
+        return {'FINISHED'}
+
 def register():
     # 注册材质替换操作符的属性
     bpy.types.Scene.source_materials = bpy.props.CollectionProperty(
@@ -831,7 +855,8 @@ def register():
         SetShadowInvisible,
         SetShadowVisible,
         CleanUnusedMaterials,
-        ReplaceMaterialOperator
+        ReplaceMaterialOperator,
+        SetTextureAlphaPacking
     ]
     
     for cls in classes:
@@ -860,7 +885,8 @@ def unregister():
         OBJ_OT_random_meterial,
         MaterialSort,
         SetMaterialRoughness,
-        SetEmissionStrength
+        SetEmissionStrength,
+        SetTextureAlphaPacking
     ]
     
     for cls in classes:
