@@ -72,6 +72,24 @@ class SelectObjectsWithoutTextureOperator(bpy.types.Operator):
                 obj.select_set(True)
         return {'FINISHED'}
 
+class SelectObjectsWithoutVertexGroupsOperator(bpy.types.Operator):
+    bl_idname = "object.select_objects_without_vertex_groups"
+    bl_label = "选择没有顶点组的物体"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 获取当前选中的物体
+        selected_objects = [obj for obj in context.selected_objects]
+        
+        # 取消所有选择
+        bpy.ops.object.select_all(action='DESELECT')
+        
+        # 从当前选中的物体中筛选出没有顶点组的物体
+        for obj in selected_objects:
+            if obj.type == 'MESH' and len(obj.vertex_groups) == 0:
+                obj.select_set(True)
+                
+        return {'FINISHED'}
 
 def update_large_objects_threshold(self, context):
     bpy.types.Scene.select_large_objects_threshold = context.scene.select_large_objects_threshold
@@ -247,6 +265,7 @@ def register():
     bpy.utils.register_class(SelectLargeObjectsOperator)
     bpy.utils.register_class(SelectSmallObjectsOperator)
     bpy.utils.register_class(SelectObjectsWithoutTextureOperator)
+    bpy.utils.register_class(SelectObjectsWithoutVertexGroupsOperator)
     bpy.types.Scene.select_large_objects_threshold = bpy.props.FloatProperty(
         name="Threshold (Meters)",
         description="Threshold size in meters for large objects",
@@ -297,6 +316,7 @@ def unregister():
     bpy.utils.unregister_class(SelectSmallObjectsOperator)
     bpy.utils.unregister_class(SelectLargeObjectsOperator)
     bpy.utils.unregister_class(SelectObjectsWithoutTextureOperator)
+    bpy.utils.unregister_class(SelectObjectsWithoutVertexGroupsOperator)
     bpy.utils.unregister_class(SelectByVolume)
     bpy.utils.unregister_class(SelectAndDeleteByNameListOperator)
     bpy.utils.unregister_class(EditNamesListOperator)

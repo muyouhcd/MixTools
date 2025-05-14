@@ -16,6 +16,14 @@ categories = {
     "Nose": ["Nose"],
 }
 
+def get_gender(obj_name):
+    """获取物体的性别属性"""
+    if "female" in obj_name.lower():
+        return "female"
+    elif "male" in obj_name.lower():
+        return "male"
+    return None
+
 class MIAO_OT_RoleReplacer(bpy.types.Operator):
     """替换角色部件"""
     bl_idname = "object.miao_role_replacer"
@@ -34,9 +42,11 @@ class MIAO_OT_RoleReplacer(bpy.types.Operator):
         if source_collection:
             for obj in source_collection.objects:
                 if obj.type == 'MESH':  # 仅针对 Mesh 类型物体
+                    obj_gender = get_gender(obj.name)
                     for category, keywords in categories.items():
                         if any(keyword in obj.name for keyword in keywords):
-                            classified_objects[category].append(obj)  # 存储实际物体对象
+                            # 存储物体对象和其性别信息
+                            classified_objects[category].append((obj, obj_gender))
                             break
         else:
             self.report({'ERROR'}, f"源集合不存在，请检查集合设置。")
@@ -46,18 +56,24 @@ class MIAO_OT_RoleReplacer(bpy.types.Operator):
         if target_collection:
             for obj in target_collection.objects:
                 if obj.type == 'MESH':  # 仅针对 Mesh 类型物体
+                    target_gender = get_gender(obj.name)
                     for category, keywords in categories.items():
                         if any(keyword in obj.name for keyword in keywords):
-                            # 检查源集合中是否有对应分类的物体
-                            if classified_objects[category]:
-                                # 从对应分类中随机选择一个物体的 Mesh 数据
-                                random_obj = random.choice(classified_objects[category])
+                            # 获取符合性别要求的物体列表
+                            matching_objects = [
+                                source_obj for source_obj, source_gender in classified_objects[category]
+                                if source_gender == target_gender or (source_gender is None and target_gender is None)
+                            ]
+                            
+                            if matching_objects:
+                                # 从符合性别要求的物体中随机选择一个
+                                random_obj = random.choice(matching_objects)
                                 self.report({'INFO'}, f"将物体 '{obj.name}' 替换为 '{random_obj.name}' 的数据。")
                                 
                                 # 替换物体数据
                                 obj.data = random_obj.data
                             else:
-                                self.report({'WARNING'}, f"分类 '{category}' 中没有可替换的物体，跳过物体 '{obj.name}'。")
+                                self.report({'WARNING'}, f"分类 '{category}' 中没有符合性别要求的可替换物体，跳过物体 '{obj.name}'。")
                             break
         else:
             self.report({'ERROR'}, f"目标集合不存在，请检查集合设置。")

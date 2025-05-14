@@ -74,6 +74,7 @@ class CustomFunctionsPanel(Panel):
             select_box.operator("object.select_large_objects", text="选择过大物体", icon='FULLSCREEN_ENTER')
             select_box.operator("object.select_small_objects", text="选择过小物体", icon='FULLSCREEN_EXIT')
             select_box.operator("object.select_objects_without_texture", text="选择没有贴图物体", icon='TEXTURE')
+            select_box.operator("object.select_objects_without_vertex_groups", text="选择没有顶点组物体", icon='GROUP_VERTEX')
             
             # 按名称列表筛选工具
             namelist_select_box = layout.box()
@@ -438,6 +439,11 @@ class CustomFunctionsPanel(Panel):
                        icon='TRIA_DOWN' if context.scene.inout_expand else 'TRIA_RIGHT')
 
         if context.scene.inout_expand:
+            # 批量导入
+            import_box = col_inout.box()
+            import_box.label(text="批量导入:", icon='IMPORT')
+            import_box.operator("miao.batch_import_fbx", text="批量导入FBX", icon='FILE_3D')
+            
             # 批量导出
             export_box = col_inout.box()
             export_box.label(text="批量导出:", icon='EXPORT')

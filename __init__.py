@@ -14,6 +14,7 @@ import sys
 import os
 import subprocess
 import glob
+import bpy
 
 #------------------------------------------------------------------------------------------
 #自动检测缺失库进行补充安装
@@ -79,6 +80,7 @@ from . import Cleaner
 from . import LightOperator
 from . import animationoperater
 from . import RoleReplacer
+from . import Importer
 
 def register():
     # 先注册基础模块
@@ -106,6 +108,7 @@ def register():
     Voxelizer.register()
     animationoperater.register()
     RoleReplacer.register()
+    Importer.register()
     
     # 最后注册UI面板
     panels.register()
@@ -135,6 +138,7 @@ def unregister():
     AutoRender.unregister()
     AutoBakeRemesh.unregister()
     AutoBake.unregister()
+    Importer.unregister()
     
     # 最后注销基础模块
     operators.unregister()
