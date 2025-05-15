@@ -166,14 +166,20 @@ class AutoRenderer():
             # 渲染当前分组中的所有物体
             print("执行渲染操作...")
             try:
-                bpy.ops.render.render()
+                # 设置渲染输出路径
+                bpy.context.scene.render.filepath = filepath
+                # 执行渲染并保存
+                bpy.ops.render.render(write_still=True)
                 print("渲染操作完成")
+                save_msg = f"已保存: {filepath}"
+                print(save_msg)
+                self.report_info({'INFO'}, save_msg)
             except Exception as e:
                 error_msg = f"渲染操作失败: {str(e)}"
                 print(error_msg)
                 self.report_info({'ERROR'}, error_msg)
                 raise
-
+            
             # 文件名使用顶级父级名称，如果物体没有父物体，则使用物体本身名称
             filename = top_parent_name if top_parent_name != objects[0].name else objects[0].name
             filepath = os.path.join(self.output_path, "{}.{}".format(filename, self.output_format.lower()))

@@ -396,7 +396,18 @@ class CustomFunctionsPanel(Panel):
             role_replace_box.label(text="角色部件替换:", icon='OUTLINER_OB_ARMATURE')
             role_replace_box.prop(context.scene, "collectionA", text="源集合", icon='COLLECTION_COLOR_01')
             role_replace_box.prop(context.scene, "collectionB", text="目标集合", icon='COLLECTION_COLOR_04')
-            role_replace_box.operator("object.miao_role_replacer", text="执行部件替换", icon='ARMATURE_DATA')
+            
+            # 添加四个按钮
+            col = role_replace_box.column(align=True)
+            col.label(text="替换集合内物体:")
+            row = col.row(align=True)
+            row.operator("object.miao_role_replacer", text="考虑父级关系", icon='CONSTRAINT').use_parent_matching = True
+            row.operator("object.miao_role_replacer", text="无视父级关系", icon='ARMATURE_DATA').use_parent_matching = False
+            
+            col.label(text="替换所选物体:")
+            row = col.row(align=True)
+            row.operator("object.miao_role_replacer_selected", text="考虑父级关系", icon='CONSTRAINT').use_parent_matching = True
+            row.operator("object.miao_role_replacer_selected", text="无视父级关系", icon='OBJECT_DATA').use_parent_matching = False
 
             # 动画清理工具
             animation_tools_box = col_animation.box()
@@ -743,6 +754,27 @@ def register():
         poll=lambda self, obj: obj.type == 'ARMATURE'
     )
 
+    # 骨骼动画转移参数
+    bpy.types.Scene.transfer_bone_animation_keyframe_sample_rate = bpy.props.IntProperty(
+        name="关键帧采样率",
+        description="每多少帧采样一次关键帧",
+        default=1,
+        min=1
+    )
+
+    bpy.types.Scene.transfer_bone_animation_batch_size = bpy.props.IntProperty(
+        name="批处理帧数",
+        description="每次处理多少帧",
+        default=10,
+        min=1
+    )
+
+    bpy.types.Scene.transfer_bone_animation_show_detailed_info = bpy.props.BoolProperty(
+        name="显示详细信息",
+        description="是否显示详细的处理信息",
+        default=False
+    )
+
 def unregister():
     # 注销操作符类
     bpy.utils.unregister_class(CustomFunctionsPanel)
@@ -770,7 +802,19 @@ def unregister():
         
         # 材质相关属性
         "source_materials",
-        "target_material"
+        "target_material",
+        
+        # 灯光关联工具参数
+        "light_linking_tolerance",
+        
+        # 骨架相关属性
+        "source_armature",
+        "target_armature",
+        
+        # 骨骼动画转移参数
+        "transfer_bone_animation_keyframe_sample_rate",
+        "transfer_bone_animation_batch_size",
+        "transfer_bone_animation_show_detailed_info"
     ]
     
     # 安全地删除所有属性
