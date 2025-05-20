@@ -19,6 +19,7 @@ from bpy.props import EnumProperty
 from mathutils.bvhtree import BVHTree
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
+from mathutils import Quaternion
 
 #转换实例化对象
 class ObjectInstancer(bpy.types.Operator):
@@ -1077,20 +1078,22 @@ class FixSizeOperator(bpy.types.Operator):
 class CreateAssemblyAsset(bpy.types.Operator):
     bl_idname = "object.miao_create_assembly_asset"
     bl_label = "批量标记资产（需要m3插件）"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    # 添加批处理大小属性
+    batch_size: bpy.props.IntProperty(
+        name="批处理大小",
+        description="每次处理的物体数量",
+        default=5,  # 减小默认批处理大小
+        min=1,
+        max=50
+    )
 
     def execute(self, context):
-
-        bpy.types.Scene.create_top_level_parent = bpy.props.BoolProperty(
-            name="创建顶级父物体",
-            description="设置是否为每个资产创建一个顶级父物体",
-            default=True
-        )
-
-        bpy.types.Scene.asset_collection = bpy.props.PointerProperty(
-            name="集合",
-            description="选择将要标记资产的集合",
-            type=bpy.types.Collection
-        )
+        # 检查 Machin3tools 插件是否已安装
+        if not hasattr(bpy.ops, 'machin3'):
+            self.report({'ERROR'}, "请先安装并启用 Machin3tools 插件")
+            return {'CANCELLED'}
 
         def get_3d_view_region():
             for area in bpy.context.window.screen.areas:
@@ -1100,96 +1103,233 @@ class CreateAssemblyAsset(bpy.types.Operator):
                             return area, region
             return None, None
 
-        def isolate_parent_and_children(obj):
-            for ob in bpy.context.visible_objects:
-                ob.hide_viewport = True
+        def save_scene_state():
+            """保存当前场景状态"""
+            state = {
+                'visible_objects': {ob.name: ob.hide_viewport for ob in bpy.context.visible_objects},
+                'selected_objects': {ob.name: ob.select_get() for ob in bpy.context.visible_objects},
+                'active_object': bpy.context.active_object.name if bpy.context.active_object else None,
+                'view_settings': {
+                    'view_perspective': context.space_data.region_3d.view_perspective,
+                    'view_rotation': context.space_data.region_3d.view_rotation.copy(),
+                    'view_distance': context.space_data.region_3d.view_distance
+                }
+            }
+            return state
 
-            obj.hide_viewport = False
-            obj.select_set(True)
+        def restore_scene_state(state):
+            """恢复场景状态"""
+            try:
+                # 恢复可见性
+                for obj_name, visibility in state['visible_objects'].items():
+                    if obj_name in bpy.data.objects:
+                        obj = bpy.data.objects[obj_name]
+                        if obj.name in bpy.context.view_layer.objects:
+                            obj.hide_viewport = visibility
+                
+                # 恢复选择状态
+                for obj_name, selected in state['selected_objects'].items():
+                    if obj_name in bpy.data.objects:
+                        obj = bpy.data.objects[obj_name]
+                        if obj.name in bpy.context.view_layer.objects:
+                            obj.select_set(selected)
+                
+                # 恢复活动对象
+                if state['active_object'] and state['active_object'] in bpy.data.objects:
+                    active_obj = bpy.data.objects[state['active_object']]
+                    if active_obj.name in bpy.context.view_layer.objects:
+                        bpy.context.view_layer.objects.active = active_obj
 
-            # 添加一个新方法，显示所有子物体，包括它们的子集
-            def recurse_children(obj):
-                for child in obj.children:
+                # 恢复视图设置
+                if 'view_settings' in state:
+                    context.space_data.region_3d.view_perspective = state['view_settings']['view_perspective']
+                    context.space_data.region_3d.view_rotation = state['view_settings']['view_rotation']
+                    context.space_data.region_3d.view_distance = state['view_settings']['view_distance']
+
+            except Exception as e:
+                print(f"恢复场景状态时出错: {str(e)}")
+
+        def setup_view_for_preview(obj):
+            """设置视图以生成预览图"""
+            try:
+                # 计算物体的边界框
+                bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                min_corner = Vector((min(c.x for c in bbox_corners),
+                                   min(c.y for c in bbox_corners),
+                                   min(c.z for c in bbox_corners)))
+                max_corner = Vector((max(c.x for c in bbox_corners),
+                                   max(c.y for c in bbox_corners),
+                                   max(c.z for c in bbox_corners)))
+                
+                # 计算物体的中心点和尺寸
+                center = (min_corner + max_corner) / 2
+                size = max_corner - min_corner
+                max_dim = max(size.x, size.y, size.z)
+                
+                # 保存当前视图设置
+                current_view = context.space_data.region_3d.view_rotation.copy()
+                current_distance = context.space_data.region_3d.view_distance
+                current_perspective = context.space_data.region_3d.view_perspective
+                
+                # 设置视图距离为物体最大尺寸的2倍
+                context.space_data.region_3d.view_distance = max_dim * 2
+                
+                # 保持当前视图角度
+                context.space_data.region_3d.view_rotation = current_view
+                context.space_data.region_3d.view_perspective = current_perspective
+                
+                # 更新视图
+                context.space_data.region_3d.update()
+                
+            except Exception as e:
+                print(f"设置预览视图时出错: {str(e)}")
+
+        def prepare_object_for_asset(obj):
+            """准备物体用于资产创建"""
+            try:
+                # 隐藏所有其他物体
+                for ob in bpy.context.visible_objects:
+                    if ob != obj and ob not in obj.children_recursive:
+                        ob.hide_viewport = True
+                
+                # 确保目标物体及其子物体可见
+                obj.hide_viewport = False
+                for child in obj.children_recursive:
                     child.hide_viewport = False
+                
+                # 选择目标物体及其子物体
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                for child in obj.children_recursive:
                     child.select_set(True)
-                    recurse_children(child)
+                
+                # 设置活动对象
+                bpy.context.view_layer.objects.active = obj
 
-            recurse_children(obj)  # 调用递归方法
-
-        def select_obj_and_children(obj):
-            obj.select_set(True)
-            for child in obj.children:
-                select_obj_and_children(child)
-
-        def get_viewport_area():
-            for area in bpy.context.window.screen.areas:
-                if area.type == 'VIEW_3D':
-                    return area
-            return None
+                # 设置预览视图
+                setup_view_for_preview(obj)
+                
+            except Exception as e:
+                print(f"准备物体 {obj.name} 时出错: {str(e)}")
 
         def create_empty_parent(obj):
-            empty = bpy.data.objects.new(f"Empty_{obj.name}", None)
-            scene = bpy.context.scene
-            scene.collection.objects.link(empty)
+            """创建空物体作为父级"""
+            try:
+                empty = bpy.data.objects.new(f"Empty_{obj.name}", None)
+                scene = bpy.context.scene
+                scene.collection.objects.link(empty)
 
-            obj_old_parent = obj.parent
-            obj.parent = empty
-            empty.parent = obj_old_parent
+                obj_old_parent = obj.parent
+                obj.parent = empty
+                empty.parent = obj_old_parent
 
-            return empty
+                return empty
+            except Exception as e:
+                print(f"创建空物体父级时出错: {str(e)}")
+                return None
 
-        create_top_level_parent = bpy.context.scene.create_top_level_parent
+        def process_batch(objects, viewport_area, viewport_region, create_top_level_parent):
+            processed_count = 0
+            for obj in objects:
+                if obj.parent is not None:
+                    continue
 
-        collection_name = bpy.context.scene.asset_collection.name
-        collection = bpy.data.collections.get(collection_name)
-
-        if collection:
-
-            viewport_area, viewport_region = get_3d_view_region()
-
-            if viewport_area is None:
-                print("没有找到 3D 视口")
-            else:
-                i = 0
-                for obj in collection.objects:
-
-                    if obj.parent is not None:
+                try:
+                    # 检查对象是否仍然存在于场景中
+                    if obj.name not in bpy.data.objects:
+                        print(f"对象 {obj.name} 已不存在于场景中")
                         continue
 
-                    time.sleep(1)
-                    i += 1
-                    print(f"成功添加资产{i}个")
+                    # 保存场景状态
+                    scene_state = save_scene_state()
+                    original_parent = obj.parent
 
-                    isolate_parent_and_children(obj)
+                    # 准备物体
+                    prepare_object_for_asset(obj)
 
-                    override = bpy.context.copy()
-                    override['area'], override['region'] = viewport_area, viewport_region
+                    # 创建视图上下文
+                    override = context.copy()
+                    override['area'] = viewport_area
+                    override['region'] = viewport_region
+
+                    # 将视图对准选中的物体
                     bpy.ops.view3d.view_selected(override)
-
-                    original_parent = None
-                    if obj.parent is not None:
-                        original_parent = obj.parent
-
-                    bpy.ops.object.select_all(action='DESELECT')
-                    select_obj_and_children(obj)
-
-                    if create_top_level_parent:
-                        create_empty_parent(obj)
-
-                    # 执行 Machin3tools 的标记资产操作并获取 viewport_area
-                    override_context = bpy.context.copy()
-                    override_context['area'] = viewport_area
-                    bpy.ops.machin3.create_assembly_asset(override_context)
-
-                    # 如果存在原始父级，将其恢复
-                    if original_parent is not None:
-                        obj.parent = original_parent
-
                     bpy.context.view_layer.update()
-                    bpy.ops.wm.redraw_timer(type='DRAW', iterations=30)
-        else:
-            print("没有选择任何集合")
-        return {"FINISHED"}
+                    time.sleep(0.3)  # 增加等待时间确保视图更新
+
+                    # 创建空物体父级（如果需要）
+                    if create_top_level_parent:
+                        empty = create_empty_parent(obj)
+                        if empty is None:
+                            continue
+
+                    # 执行 Machin3tools 的标记资产操作
+                    bpy.ops.machin3.create_assembly_asset(override)
+                    
+                    # 等待资产创建完成
+                    time.sleep(0.5)  # 增加资产创建后的等待时间
+
+                    # 恢复原始父级关系
+                    if original_parent is not None and obj.name in bpy.data.objects:
+                        obj = bpy.data.objects[obj.name]
+                        if obj.name in bpy.context.view_layer.objects:
+                            obj.parent = original_parent
+
+                    processed_count += 1
+                    self.report({'INFO'}, f"成功添加资产 {processed_count} 个")
+
+                except Exception as e:
+                    self.report({'ERROR'}, f"处理物体 {obj.name} 时出错: {str(e)}")
+                    continue
+
+                finally:
+                    # 恢复场景状态
+                    restore_scene_state(scene_state)
+                    bpy.context.view_layer.update()
+                    time.sleep(0.2)  # 添加状态恢复后的等待时间
+
+            return processed_count
+
+        collection_name = context.scene.asset_collection.name
+        collection = bpy.data.collections.get(collection_name)
+
+        if not collection:
+            self.report({'ERROR'}, "没有选择任何集合")
+            return {'CANCELLED'}
+
+        viewport_area, viewport_region = get_3d_view_region()
+        if not viewport_area:
+            self.report({'ERROR'}, "没有找到 3D 视口")
+            return {'CANCELLED'}
+
+        create_top_level_parent = context.scene.create_top_level_parent
+        total_processed = 0
+
+        try:
+            # 获取所有顶级物体
+            top_level_objects = [obj for obj in collection.objects if obj.parent is None]
+            
+            # 分批处理物体
+            for i in range(0, len(top_level_objects), self.batch_size):
+                batch = top_level_objects[i:i + self.batch_size]
+                processed = process_batch(batch, viewport_area, viewport_region, create_top_level_parent)
+                total_processed += processed
+                
+                # 强制更新视图和内存
+                bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
+                bpy.context.view_layer.update()
+                time.sleep(0.3)  # 增加批次间的等待时间
+
+            if total_processed > 0:
+                self.report({'INFO'}, f"成功处理 {total_processed} 个资产")
+                return {'FINISHED'}
+            else:
+                self.report({'WARNING'}, "没有处理任何资产")
+                return {'CANCELLED'}
+
+        except Exception as e:
+            self.report({'ERROR'}, f"发生错误: {str(e)}")
+            return {'CANCELLED'}
 
 #批量更改子级名称为顶级父级，忽略隐藏物体
 class RenameByParent(bpy.types.Operator):
