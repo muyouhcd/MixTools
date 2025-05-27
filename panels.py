@@ -171,6 +171,18 @@ class CustomFunctionsPanel(Panel):
             row.prop(context.scene, "roughness_strength", text="粗糙强度", slider=True)
             row.operator(SetMaterialRoughness.bl_idname, text="应用", icon='CHECKMARK').roughness = context.scene.roughness_strength
 
+            row = emission_box.row()
+            row.prop(context.scene, "metallic_strength", text="金属强度", slider=True)
+            row.operator("object.set_metallic", text="应用", icon='CHECKMARK').metallic = context.scene.metallic_strength
+
+            row = emission_box.row()
+            row.prop(context.scene, "specular_strength", text="高光强度", slider=True)
+            row.operator("object.set_specular", text="应用", icon='CHECKMARK').specular = context.scene.specular_strength
+
+            row = emission_box.row()
+            row.prop(context.scene, "specular_tint_strength", text="光泽度", slider=True)
+            row.operator("object.set_specular_tint", text="应用", icon='CHECKMARK').specular_tint = context.scene.specular_tint_strength
+
             # 材质节点操作
             material_operations_box = col_meterialoperation.box()
             material_operations_box.label(text="材质节点操作:", icon='NODETREE')
@@ -206,7 +218,10 @@ class CustomFunctionsPanel(Panel):
             matching_methods_box = texture_operater_box.box()
             matching_methods_box.label(text="纹理匹配方法:", icon='IMGDISPLAY')
             
-            col = matching_methods_box.column(align=True)
+            # 基础匹配方法
+            basic_matching_box = matching_methods_box.box()
+            basic_matching_box.label(text="基础匹配:", icon='OBJECT_DATA')
+            col = basic_matching_box.column(align=True)
             col.operator("object.apply_texture_operator", 
                        text="按物体名称匹配(完整)", 
                        icon='OBJECT_DATA')
@@ -219,6 +234,17 @@ class CustomFunctionsPanel(Panel):
             col.operator("object.apply_texture_by_parent", 
                        text="按顶级父级名称匹配", 
                        icon='OUTLINER_OB_EMPTY')
+
+            # 智能匹配方法
+            smart_matching_box = matching_methods_box.box()
+            smart_matching_box.label(text="智能匹配:", icon='AUTOMERGE_ON')
+            col = smart_matching_box.column(align=True)
+            col.operator("object.apply_texture_by_object_name",
+                       text="按物体名称包含匹配",
+                       icon='TEXTURE')
+            col.operator("object.apply_texture_by_similarity",
+                       text="按相似度匹配",
+                       icon='SORTALPHA')
            
             # 材质管理
             material_manager_box = col_meterialoperation.box()
@@ -401,13 +427,13 @@ class CustomFunctionsPanel(Panel):
             col = role_replace_box.column(align=True)
             col.label(text="替换集合内物体:")
             row = col.row(align=True)
-            row.operator("object.miao_role_replacer", text="考虑父级关系", icon='CONSTRAINT').use_parent_matching = True
-            row.operator("object.miao_role_replacer", text="无视父级关系", icon='ARMATURE_DATA').use_parent_matching = False
+            row.operator("object.miao_role_replacer", text="随机替换", icon='ARMATURE_DATA')
+            row.operator("object.miao_role_replacer_parent", text="基于父级关系", icon='CONSTRAINT')
             
             col.label(text="替换所选物体:")
             row = col.row(align=True)
-            row.operator("object.miao_role_replacer_selected", text="考虑父级关系", icon='CONSTRAINT').use_parent_matching = True
-            row.operator("object.miao_role_replacer_selected", text="无视父级关系", icon='OBJECT_DATA').use_parent_matching = False
+            row.operator("object.miao_role_replacer_selected", text="随机替换", icon='OBJECT_DATA')
+            row.operator("object.miao_role_replacer_selected_parent", text="基于父级关系", icon='CONSTRAINT')
 
             # 动画清理工具
             animation_tools_box = col_animation.box()
@@ -424,6 +450,11 @@ class CustomFunctionsPanel(Panel):
             # 骨架操作工具
             armature_tools_box = col_animation.box()
             armature_tools_box.label(text="骨架操作工具（测试）:", icon='ARMATURE_DATA')
+            
+            # 添加空物体转骨骼工具
+            empty_to_bone_box = armature_tools_box.box()
+            empty_to_bone_box.label(text="空物体转骨骼:", icon='EMPTY_DATA')
+            empty_to_bone_box.operator("object.convert_empties_to_bones", text="转换空物体为骨骼", icon='ARMATURE_DATA')
             
             # 添加骨骼动画转移面板
             transfer_box = armature_tools_box.box()
@@ -454,6 +485,7 @@ class CustomFunctionsPanel(Panel):
             import_box = col_inout.box()
             import_box.label(text="批量导入:", icon='IMPORT')
             import_box.operator("miao.batch_import_fbx", text="批量导入FBX", icon='FILE_3D')
+            import_box.operator("miao.batch_import_obj", text="批量导入OBJ", icon='FILE_3D')
             
             # 批量导出
             export_box = col_inout.box()

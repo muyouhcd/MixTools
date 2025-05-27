@@ -14,10 +14,35 @@ bpy.types.Scene.emission_strength = bpy.props.FloatProperty(
 bpy.types.Scene.roughness_strength = bpy.props.FloatProperty(
     name="强度",
     description="设置光滑强度",
-    default=10.0,
+    default=1.0,
     min=0.0,
-    max=10.0
+    max=1.0
         )
+
+bpy.types.Scene.metallic_strength = bpy.props.FloatProperty(
+    name="强度",
+    description="设置金属度强度",
+    default=0.0,
+    min=0.0,
+    max=1.0
+        )
+
+bpy.types.Scene.specular_strength = bpy.props.FloatProperty(
+    name="强度",
+    description="设置高光强度",
+    default=0.5,
+    min=0.0,
+    max=2.0
+        )
+
+bpy.types.Scene.specular_tint_strength = bpy.props.FloatProperty(
+    name="强度",
+    description="设置光泽度",
+    default=0.0,
+    min=0.0,
+    max=1.0
+        )
+
 #设置发光强度
 class SetEmissionStrength(bpy.types.Operator):
     bl_idname = "object.set_emission_strength"
@@ -40,17 +65,25 @@ class SetEmissionStrength(bpy.types.Operator):
             if node.type == 'BSDF_PRINCIPLED':
                 node.inputs['Emission Strength'].default_value = strength
 
+    def process_material(self, material, strength):
+        if material and material.use_nodes:
+            self.set_emission_strength(material, strength)
+
     def process_selected_objects(self, strength):
         for obj in bpy.context.selected_objects:
-            # 只处理具有网格数据的对象（即类型为 'MESH' 的对象）
             if obj.type == 'MESH' and obj.data.materials:
                 for mat in obj.data.materials:
-                    if mat.node_tree is not None:
-                        self.set_emission_strength(mat, strength)
+                    self.process_material(mat, strength)
+
+    def process_selected_materials(self, strength):
+        for material in bpy.context.selected_ids:
+            if isinstance(material, bpy.types.Material):
+                self.process_material(material, strength)
 
     def execute(self, context):
-        strength = self.strength  # 直接使用类的属性替代 context.scene.emission_strength
+        strength = self.strength
         self.process_selected_objects(strength)
+        self.process_selected_materials(strength)
         return {'FINISHED'}
 
 class SetMaterialRoughness(bpy.types.Operator):
@@ -66,7 +99,6 @@ class SetMaterialRoughness(bpy.types.Operator):
     ) # type: ignore
     
     def set_roughness(self, material, roughness):
-        """ 设置材质的粗糙度 """
         if not material.use_nodes:
             return
         
@@ -74,17 +106,152 @@ class SetMaterialRoughness(bpy.types.Operator):
             if node.type == 'BSDF_PRINCIPLED':
                 node.inputs['Roughness'].default_value = roughness
 
+    def process_material(self, material, roughness):
+        if material and material.use_nodes:
+            self.set_roughness(material, roughness)
+
     def process_selected_objects(self, roughness):
-        """ 遍历所有选中的网格对象并修改其材质 """
         for obj in bpy.context.selected_objects:
             if obj.type == 'MESH' and obj.data.materials:
                 for mat in obj.data.materials:
-                    if mat.node_tree is not None:
-                        self.set_roughness(mat, roughness)
+                    self.process_material(mat, roughness)
+
+    def process_selected_materials(self, roughness):
+        for material in bpy.context.selected_ids:
+            if isinstance(material, bpy.types.Material):
+                self.process_material(material, roughness)
 
     def execute(self, context):
-        roughness = self.roughness  # 直接使用类的属性
+        roughness = self.roughness
         self.process_selected_objects(roughness)
+        self.process_selected_materials(roughness)
+        return {'FINISHED'}
+
+class SetMaterialMetallic(bpy.types.Operator):
+    bl_idname = "object.set_metallic"
+    bl_label = "设置材质金属度"
+    
+    metallic: bpy.props.FloatProperty(
+        name="金属度",
+        description="调整材质的金属度",
+        default=0.0,
+        min=0.0,
+        max=1.0
+    ) # type: ignore
+    
+    def set_metallic(self, material, metallic):
+        if not material.use_nodes:
+            return
+        
+        for node in material.node_tree.nodes:
+            if node.type == 'BSDF_PRINCIPLED':
+                node.inputs['Metallic'].default_value = metallic
+
+    def process_material(self, material, metallic):
+        if material and material.use_nodes:
+            self.set_metallic(material, metallic)
+
+    def process_selected_objects(self, metallic):
+        for obj in bpy.context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    self.process_material(mat, metallic)
+
+    def process_selected_materials(self, metallic):
+        for material in bpy.context.selected_ids:
+            if isinstance(material, bpy.types.Material):
+                self.process_material(material, metallic)
+
+    def execute(self, context):
+        metallic = self.metallic
+        self.process_selected_objects(metallic)
+        self.process_selected_materials(metallic)
+        return {'FINISHED'}
+
+class SetMaterialSpecular(bpy.types.Operator):
+    bl_idname = "object.set_specular"
+    bl_label = "设置材质高光强度"
+    
+    specular: bpy.props.FloatProperty(
+        name="高光强度",
+        description="调整材质的高光强度",
+        default=0.5,
+        min=0.0,
+        max=1.0
+    ) # type: ignore
+    
+    def set_specular(self, material, specular):
+        if not material.use_nodes:
+            return
+        
+        for node in material.node_tree.nodes:
+            if node.type == 'BSDF_PRINCIPLED':
+                node.inputs['Specular'].default_value = specular
+
+    def process_material(self, material, specular):
+        if material and material.use_nodes:
+            self.set_specular(material, specular)
+
+    def process_selected_objects(self, specular):
+        for obj in bpy.context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    self.process_material(mat, specular)
+
+    def process_selected_materials(self, specular):
+        for material in bpy.context.selected_ids:
+            if isinstance(material, bpy.types.Material):
+                self.process_material(material, specular)
+
+    def execute(self, context):
+        specular = self.specular
+        self.process_selected_objects(specular)
+        self.process_selected_materials(specular)
+        return {'FINISHED'}
+
+class SetMaterialSpecularTint(bpy.types.Operator):
+    bl_idname = "object.set_specular_tint"
+    bl_label = "设置材质光泽度"
+    
+    specular_tint: bpy.props.FloatProperty(
+        name="光泽度",
+        description="调整材质的光泽度",
+        default=0.0,
+        min=0.0,
+        max=1.0
+    ) # type: ignore
+    
+    def set_specular_tint(self, material, specular_tint):
+        if not material.use_nodes:
+            return
+        
+        for node in material.node_tree.nodes:
+            if node.type == 'BSDF_PRINCIPLED':
+                # 确保使用正确的输入名称
+                if 'Specular Tint' in node.inputs:
+                    node.inputs['Specular Tint'].default_value = specular_tint
+                elif 'Specular Tint Weight' in node.inputs:  # 某些版本的Blender可能使用这个名称
+                    node.inputs['Specular Tint Weight'].default_value = specular_tint
+
+    def process_material(self, material, specular_tint):
+        if material and material.use_nodes:
+            self.set_specular_tint(material, specular_tint)
+
+    def process_selected_objects(self, specular_tint):
+        for obj in bpy.context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    self.process_material(mat, specular_tint)
+
+    def process_selected_materials(self, specular_tint):
+        for material in bpy.context.selected_ids:
+            if isinstance(material, bpy.types.Material):
+                self.process_material(material, specular_tint)
+
+    def execute(self, context):
+        specular_tint = self.specular_tint
+        self.process_selected_objects(specular_tint)
+        self.process_selected_materials(specular_tint)
         return {'FINISHED'}
 
 # 材质球排序
@@ -840,6 +1007,9 @@ def register():
     classes = [
         SetEmissionStrength,
         SetMaterialRoughness,
+        SetMaterialMetallic,
+        SetMaterialSpecular,
+        SetMaterialSpecularTint,
         MaterialSort,
         OBJ_OT_random_meterial,
         MergeMaterial,
@@ -885,6 +1055,9 @@ def unregister():
         OBJ_OT_random_meterial,
         MaterialSort,
         SetMaterialRoughness,
+        SetMaterialMetallic,
+        SetMaterialSpecular,
+        SetMaterialSpecularTint,
         SetEmissionStrength,
         SetTextureAlphaPacking
     ]

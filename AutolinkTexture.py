@@ -315,11 +315,180 @@ class ApplyTextureByParentOperator(bpy.types.Operator):
         
         return {'FINISHED'}
 
+class ApplyTextureByObjectNameOperator(bpy.types.Operator):
+    """根据物体名称匹配并应用纹理"""
+    bl_idname = "object.apply_texture_by_object_name"
+    bl_label = "按物体名称匹配"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        texture_dir = os.path.abspath(bpy.context.scene.texture_dir)
+        if not os.path.exists(texture_dir):
+            self.report({'ERROR'}, f"贴图目录不存在: {texture_dir}")
+            return {'CANCELLED'}
+
+        # 获取所有贴图文件
+        texture_files = []
+        for root, _, files in os.walk(texture_dir):
+            for file in files:
+                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tif', '.tiff', '.exr', '.hdr')):
+                    texture_files.append((file, os.path.join(root, file)))
+
+        # 遍历选中的物体
+        matched_count = 0
+        for obj in context.selected_objects:
+            if obj.type != 'MESH':
+                continue
+
+            obj_name = obj.name.lower()
+            # 查找包含物体名称的贴图
+            for tex_name, tex_path in texture_files:
+                tex_name_no_ext = os.path.splitext(tex_name)[0].lower()
+                if obj_name in tex_name_no_ext:
+                    # 应用贴图到物体的所有材质
+                    for mat_slot in obj.material_slots:
+                        if mat_slot.material:
+                            apply_texture_to_material(mat_slot.material, tex_path)
+                            matched_count += 1
+                            print(f"已为物体 '{obj.name}' 的材质 '{mat_slot.material.name}' 应用贴图: {tex_path}")
+                    break  # 找到一个匹配的贴图后就停止搜索
+
+        if matched_count > 0:
+            self.report({'INFO'}, f"成功应用了 {matched_count} 个贴图")
+        else:
+            self.report({'WARNING'}, "没有找到匹配的贴图")
+
+        return {'FINISHED'}
+
+def split_into_words(text):
+    """将文本分割成单词，处理各种分隔符和数字"""
+    # 替换常见的分隔符为空格
+    separators = ['_', '-', '.', ',', '|', '/', '\\', '(', ')', '[', ']', '{', '}']
+    for sep in separators:
+        text = text.replace(sep, ' ')
+    
+    # 在数字和字母之间添加空格
+    import re
+    text = re.sub(r'(\d+)([a-zA-Z])', r'\1 \2', text)  # 数字后跟字母
+    text = re.sub(r'([a-zA-Z])(\d+)', r'\1 \2', text)  # 字母后跟数字
+    
+    # 分割单词并过滤空字符串
+    words = [word.lower() for word in text.split() if word.strip()]
+    return words
+
+def calculate_similarity(str1, str2):
+    """计算两个字符串的相似度"""
+    # 移除文件扩展名
+    str1 = os.path.splitext(str1)[0].lower()
+    str2 = os.path.splitext(str2)[0].lower()
+    
+    # 1. 检查完全匹配
+    if str1 == str2:
+        return 1.0
+    
+    # 2. 检查包含关系
+    if str1 in str2 or str2 in str1:
+        # 如果物体名称完全包含在贴图名称中
+        if str1 in str2:
+            # 检查是否包含材质相关词
+            material_terms = ['defaultmaterial', 'basecolor', 'diffuse', 'normal', 'roughness', 'metallic', 'ao']
+            if not any(term in str2 for term in material_terms):
+                return 0.9
+            return 0.8
+        return 0.7
+    
+    # 3. 检查单词匹配
+    words1 = split_into_words(str1)
+    words2 = split_into_words(str2)
+    
+    if not words1 or not words2:
+        return 0
+    
+    # 计算共同单词
+    common_words = set(words1) & set(words2)
+    if not common_words:
+        return 0
+    
+    # 计算基础相似度
+    similarity = len(common_words) / max(len(words1), len(words2))
+    
+    # 如果共同单词数量超过物体名称单词数量的一半，提高相似度
+    if len(common_words) >= len(words1) * 0.5:
+        similarity += 0.2
+    
+    # 如果贴图名称包含材质相关词，降低相似度
+    material_terms = ['defaultmaterial', 'basecolor', 'diffuse', 'normal', 'roughness', 'metallic', 'ao']
+    if any(term in str2 for term in material_terms):
+        similarity *= 0.8
+    
+    return min(similarity, 1.0)
+
+class ApplyTextureBySimilarityOperator(bpy.types.Operator):
+    """根据名称相似度匹配并应用纹理"""
+    bl_idname = "object.apply_texture_by_similarity"
+    bl_label = "按相似度匹配"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        texture_dir = os.path.abspath(bpy.context.scene.texture_dir)
+        if not os.path.exists(texture_dir):
+            self.report({'ERROR'}, f"贴图目录不存在: {texture_dir}")
+            return {'CANCELLED'}
+
+        # 获取所有贴图文件
+        texture_files = []
+        for root, _, files in os.walk(texture_dir):
+            for file in files:
+                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tga', '.tif', '.tiff', '.exr', '.hdr')):
+                    texture_files.append((file, os.path.join(root, file)))
+
+        if not texture_files:
+            self.report({'WARNING'}, "贴图目录中没有找到支持的贴图文件")
+            return {'CANCELLED'}
+
+        # 遍历选中的物体
+        matched_count = 0
+        for obj in context.selected_objects:
+            if obj.type != 'MESH':
+                continue
+
+            obj_name = obj.name.lower()
+            best_match = None
+            best_similarity = 0
+
+            # 计算与每个贴图的相似度
+            for tex_name, tex_path in texture_files:
+                similarity = calculate_similarity(obj_name, tex_name)
+                if similarity > best_similarity:
+                    best_similarity = similarity
+                    best_match = (tex_name, tex_path)
+
+            # 如果找到匹配度超过阈值的贴图，应用它
+            if best_match and best_similarity > 0.3:  # 设置相似度阈值
+                tex_name, tex_path = best_match
+                # 应用贴图到物体的所有材质
+                for mat_slot in obj.material_slots:
+                    if mat_slot.material:
+                        apply_texture_to_material(mat_slot.material, tex_path)
+                        matched_count += 1
+                        print(f"已为物体 '{obj.name}' 的材质 '{mat_slot.material.name}' 应用贴图: {tex_path} (相似度: {best_similarity:.2f})")
+            else:
+                print(f"未找到与物体 '{obj.name}' 匹配的贴图")
+
+        if matched_count > 0:
+            self.report({'INFO'}, f"成功应用了 {matched_count} 个贴图")
+        else:
+            self.report({'WARNING'}, "没有找到匹配的贴图")
+
+        return {'FINISHED'}
+
 def register():
     bpy.utils.register_class(ApplyTextureOperator)
     bpy.utils.register_class(ApplyTextureToSelectedObjects)
     bpy.utils.register_class(ApplyTextureToMaterialsOperator)
     bpy.utils.register_class(ApplyTextureByParentOperator)
+    bpy.utils.register_class(ApplyTextureByObjectNameOperator)
+    bpy.utils.register_class(ApplyTextureBySimilarityOperator)
 
     bpy.types.Scene.texture_dir = bpy.props.StringProperty(
         name="Texture Directory",
@@ -338,6 +507,8 @@ def unregister():
     bpy.utils.unregister_class(ApplyTextureToSelectedObjects)
     bpy.utils.unregister_class(ApplyTextureToMaterialsOperator)
     bpy.utils.unregister_class(ApplyTextureByParentOperator)
+    bpy.utils.unregister_class(ApplyTextureByObjectNameOperator)
+    bpy.utils.unregister_class(ApplyTextureBySimilarityOperator)
 
     del bpy.types.Scene.texture_dir
     del bpy.types.Scene.ignore_fields_input
