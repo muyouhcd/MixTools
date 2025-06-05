@@ -70,7 +70,7 @@ bpy.types.Scene.export_config = bpy.props.EnumProperty(
     name="导出配置",
     description="选择导出配置",
     items=[(key, config.name, config.description) for key, config in EXPORT_CONFIGS.items()],
-    default='default'
+    default='Unity'
 )
 
 def check_dir(self, context):
