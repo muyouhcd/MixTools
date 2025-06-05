@@ -16,7 +16,7 @@ class ExportConfig:
 EXPORT_CONFIGS = {
     'Unity': ExportConfig(
         name="Unity默认(CM)",
-        description="标准FBX导出配置，使用米作为单位",
+        description="标准FBX导出配置，使用厘米作为单位",
         fbx_params={
             'axis_forward': '-Z',
             'axis_up': 'Y',
@@ -27,7 +27,7 @@ EXPORT_CONFIGS = {
             'apply_unit_scale': True,
             'rotation': (90, 0, 0),
             'apply_rotation': True,
-            'unit': 'cm'  # 单位：'m'=米, 'cm'=厘米, 'mm'=毫米
+            'global_scale': 0.01  # 缩放比例
         }
     ),
     'max': ExportConfig(
@@ -44,7 +44,7 @@ EXPORT_CONFIGS = {
             'use_custom_props': False,
             'rotation': (90, 0, 0),
             'apply_rotation': False,
-            'unit': 'm'
+            'global_scale': 0.01  # 缩放比例
         }
     )
 }
@@ -92,8 +92,8 @@ def prepare_obj_export(obj, recursion):
         'location': obj.location.copy()
     }
 
-    # 调整比例
-    obj.scale *= 100
+    # 移除自动缩放，改为在export_fbx中根据配置处理
+    # obj.scale *= 100  # 删除这行
     obj.rotation_euler = (math.radians(-90), 0, 0)
 
     # 更新视图
@@ -138,6 +138,12 @@ def export_fbx(obj, dest_path, config_name='default'):
         for child in obj.children:
             child.select_set(True)
         
+        # 如果需要应用单位缩放，先对所有子物体进行缩放
+        if config.fbx_params.get('apply_unit_scale', False):
+            scale_factor = config.fbx_params.get('global_scale', 1.0)
+            for child in obj.children:
+                child.scale *= scale_factor
+        
         # 应用父物体的旋转到所有子物体
         rotation = config.fbx_params.get('rotation', (0, 0, 0))
         rotation_rad = (math.radians(rotation[0]), 
@@ -166,24 +172,20 @@ def export_fbx(obj, dest_path, config_name='default'):
             fbx_file_path = os.path.join(dest_path, obj.children[0].name + fbx_file_ext)
         else:
             fbx_file_path = os.path.join(dest_path, obj.name + "_children" + fbx_file_ext)
-            
-        # 获取单位缩放比例
-        unit = config.fbx_params.get('unit', 'm')
-        unit_scale = get_unit_scale(unit)
         
         # 更新导出参数
         export_params = config.fbx_params.copy()
         # 移除自定义参数
         export_params.pop('rotation', None)
         export_params.pop('apply_rotation', None)
-        export_params.pop('unit', None)
+        export_params.pop('apply_unit_scale', None)
+        export_params.pop('global_scale', None)
         
-        # 设置单位相关的参数
+        # 设置导出参数，不再使用FBX的缩放功能
         export_params.update({
-            'apply_unit_scale': True,  # 应用单位缩放
             'bake_space_transform': True,  # 烘焙空间变换
             'use_space_transform': True,  # 使用空间变换
-            'global_scale': 1.0,  # 全局缩放设为1，让单位系统处理缩放
+            'global_scale': 1.0,  # 设为1.0，因为我们已经手动应用了缩放
             'apply_scale_options': 'FBX_SCALE_ALL'  # 应用所有缩放
         })
 
@@ -201,9 +203,10 @@ def export_fbx(obj, dest_path, config_name='default'):
         return fbx_file_path
     
     # 如果不是顶级空物体，使用原有的导出逻辑
-    # 获取单位缩放比例
-    unit = config.fbx_params.get('unit', 'm')
-    unit_scale = get_unit_scale(unit)
+    # 如果需要应用单位缩放，先对物体进行缩放
+    if config.fbx_params.get('apply_unit_scale', False):
+        scale_factor = config.fbx_params.get('global_scale', 1.0)
+        obj.scale *= scale_factor
     
     # 获取旋转设置
     rotation = config.fbx_params.get('rotation', (0, 0, 0))
@@ -229,14 +232,14 @@ def export_fbx(obj, dest_path, config_name='default'):
     # 移除自定义参数
     export_params.pop('rotation', None)
     export_params.pop('apply_rotation', None)
-    export_params.pop('unit', None)
+    export_params.pop('apply_unit_scale', None)
+    export_params.pop('global_scale', None)
     
-    # 设置单位相关的参数
+    # 设置导出参数，不再使用FBX的缩放功能
     export_params.update({
-        'apply_unit_scale': True,  # 应用单位缩放
         'bake_space_transform': True,  # 烘焙空间变换
         'use_space_transform': True,  # 使用空间变换
-        'global_scale': 1.0,  # 全局缩放设为1，让单位系统处理缩放
+        'global_scale': 1.0,  # 设为1.0，因为我们已经手动应用了缩放
         'apply_scale_options': 'FBX_SCALE_ALL'  # 应用所有缩放
     })
 
