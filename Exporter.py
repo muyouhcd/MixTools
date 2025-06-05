@@ -3,6 +3,51 @@ import os
 import math
 import time  # 添加时间模块以便测量性能
 
+# 导出配置类
+class ExportConfig:
+    def __init__(self, name, description, fbx_params=None, obj_params=None):
+        self.name = name
+        self.description = description
+        self.fbx_params = fbx_params or {}
+        self.obj_params = obj_params or {}
+
+# 预定义导出配置
+EXPORT_CONFIGS = {
+    'Unity': ExportConfig(
+        name="Unity(cm)",
+        description="标准FBX导出配置，使用米作为单位",
+        fbx_params={
+            'axis_forward': '-Z',
+            'axis_up': 'Y',
+            'add_leaf_bones': False,
+            'armature_nodetype': 'NULL',
+            'bake_space_transform': True,
+            'use_custom_props': False,
+            'apply_unit_scale': True,
+            'rotation': (90, 0, 0),
+            'apply_rotation': True,
+            'unit': 'cm'  # 单位：'m'=米, 'cm'=厘米, 'mm'=毫米
+        }
+    ),
+    'max': ExportConfig(
+        name="3ds Max配置",
+        description="针对3ds Max优化的FBX导出配置，使用厘米作为单位",
+        fbx_params={
+            'axis_forward': 'Y',
+            'axis_up': 'Z',
+            'add_leaf_bones': False,
+            'armature_nodetype': 'NULL',
+            'bake_anim': True,
+            'apply_unit_scale': True,
+            'bake_space_transform': True,
+            'use_custom_props': False,
+            'rotation': (90, 0, 0),
+            'apply_rotation': False,
+            'unit': 'm'
+        }
+    )
+}
+
 # 导出目录属性
 bpy.types.Scene.export_directory = bpy.props.StringProperty(
     name="Export Directory",
@@ -10,12 +55,22 @@ bpy.types.Scene.export_directory = bpy.props.StringProperty(
     subtype='DIR_PATH'
 )
 
-# 添加批处理大小属性
-bpy.types.Scene.batch_size = bpy.props.IntProperty(
-    name="Batch Size",
-    description="Number of objects to process in one batch (0 for all at once)",
-    default=10,
-    min=0
+# 添加清除父级选项
+bpy.types.Scene.clear_parent_on_export = bpy.props.BoolProperty(
+    name="清除父级关系",
+    description="导出时清除顶级父级关系（保持变换）",
+    default=False
+)
+
+# 批处理大小常量
+BATCH_SIZE = 10
+
+# 添加导出配置选择属性
+bpy.types.Scene.export_config = bpy.props.EnumProperty(
+    name="导出配置",
+    description="选择导出配置",
+    items=[(key, config.name, config.description) for key, config in EXPORT_CONFIGS.items()],
+    default='default'
 )
 
 def check_dir(self, context):
@@ -48,48 +103,156 @@ def prepare_obj_export(obj, recursion):
         apply_transform_to_descendants(obj)
     return original_state
 
-def export_fbx(obj, dest_path):
+def get_unit_scale(unit):
+    """根据单位返回对应的缩放比例"""
+    unit_scales = {
+        'm': 1.0,    # 米
+        'cm': 0.01,  # 厘米
+        'mm': 0.001  # 毫米
+    }
+    return unit_scales.get(unit, 1.0)
+
+def export_fbx(obj, dest_path, config_name='default'):
     fbx_file_ext = ".fbx"
     fbx_file_path = os.path.join(dest_path, obj.name + fbx_file_ext)
 
-    obj.rotation_euler = (math.radians(90), 0, 0)
+    # 获取配置
+    config = EXPORT_CONFIGS[config_name]
+    
+    # 记录原始变换和父级关系
+    original_scale = obj.scale.copy()
+    original_rotation = obj.rotation_euler.copy()
+    original_parent = obj.parent
+    original_matrix = obj.matrix_world.copy()
+    
+    # 如果需要排除顶级空物体
+    if bpy.context.scene.clear_parent_on_export and obj.type == 'EMPTY' and obj.parent is None:
+        # 保存所有子物体的相对变换
+        child_relative_transforms = {}
+        for child in obj.children:
+            # 保存相对于父物体的变换
+            child_relative_transforms[child] = {
+                'location': child.location.copy(),
+                'rotation': child.rotation_euler.copy(),
+                'scale': child.scale.copy()
+            }
+        
+        # 选择所有子物体
+        bpy.ops.object.select_all(action='DESELECT')
+        for child in obj.children:
+            child.select_set(True)
+            
+            # 应用配置中的旋转设置
+            rotation = config.fbx_params.get('rotation', (0, 0, 0))
+            child.rotation_euler = (math.radians(rotation[0]), 
+                                  math.radians(rotation[1]), 
+                                  math.radians(rotation[2]))
+            
+            # 如果需要应用旋转变换
+            if config.fbx_params.get('apply_rotation', True):
+                bpy.context.view_layer.objects.active = child
+                bpy.ops.object.transform_apply(rotation=True, scale=False, location=False)
+        
+        # 使用子物体名称作为文件名
+        if len(obj.children) == 1:
+            fbx_file_path = os.path.join(dest_path, obj.children[0].name + fbx_file_ext)
+        else:
+            fbx_file_path = os.path.join(dest_path, obj.name + "_children" + fbx_file_ext)
+            
+        # 获取单位缩放比例
+        unit = config.fbx_params.get('unit', 'm')
+        unit_scale = get_unit_scale(unit)
+        
+        # 更新导出参数
+        export_params = config.fbx_params.copy()
+        # 移除自定义参数
+        export_params.pop('rotation', None)
+        export_params.pop('apply_rotation', None)
+        export_params.pop('unit', None)
+        
+        # 设置单位相关的参数
+        export_params.update({
+            'apply_unit_scale': True,  # 应用单位缩放
+            'bake_space_transform': True,  # 烘焙空间变换
+            'use_space_transform': True,  # 使用空间变换
+            'global_scale': 1.0,  # 全局缩放设为1，让单位系统处理缩放
+            'apply_scale_options': 'FBX_SCALE_ALL'  # 应用所有缩放
+        })
 
-    # 减少文件I/O操作和不必要的数据转换
+        # 使用配置参数导出
+        bpy.ops.export_scene.fbx(
+            filepath=fbx_file_path,
+            use_selection=True,
+            **export_params
+        )
+        
+        # 恢复子物体的原始变换
+        for child in obj.children:
+            transform = child_relative_transforms[child]
+            child.location = transform['location']
+            child.rotation_euler = transform['rotation']
+            child.scale = transform['scale']
+        
+        return fbx_file_path
+    
+    # 如果不是顶级空物体，使用原有的导出逻辑
+    # 获取单位缩放比例
+    unit = config.fbx_params.get('unit', 'm')
+    unit_scale = get_unit_scale(unit)
+    
+    # 获取旋转设置
+    rotation = config.fbx_params.get('rotation', (0, 0, 0))
+    apply_rotation = config.fbx_params.get('apply_rotation', True)
+    
+    # 应用配置中的旋转设置
+    obj.rotation_euler = (math.radians(rotation[0]), 
+                         math.radians(rotation[1]), 
+                         math.radians(rotation[2]))
+
+    # 如果需要应用旋转变换
+    if apply_rotation:
+        # 确保对象被选中
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        # 应用旋转变换
+        bpy.ops.object.transform_apply(rotation=True, scale=False, location=False)
+        # 重新选择对象
+        obj.select_set(True)
+
+    # 更新导出参数
+    export_params = config.fbx_params.copy()
+    # 移除自定义参数
+    export_params.pop('rotation', None)
+    export_params.pop('apply_rotation', None)
+    export_params.pop('unit', None)
+    
+    # 设置单位相关的参数
+    export_params.update({
+        'apply_unit_scale': True,  # 应用单位缩放
+        'bake_space_transform': True,  # 烘焙空间变换
+        'use_space_transform': True,  # 使用空间变换
+        'global_scale': 1.0,  # 全局缩放设为1，让单位系统处理缩放
+        'apply_scale_options': 'FBX_SCALE_ALL'  # 应用所有缩放
+    })
+
+    # 使用配置参数导出
     bpy.ops.export_scene.fbx(
         filepath=fbx_file_path,
         use_selection=True,
-        global_scale=0.01,
-        axis_forward='-Z',
-        axis_up='Y',
-        add_leaf_bones=False,
-        armature_nodetype='NULL',
-        bake_space_transform=True,  # 预先进行空间变换，减少运行时计算
-        use_custom_props=False      # 不导出自定义属性，减少数据量
+        **export_params
     )
+
+    # 恢复原始变换和父级关系
+    obj.scale = original_scale
+    obj.rotation_euler = original_rotation
+    if original_parent is not None:
+        obj.parent = original_parent
+        obj.matrix_world = original_matrix
 
     return fbx_file_path
 
 def export_fbx_max(obj, dest_path):
-    fbx_file_ext = ".fbx"
-    fbx_file_path = os.path.join(dest_path, obj.name + fbx_file_ext)
-
-    obj.rotation_euler = (math.radians(90), 0, 0)
-
-    bpy.ops.export_scene.fbx(
-        filepath=fbx_file_path,
-        use_selection=True,
-        global_scale=0.01,
-        axis_forward='-Z',
-        axis_up='Y',
-        add_leaf_bones=False,
-        armature_nodetype='NULL',
-        bake_anim=True,
-        apply_unit_scale=True,
-        bake_space_transform=True,  # 预先进行空间变换
-        use_custom_props=False      # 不导出自定义属性
-    )
-
-    return fbx_file_path
+    return export_fbx(obj, dest_path, config_name='max')
 
 def apply_transform_to_descendants(obj):
     # 创建一个副本而不是每次都深度复制数据
@@ -124,22 +287,20 @@ class ExportFbxByParent(bpy.types.Operator):
 
         # 获取所有顶级父物体
         parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
-        batch_size = context.scene.batch_size
+        
+        # 获取选择的导出配置
+        config_name = context.scene.export_config
         
         # 禁用不必要的自动更新，提高性能
         bpy.context.view_layer.update()
-        
-        # 如果批处理大小为0，处理所有对象
-        if batch_size == 0:
-            batch_size = len(parents)
         
         # 批处理导出
         processed_count = 0
         total_count = len(parents)
         
-        for i in range(0, total_count, batch_size):
-            batch = parents[i:i+batch_size]
-            self.report({'INFO'}, f"处理批次 {i//batch_size + 1}/{math.ceil(total_count/batch_size)}")
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = parents[i:i+BATCH_SIZE]
+            self.report({'INFO'}, f"处理批次 {i//BATCH_SIZE + 1}/{math.ceil(total_count/BATCH_SIZE)}")
             
             for obj in batch:
                 bpy.ops.object.select_all(action='DESELECT')
@@ -152,7 +313,7 @@ class ExportFbxByParent(bpy.types.Operator):
                 if not selected_objects:
                     continue
                     
-                file_path = export_fbx(obj, dest_path)
+                file_path = export_fbx(obj, dest_path, config_name)
                 processed_count += 1
                 
                 # 每导出一个物体，更新进度
@@ -184,22 +345,17 @@ class ExportFbxByParentMax(bpy.types.Operator):
 
         # 获取所有顶级父物体
         parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
-        batch_size = context.scene.batch_size
         
         # 禁用不必要的自动更新
         bpy.context.view_layer.update()
-        
-        # 如果批处理大小为0，处理所有对象
-        if batch_size == 0:
-            batch_size = len(parents)
         
         # 批处理导出
         processed_count = 0
         total_count = len(parents)
         
-        for i in range(0, total_count, batch_size):
-            batch = parents[i:i+batch_size]
-            self.report({'INFO'}, f"处理批次 {i//batch_size + 1}/{math.ceil(total_count/batch_size)}")
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = parents[i:i+BATCH_SIZE]
+            self.report({'INFO'}, f"处理批次 {i//BATCH_SIZE + 1}/{math.ceil(total_count/BATCH_SIZE)}")
             
             for obj in batch:
                 bpy.ops.object.select_all(action='DESELECT')
@@ -239,7 +395,6 @@ class ExportFbxByMesh(bpy.types.Operator):
 
         # 获取所有顶级父物体
         parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
-        batch_size = context.scene.batch_size
         
         # 收集所有需要处理的网格对象
         mesh_objects = []
@@ -248,17 +403,13 @@ class ExportFbxByMesh(bpy.types.Operator):
                 if obj.type == 'MESH':
                     mesh_objects.append((parent, obj))
         
-        # 如果批处理大小为0，处理所有对象
-        if batch_size == 0:
-            batch_size = len(mesh_objects)
-        
         # 批处理导出
         processed_count = 0
         total_count = len(mesh_objects)
         
-        for i in range(0, total_count, batch_size):
-            batch = mesh_objects[i:i+batch_size]
-            self.report({'INFO'}, f"处理批次 {i//batch_size + 1}/{math.ceil(total_count/batch_size)}")
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = mesh_objects[i:i+BATCH_SIZE]
+            self.report({'INFO'}, f"处理批次 {i//BATCH_SIZE + 1}/{math.ceil(total_count/BATCH_SIZE)}")
             
             for parent, obj in batch:
                 # 取消选择所有对象
@@ -430,6 +581,7 @@ def register():
     bpy.utils.register_class(ExportFbxByParentMax)
     bpy.utils.register_class(ExportFbxByMesh)
     bpy.utils.register_class(ExporteObjOperator)
+
 def unregister():
     bpy.utils.unregister_class(ExportFbxByParent)
     bpy.utils.unregister_class(ExportFbxByColMark)

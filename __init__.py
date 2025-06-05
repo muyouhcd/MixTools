@@ -1,7 +1,7 @@
 bl_info = {
     "name": "MiaoToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,55),
+    "version": (4,8,56),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "如遇到插件无法打开请手动切换至blender的python目录运行以下指令进行安装：python.exe -m pip install pillow",
@@ -81,6 +81,7 @@ from . import LightOperator
 from . import animationoperater
 from . import RoleReplacer
 from . import Importer
+from . import BoneConverter
 
 def register():
     # 先注册基础模块
@@ -109,6 +110,7 @@ def register():
     animationoperater.register()
     RoleReplacer.register()
     Importer.register()
+    BoneConverter.register()
     
     # 最后注册UI面板
     panels.register()
@@ -139,6 +141,7 @@ def unregister():
     AutoBakeRemesh.unregister()
     AutoBake.unregister()
     Importer.unregister()
+    BoneConverter.unregister()
     
     # 最后注销基础模块
     operators.unregister()

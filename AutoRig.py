@@ -6,6 +6,17 @@ from collections import defaultdict
 from mathutils.bvhtree import BVHTree
 import bmesh # type: ignore
 import random
+import math
+import time
+
+# 获取当前文件所在目录
+current_dir = os.path.dirname(os.path.realpath(__file__))
+# 将当前目录添加到系统路径
+if current_dir not in os.sys.path:
+    os.sys.path.append(current_dir)
+
+# 导入Exporter模块
+from .Exporter import check_dir, export_fbx, EXPORT_CONFIGS, BATCH_SIZE, prepare_obj_export
 
 def apply_change_to_scene():
 
@@ -568,6 +579,7 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
         box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(完整)",icon='EXPORT')
         box_json.operator("scene.export_fbx_by_mesh", text="导出角色(部件)",icon='EXPORT')
+        box_json.operator("scene.export_fbx_without_parent", text="导出角色(无父级)",icon='EXPORT')
 
         box_step=layout.box()
         row = box_step.row()
@@ -1016,8 +1028,6 @@ class RefreshJsonListOperator(bpy.types.Operator):
 class CharOperater(bpy.types.Operator):
     bl_idname = "object.miao_char_operater"
     bl_label = "角色一键处理"
-
-
     def apply_transforms_recursive(self, obj):
         if obj.data is not None and obj.data.users > 1:
             # 如果对象是多用户的，先复制对象
@@ -1035,10 +1045,7 @@ class CharOperater(bpy.types.Operator):
         
         for child in obj.children:
             self.apply_transforms_recursive(child)
-
-
     def execute(self, context):
-
         print("开始处理顶点")
         bpy.ops.object.vox_operation()
         bpy.ops.object.select_all(action='SELECT')
@@ -1046,21 +1053,15 @@ class CharOperater(bpy.types.Operator):
         bpy.ops.object.miao_apply_and_separate()
         bpy.ops.object.clean_empty()
         bpy.ops.object.reset_normals_flat_shading()
-
         print("开始处理碰撞")
         bpy.ops.object.miao_parent_byboundingbox()
         apply_change_to_scene()
-
         for parent_obj in bpy.context.scene.objects:
             if parent_obj.parent is None:
                 self.apply_transforms_recursive(parent_obj)
-
         bpy.ops.object.scale_adjust()
-
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-
         bpy.ops.object.select_all(action='DESELECT')
-
         return {'FINISHED'}
 
 class ResetBonePosition(bpy.types.Operator):
@@ -1141,6 +1142,62 @@ class ConnectBone(bpy.types.Operator):
 
         return {'FINISHED'}
     
+class ExportFbxWithoutParent(bpy.types.Operator):
+    """导出FBX时不包含父级对象"""
+    bl_idname = "scene.export_fbx_without_parent"
+    bl_label = "导出FBX(无父级)"
+
+    def select_children(self, obj):
+        for child in obj.children:
+            child.select_set(True)
+            self.select_children(child)
+
+    def execute(self, context):
+        start_time = time.time()
+        
+        # 检查路径
+        check_result, dest_path = check_dir(self, context)
+        if not check_result:
+            return {'CANCELLED'}
+
+        # 获取所有顶级父物体
+        parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
+        
+        # 禁用不必要的自动更新
+        bpy.context.view_layer.update()
+        
+        # 批处理导出
+        processed_count = 0
+        total_count = len(parents)
+        
+        for i in range(0, total_count, BATCH_SIZE):
+            batch = parents[i:i+BATCH_SIZE]
+            self.report({'INFO'}, f"处理批次 {i//BATCH_SIZE + 1}/{math.ceil(total_count/BATCH_SIZE)}")
+            
+            for obj in batch:
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                self.select_children(obj)
+
+                prepare_obj_export(obj, True)
+                
+                selected_objects = [o.name for o in bpy.context.selected_objects]
+                if not selected_objects:
+                    continue
+                    
+                file_path = export_fbx(obj, dest_path, config_name='max')
+                processed_count += 1
+                
+                # 每导出一个物体，更新进度
+                self.report({'INFO'}, f"已导出 {processed_count}/{total_count}: {obj.name}")
+                
+            # 每批次后强制更新视图并释放内存
+            bpy.context.view_layer.update()
+
+        elapsed_time = time.time() - start_time
+        self.report({'INFO'}, f"导出完成! 耗时: {elapsed_time:.2f}秒, 共导出{processed_count}个物体")
+        return {'FINISHED'}
+
 def register():
     bpy.utils.register_class(BoneDataExporterPanel)
     bpy.utils.register_class(ExportBoneDataOperator)
@@ -1160,6 +1217,7 @@ def register():
     bpy.utils.register_class(WithCombinRename)
     bpy.utils.register_class(ConnectBone)
     bpy.utils.register_class(ResetBonePosition)
+    bpy.utils.register_class(ExportFbxWithoutParent)
 
 def unregister():
     bpy.utils.unregister_class(CharOperater)
@@ -1176,6 +1234,7 @@ def unregister():
     bpy.utils.unregister_class(WithCombinRename)
     bpy.utils.unregister_class(ConnectBone)
     bpy.utils.unregister_class(ResetBonePosition)
+    bpy.utils.unregister_class(ExportFbxWithoutParent)
 
     # del bpy.types.Scene.my_tool
     del bpy.types.Scene.json_file_list

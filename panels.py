@@ -48,9 +48,6 @@ class CustomFunctionsPanel(Panel):
             clean_box.operator("image.remove_broken", text="清理丢失图像", icon='IMAGE_DATA')
             
 
-            layout.label(text="动画工具:", icon='ARMATURE_DATA')
-            anim_box = layout.box()
-            
             # Generation Tools
             layout.label(text="生成工具:", icon='SHADERFX')
             gen_box = layout.box()
@@ -456,24 +453,18 @@ class CustomFunctionsPanel(Panel):
             empty_to_bone_box.label(text="空物体转骨骼:", icon='EMPTY_DATA')
             empty_to_bone_box.operator("object.convert_empties_to_bones", text="转换空物体为骨骼", icon='ARMATURE_DATA')
             
-            # 添加骨骼动画转移面板
-            transfer_box = armature_tools_box.box()
-            transfer_box.label(text="骨骼动画转移:", icon='ARMATURE_DATA')
+            # 添加骨骼参数复制面板
+            bone_params_box = armature_tools_box.box()
+            bone_params_box.label(text="骨骼参数复制:", icon='ARMATURE_DATA')
             
-            # 源骨架选择
-            transfer_box.prop(context.scene, "source_armature", text="源骨架")
+            # 源骨架和目标骨架选择
+            bone_params_box.prop(context.scene, "source_armature", text="源骨架")
+            bone_params_box.prop(context.scene, "target_armature", text="目标骨架")
             
-            # 目标骨架选择
-            transfer_box.prop(context.scene, "target_armature", text="目标骨架")
+            # 执行按钮
+            bone_params_box.operator("object.copy_bone_parameters", text="复制骨骼参数", icon='ARMATURE_DATA')
             
-            # 高级选项
-            transfer_box.label(text="高级选项:")
-            transfer_box.prop(context.scene, "transfer_bone_animation_keyframe_sample_rate", text="关键帧采样率")
-            transfer_box.prop(context.scene, "transfer_bone_animation_batch_size", text="批处理帧数")
-            transfer_box.prop(context.scene, "transfer_bone_animation_show_detailed_info", text="显示详细信息")
-            
-            # 操作按钮
-            transfer_box.operator("animation.transfer_bone_animation", text="转移动画", icon='ARMATURE_DATA')
+
 
 # 导入导出操作
         col_inout = layout.column()
@@ -491,6 +482,12 @@ class CustomFunctionsPanel(Panel):
             export_box = col_inout.box()
             export_box.label(text="批量导出:", icon='EXPORT')
             export_box.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')
+            
+            # 添加导出配置选项
+            export_config_box = export_box.box()
+            export_config_box.label(text="导出配置:", icon='SETTINGS')
+            export_config_box.prop(context.scene, "export_config", text="")
+            export_config_box.prop(context.scene, "clear_parent_on_export", text="清除父级关系", icon='UNLINKED')
             
             col = export_box.column(align=True)
             col.operator("scene.export_fbx_by_parent", text="按顶级父物体导出FBX", icon='OUTLINER_OB_EMPTY')
@@ -808,7 +805,6 @@ def register():
     )
 
 def unregister():
-    # 注销操作符类
     bpy.utils.unregister_class(CustomFunctionsPanel)
     bpy.utils.unregister_class(MaterialPropertyGroup)
     bpy.utils.unregister_class(AddSourceMaterialOperator)
