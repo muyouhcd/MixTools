@@ -81,7 +81,7 @@ from . import LightOperator
 from . import animationoperater
 from . import RoleReplacer
 from . import Importer
-from . import BoneConverter
+# from . import BoneConverter
 
 def register():
     # 先注册基础模块
@@ -110,7 +110,7 @@ def register():
     animationoperater.register()
     RoleReplacer.register()
     Importer.register()
-    BoneConverter.register()
+    # BoneConverter.register()
     
     # 最后注册UI面板
     panels.register()
@@ -141,7 +141,7 @@ def unregister():
     AutoBakeRemesh.unregister()
     AutoBake.unregister()
     Importer.unregister()
-    BoneConverter.unregister()
+    # BoneConverter.unregister()
     
     # 最后注销基础模块
     operators.unregister()
