@@ -566,6 +566,8 @@ MiaoTools 是一个 Blender 插件，集合了多种便捷操作工具，以提�
   **🖥️ 跨平台支持**  
   在非Windows平台使用时，需要下载对应平台的.tar.gz或.whl文件放入package文件夹
 
+  当前依赖库文件仅支持Windows（PIL）
+
 - **游戏资产准备**
 
   **💼 适用场景**  
