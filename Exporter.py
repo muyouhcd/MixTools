@@ -14,7 +14,7 @@ class ExportConfig:
 # 预定义导出配置
 EXPORT_CONFIGS = {
     'Unity': ExportConfig(
-        name="Unity(cm)",
+        name="Unity默认(CM)",
         description="标准FBX导出配置，使用米作为单位",
         fbx_params={
             'axis_forward': '-Z',
@@ -30,7 +30,7 @@ EXPORT_CONFIGS = {
         }
     ),
     'max': ExportConfig(
-        name="3ds Max配置",
+        name="3ds Max默认配置(M)",
         description="针对3ds Max优化的FBX导出配置，使用厘米作为单位",
         fbx_params={
             'axis_forward': 'Y',

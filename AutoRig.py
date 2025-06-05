@@ -577,8 +577,8 @@ class BoneDataExporterPanel(bpy.types.Panel):
         box_json.operator("object.one_click_operator", text="一键绑定处理角色(64)",icon='COMMUNITY')
 
         box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
-        box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(完整)",icon='EXPORT')
-        box_json.operator("scene.export_fbx_by_mesh", text="导出角色(部件)",icon='EXPORT')
+        # box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(完整)",icon='EXPORT')
+        # box_json.operator("scene.export_fbx_by_mesh", text="导出角色(部件)",icon='EXPORT')
         box_json.operator("scene.export_fbx_without_parent", text="导出角色(无父级)",icon='EXPORT')
 
         box_step=layout.box()
@@ -1147,55 +1147,15 @@ class ExportFbxWithoutParent(bpy.types.Operator):
     bl_idname = "scene.export_fbx_without_parent"
     bl_label = "导出FBX(无父级)"
 
-    def select_children(self, obj):
-        for child in obj.children:
-            child.select_set(True)
-            self.select_children(child)
-
     def execute(self, context):
-        start_time = time.time()
-        
-        # 检查路径
-        check_result, dest_path = check_dir(self, context)
-        if not check_result:
-            return {'CANCELLED'}
-
-        # 获取所有顶级父物体
-        parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
-        
-        # 禁用不必要的自动更新
-        bpy.context.view_layer.update()
-        
-        # 批处理导出
-        processed_count = 0
-        total_count = len(parents)
-        
-        for i in range(0, total_count, BATCH_SIZE):
-            batch = parents[i:i+BATCH_SIZE]
-            self.report({'INFO'}, f"处理批次 {i//BATCH_SIZE + 1}/{math.ceil(total_count/BATCH_SIZE)}")
-            
-            for obj in batch:
-                bpy.ops.object.select_all(action='DESELECT')
-                obj.select_set(True)
-                self.select_children(obj)
-
-                prepare_obj_export(obj, True)
-                
-                selected_objects = [o.name for o in bpy.context.selected_objects]
-                if not selected_objects:
-                    continue
-                    
-                file_path = export_fbx(obj, dest_path, config_name='max')
-                processed_count += 1
-                
-                # 每导出一个物体，更新进度
-                self.report({'INFO'}, f"已导出 {processed_count}/{total_count}: {obj.name}")
-                
-            # 每批次后强制更新视图并释放内存
-            bpy.context.view_layer.update()
-
-        elapsed_time = time.time() - start_time
-        self.report({'INFO'}, f"导出完成! 耗时: {elapsed_time:.2f}秒, 共导出{processed_count}个物体")
+        # 设置清除父级关系选项
+        context.scene.clear_parent_on_export = True
+        # 设置导出配置为max
+        context.scene.export_config = 'max'
+        # 调用面板中的导出操作符
+        bpy.ops.scene.export_fbx_by_parent()
+        # 恢复清除父级关系选项
+        context.scene.clear_parent_on_export = False
         return {'FINISHED'}
 
 def register():
