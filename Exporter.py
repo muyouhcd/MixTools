@@ -2,6 +2,7 @@ import bpy
 import os
 import math
 import time  # 添加时间模块以便测量性能
+import mathutils
 
 # 导出配置类
 class ExportConfig:
@@ -127,26 +128,33 @@ def export_fbx(obj, dest_path, config_name='default'):
     
     # 如果需要排除顶级空物体
     if bpy.context.scene.clear_parent_on_export and obj.type == 'EMPTY' and obj.parent is None:
-        # 保存所有子物体的相对变换
-        child_relative_transforms = {}
+        # 保存所有子物体的世界空间变换
+        child_matrices = {}
         for child in obj.children:
-            # 保存相对于父物体的变换
-            child_relative_transforms[child] = {
-                'location': child.location.copy(),
-                'rotation': child.rotation_euler.copy(),
-                'scale': child.scale.copy()
-            }
+            child_matrices[child] = child.matrix_world.copy()
         
         # 选择所有子物体
         bpy.ops.object.select_all(action='DESELECT')
         for child in obj.children:
             child.select_set(True)
-            
-            # 应用配置中的旋转设置
-            rotation = config.fbx_params.get('rotation', (0, 0, 0))
-            child.rotation_euler = (math.radians(rotation[0]), 
-                                  math.radians(rotation[1]), 
-                                  math.radians(rotation[2]))
+        
+        # 应用父物体的旋转到所有子物体
+        rotation = config.fbx_params.get('rotation', (0, 0, 0))
+        rotation_rad = (math.radians(rotation[0]), 
+                       math.radians(rotation[1]), 
+                       math.radians(rotation[2]))
+        
+        # 创建一个临时矩阵来存储旋转
+        rotation_matrix = mathutils.Euler(rotation_rad).to_matrix().to_4x4()
+        
+        # 对每个子物体应用旋转
+        for child in obj.children:
+            # 获取相对于父物体的变换
+            local_matrix = obj.matrix_world.inverted() @ child.matrix_world
+            # 应用旋转
+            rotated_matrix = rotation_matrix @ local_matrix
+            # 更新子物体的变换
+            child.matrix_world = obj.matrix_world @ rotated_matrix
             
             # 如果需要应用旋转变换
             if config.fbx_params.get('apply_rotation', True):
@@ -188,10 +196,7 @@ def export_fbx(obj, dest_path, config_name='default'):
         
         # 恢复子物体的原始变换
         for child in obj.children:
-            transform = child_relative_transforms[child]
-            child.location = transform['location']
-            child.rotation_euler = transform['rotation']
-            child.scale = transform['scale']
+            child.matrix_world = child_matrices[child]
         
         return fbx_file_path
     
