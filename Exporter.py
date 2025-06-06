@@ -15,8 +15,8 @@ class ExportConfig:
 # 预定义导出配置
 EXPORT_CONFIGS = {
     'Unity': ExportConfig(
-        name="Unity默认(CM)",
-        description="标准FBX导出配置，使用厘米作为单位",
+        name="Unity默认(M)",
+        description="unity的FBX导出配置，使用米作为单位，确保导出的物体mesh缩放为1旋转为0",
         fbx_params={
             'axis_forward': '-Z',
             'axis_up': 'Y',
@@ -27,12 +27,30 @@ EXPORT_CONFIGS = {
             'apply_unit_scale': True,
             'rotation': (90, 0, 0),
             'apply_rotation': True,
+            'global_scale': 1  # 缩放比例
+        }
+    ),
+    'max02': ExportConfig(
+        name="3ds Max默认配置(CM)",
+        description="针对3ds Max优化的FBX导出配置，使用厘米作为单位，确保导出的物体在max中缩放为100，旋转为0度",
+        fbx_params={
+            'axis_forward': 'Y',
+            'axis_up': 'Z',
+            'add_leaf_bones': False,
+            'armature_nodetype': 'NULL',
+            'bake_anim': True,
+            'apply_unit_scale': True,
+            'bake_space_transform': True,
+            'use_custom_props': False,
+            'rotation': (90, 0, 0),
+            'apply_rotation': True,
             'global_scale': 0.01  # 缩放比例
         }
     ),
+    
     'max': ExportConfig(
-        name="3ds Max默认配置(M)",
-        description="针对3ds Max优化的FBX导出配置，使用厘米作为单位",
+        name="3ds Max角色配置(CM)",
+        description="针对3ds Max优化的FBX导出配置，使用厘米作为单位，确保导出的物体在max中缩放为100，旋转为x-90度，并且物体自身坐标系为maya坐标系",
         fbx_params={
             'axis_forward': 'Y',
             'axis_up': 'Z',
