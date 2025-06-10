@@ -81,6 +81,7 @@ from . import LightOperator
 from . import animationoperater
 from . import RoleReplacer
 from . import Importer
+from . import BetterFbxOperation
 # from . import BoneConverter
 
 def register():
@@ -110,6 +111,7 @@ def register():
     animationoperater.register()
     RoleReplacer.register()
     Importer.register()
+    BetterFbxOperation.register()
     # BoneConverter.register()
     
     # 最后注册UI面板
@@ -141,6 +143,7 @@ def unregister():
     AutoBakeRemesh.unregister()
     AutoBake.unregister()
     Importer.unregister()
+    BetterFbxOperation.unregister()
     # BoneConverter.unregister()
     
     # 最后注销基础模块

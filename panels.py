@@ -478,6 +478,15 @@ class CustomFunctionsPanel(Panel):
             import_box.operator("miao.batch_import_fbx", text="批量导入FBX", icon='FILE_3D')
             import_box.operator("miao.batch_import_obj", text="批量导入OBJ", icon='FILE_3D')
             
+            # Better FBX导入
+            better_fbx_box = import_box.box()
+            better_fbx_box.label(text="Better FBX导入:", icon='ARMATURE_DATA')
+            better_fbx_box.prop(context.scene, "better_fbx_import_directory", text="FBX目录", icon='FILE_FOLDER')
+            
+            row = better_fbx_box.row(align=True)
+            row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
+            row.operator("better_fbx.batch_import_files", text="选择多个FBX文件", icon='DOCUMENTS')
+            
             # 批量导出
             export_box = col_inout.box()
             export_box.label(text="批量导出:", icon='EXPORT')
