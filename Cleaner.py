@@ -68,11 +68,22 @@ def remove_broken_images():
     """删除所有丢失的（无法找到源路径）的图片"""
     removed_count = 0
     for img in list(bpy.data.images):  # 遍历所有图片
-        if img.filepath and not img.packed_file:
-            abs_path = bpy.path.abspath(img.filepath)
-            if not os.path.exists(abs_path):  # 检查文件是否存在
-                bpy.data.images.remove(img)  # 删除丢失的图片
-                removed_count += 1
+        try:
+            # 尝试访问图片路径，捕获编码错误
+            if img.filepath and not img.packed_file:
+                abs_path = bpy.path.abspath(img.filepath)
+                if not os.path.exists(abs_path):  # 检查文件是否存在
+                    bpy.data.images.remove(img)  # 删除丢失的图片
+                    removed_count += 1
+        except UnicodeDecodeError:
+            # 如果路径包含无法解码的字符，直接移除该图片
+            print(f"无法解码图片路径，移除图片: {img.name}")
+            bpy.data.images.remove(img)
+            removed_count += 1
+        except Exception as e:
+            # 捕获其他可能的异常
+            print(f"处理图片 {img.name} 时出错: {str(e)}")
+            continue
     return removed_count
 
 class IMAGE_OT_RemoveBrokenImages(bpy.types.Operator):
