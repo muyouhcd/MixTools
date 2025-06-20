@@ -448,6 +448,13 @@ class CustomFunctionsPanel(Panel):
             armature_tools_box = col_animation.box()
             armature_tools_box.label(text="骨架操作工具（测试）:", icon='ARMATURE_DATA')
             
+            # 添加骨架位置设置工具
+            armature_position_box = armature_tools_box.box()
+            armature_position_box.label(text="骨架位置设置:", icon='ARMATURE_DATA')
+            row = armature_position_box.row(align=True)
+            row.operator("armature.set_to_rest_position", text="设置为静置位置", icon='ARMATURE_DATA')
+            row.operator("armature.set_to_pose_position", text="设置为姿态位置", icon='POSE_HLT')
+            
             # 添加空物体转骨骼工具
             empty_to_bone_box = armature_tools_box.box()
             empty_to_bone_box.label(text="空物体转骨骼:", icon='EMPTY_DATA')
@@ -596,13 +603,6 @@ class CustomFunctionsPanel(Panel):
             
             # 执行按钮
             box_autorender.operator("auto_render.execute", text="执行渲染", icon='RENDER_STILL')
-            
-            # 批量渲染.blend文件
-            box_autorender_blendefile = col_autorender.box()
-            box_autorender_blendefile.label(text="批量渲染.blend文件:", icon='BLENDER')
-            row = box_autorender_blendefile.row(align=True)
-            render_operator = row.operator('auto_render.batch_render', text="执行渲染", icon='RENDER_ANIMATION')
-            box_autorender_blendefile.prop(render_operator, 'render_as_animation', text="渲染为动画")
 
 # 批量调整渲染设置
         col_renderadj = layout.column()

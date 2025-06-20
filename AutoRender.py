@@ -5,7 +5,6 @@ import os
 import traceback
 
 from bpy.props import BoolProperty, EnumProperty, CollectionProperty# type: ignore
-from bpy_extras.io_utils import ImportHelper # type: ignore
 
 # 尝试导入PIL库，如果不存在则记录警告
 PIL_AVAILABLE = False
@@ -60,6 +59,20 @@ class AutoRenderer():
             else:
                 layer_collection.exclude = False
 
+    def get_visible_children(self, obj):
+        """获取物体的所有可见子物体（递归）"""
+        visible_children = []
+        
+        # 检查物体本身是否可见
+        if obj.type != 'EMPTY' and obj.hide_render == False:
+            visible_children.append(obj)
+        
+        # 递归检查所有子物体
+        for child in obj.children:
+            visible_children.extend(self.get_visible_children(child))
+            
+        return visible_children
+    
     def get_top_parent_name(self, obj):
         """
         获取顶级父物体的名称。如果物体没有父物体，则返回物体本身的名称。
@@ -71,7 +84,7 @@ class AutoRenderer():
     
     def group_objects_by_top_parent(self, objects):
         """
-        将给定物体按顶级父物体分组。
+        将给定物体按顶级父物体分组，并确保包含所有可见的子物体。
         """
         groups = {}
         for obj in objects:
@@ -79,15 +92,31 @@ class AutoRenderer():
             if top_parent not in groups:
                 groups[top_parent] = []
             groups[top_parent].append(obj)
-        return groups
+        
+        # 扩展每个组，包含所有可见的子物体
+        expanded_groups = {}
+        for top_parent_name, objects in groups.items():
+            # 获取该顶级父物体的所有相关子物体
+            all_related_objects = self.get_all_related_objects(top_parent_name)
+            
+            # 过滤出可见的物体
+            visible_objects = [obj for obj in all_related_objects if obj.hide_render == False]
+            
+            if visible_objects:
+                expanded_groups[top_parent_name] = visible_objects
+                print(f"顶级父物体 '{top_parent_name}' 包含 {len(visible_objects)} 个可见子物体")
+            else:
+                print(f"警告: 顶级父物体 '{top_parent_name}' 没有可见的子物体")
+        
+        return expanded_groups
 
-
-    def focus_object(self, obj):
-        """聚焦到指定的对象"""
-        # 选择目标对象
-        bpy.context.view_layer.objects.active = obj
+    def focus_object(self, objects):
+        """聚焦到指定的对象组，确保能看到所有子集"""
+        # 选择所有目标对象
+        bpy.context.view_layer.objects.active = objects[0]
         bpy.ops.object.select_all(action='DESELECT')
-        obj.select_set(True)
+        for obj in objects:
+            obj.select_set(True)
         
         # 将视图切换到相机视图
         for area in bpy.context.screen.areas:
@@ -132,6 +161,12 @@ class AutoRenderer():
         groups = self.group_objects_by_top_parent(self.intended_collection.objects)
         print(f"共找到 {len(groups)} 个顶级父物体分组")
         
+        # 打印分组详情
+        for top_parent_name, objects in groups.items():
+            print(f"分组 '{top_parent_name}':")
+            for obj in objects:
+                print(f"  - {obj.name} (类型: {obj.type}, 隐藏渲染: {obj.hide_render})")
+        
         if not groups:
             warning_msg = f"集合 '{collection_name}' 中没有可渲染的对象"
             print(f"警告: {warning_msg}")
@@ -142,6 +177,21 @@ class AutoRenderer():
         for top_parent_name, objects in groups.items():
             print(f"\n渲染顶级父物体分组: {top_parent_name}，包含 {len(objects)} 个对象")
             self.report_info({'INFO'}, f"正在渲染: {top_parent_name}")
+            
+            # 打印详细的物体信息用于调试
+            print(f"该组包含的物体:")
+            for obj in objects:
+                print(f"  - {obj.name} (类型: {obj.type}, 隐藏渲染: {obj.hide_render})")
+            
+            # 检查是否有可见的物体
+            visible_objects = [obj for obj in objects if obj.hide_render == False]
+            if not visible_objects:
+                warning_msg = f"分组 '{top_parent_name}' 中没有可见的物体，跳过渲染"
+                print(f"警告: {warning_msg}")
+                self.report_info({'WARNING'}, warning_msg)
+                continue
+            
+            print(f"可见物体数量: {len(visible_objects)}")
             
             # 暂存当前集合内所有物体的渲染可见性
             original_hide_render = {o: o.hide_render for o in self.intended_collection.objects}
@@ -154,10 +204,10 @@ class AutoRenderer():
             
             # 如果需要聚焦到对象
             if self.focus_each_object:
-                focus_msg = f"聚焦到对象: {objects[0].name}"
+                focus_msg = f"聚焦到对象组: {top_parent_name}，包含 {len(visible_objects)} 个可见物体"
                 print(focus_msg)
                 try:
-                    self.focus_object(objects[0])
+                    self.focus_object(visible_objects)  # 聚焦到所有可见物体
                 except Exception as e:
                     error_msg = f"聚焦对象时出错: {str(e)}"
                     print(error_msg)
@@ -294,6 +344,31 @@ class AutoRenderer():
         complete_msg = "所有集合渲染完成"
         print(f"=== {complete_msg} ===\n")
         self.report_info({'INFO'}, complete_msg)
+
+    def get_all_related_objects(self, top_parent_name):
+        """获取顶级父物体的所有相关子物体，包括空物体的情况"""
+        related_objects = []
+        
+        # 找到顶级父物体
+        top_parent = bpy.data.objects.get(top_parent_name)
+        if not top_parent:
+            return related_objects
+        
+        # 递归获取所有子物体
+        def collect_children(obj):
+            children = []
+            # 添加物体本身（如果不是空物体）
+            if obj.type != 'EMPTY':
+                children.append(obj)
+            
+            # 递归添加所有子物体
+            for child in obj.children:
+                children.extend(collect_children(child))
+            
+            return children
+        
+        related_objects = collect_children(top_parent)
+        return related_objects
 
 def get_all_cameras(self, context):
     return [(obj.name, obj.name, obj.name) for obj in bpy.context.scene.objects if obj.type == 'CAMERA']
@@ -463,61 +538,16 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class BatchRenderOperator(bpy.types.Operator, ImportHelper):
-    bl_idname = "auto_render.batch_render"
-    bl_label = "选择文件渲染"
-
-    filename_ext = ".blend"
-
-    filter_glob: bpy.props.StringProperty(
-        default="*.blend",
-        options={'HIDDEN'},
-    ) # type: ignore
-
-    files: CollectionProperty(name='File Path', type=bpy.types.OperatorFileListElement) # type: ignore
-
-    render_as_animation: bpy.props.BoolProperty(
-        name="Render as Animation",
-        default=True,
-        description="Enable to render as animation",
-    ) # type: ignore
-    
-
-    def execute(self, context):
-        directory = os.path.dirname(self.filepath)
-
-        for f in self.files:
-            output_file = os.path.join(directory, f.name.split('.blend')[0])
-            print(f"Rendering to {output_file}")
-            bpy.context.scene.render.filepath = output_file
-            file_path = os.path.join(directory, f.name)
-
-            bpy.ops.wm.open_mainfile(filepath=file_path)
-
-            if self.render_as_animation:
-                bpy.ops.render.render(animation=True)
-            else:
-                bpy.ops.render.render(write_still=True)
-
-        return {'FINISHED'}
-
 def register():
     bpy.utils.register_class(AutoRenderSettings)
     bpy.types.Scene.auto_render_settings = bpy.props.PointerProperty(type=AutoRenderSettings)
     bpy.utils.register_class(AUTO_RENDER_OT_Execute)
-    bpy.utils.register_class(BatchRenderOperator)
-    bpy.types.Scene.render_as_animation = bpy.props.BoolProperty(
-        name="Render as Animation",
-        default=False,
-    )
     bpy.utils.register_class(AUTO_RENDER_OneClick)
 
 def unregister():
     bpy.utils.unregister_class(AUTO_RENDER_OT_Execute)
     del bpy.types.Scene.auto_render_settings
     bpy.utils.unregister_class(AutoRenderSettings)
-    bpy.utils.unregister_class(BatchRenderOperator)
-    del bpy.types.Scene.render_as_animation
     bpy.utils.unregister_class(AUTO_RENDER_OneClick)
 
 if __name__ == "__main__":
