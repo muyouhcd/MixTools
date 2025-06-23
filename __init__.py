@@ -82,6 +82,7 @@ from . import animationoperater
 from . import RoleReplacer
 from . import Importer
 from . import BetterFbxOperation
+from . import AutoHideClean
 # from . import BoneConverter
 
 def register():
@@ -112,6 +113,7 @@ def register():
     RoleReplacer.register()
     Importer.register()
     BetterFbxOperation.register()
+    AutoHideClean.register()
     # BoneConverter.register()
     
     # 最后注册UI面板
@@ -144,6 +146,7 @@ def unregister():
     AutoBake.unregister()
     Importer.unregister()
     BetterFbxOperation.unregister()
+    AutoHideClean.unregister()
     # BoneConverter.unregister()
     
     # 最后注销基础模块

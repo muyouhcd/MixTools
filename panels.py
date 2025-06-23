@@ -47,6 +47,11 @@ class CustomFunctionsPanel(Panel):
             clean_box.operator("object.uv_cleaner", text="清理UV非法数据", icon='UV')
             clean_box.operator("image.remove_broken", text="清理丢失图像", icon='IMAGE_DATA')
             
+            # 场景简化工具
+            layout.label(text="场景简化工具:", icon='VIEW_CAMERA')
+            scene_clean_box = layout.box()
+            scene_clean_box.operator("object.auto_hide_clean", text="创建AutoHidden集合并隐藏", icon='HIDE_OFF')
+            scene_clean_box.operator("object.auto_hide_delete", text="直接删除不可见物体", icon='TRASH')
 
             # Generation Tools
             layout.label(text="生成工具:", icon='SHADERFX')
@@ -599,6 +604,7 @@ class CustomFunctionsPanel(Panel):
             camera_col = box_autorender.column()
             camera_col.label(text="相机设置:", icon='VIEW_CAMERA')
             camera_col.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到每个物体（正交相机）")
+            camera_col.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面的物体")
             camera_col.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
             
             # 执行按钮

@@ -21,7 +21,7 @@ class AutoRenderer():
     def __init__(self, collections: list, camera_name="Camera", 
                     output_path="./", output_name="", 
                     output_format="PNG", focus_each_object=False,
-                    report_callback=None) -> None:
+                    focus_only_faces=False, report_callback=None) -> None:
         """
         集合：字符串列表，每个字符串都是一个集合的名称
         report_callback: 可选的回调函数，用于向Blender信息窗口报告信息
@@ -38,6 +38,7 @@ class AutoRenderer():
         self.output_name = output_name
         self.output_format = output_format
         self.focus_each_object = focus_each_object
+        self.focus_only_faces = focus_only_faces
         self.report_callback = report_callback
 
         self.intended_collection = None
@@ -193,6 +194,17 @@ class AutoRenderer():
             
             print(f"可见物体数量: {len(visible_objects)}")
             
+            # 如果启用了仅聚焦有面的物体，显示相关信息
+            if self.focus_only_faces:
+                faces_objects = [obj for obj in visible_objects if self.has_faces(obj)]
+                print(f"有面的物体数量: {len(faces_objects)}")
+                if faces_objects:
+                    print("有面的物体列表:")
+                    for obj in faces_objects:
+                        print(f"  - {obj.name} (面数: {len(obj.data.polygons) if obj.data else 0})")
+                else:
+                    print("警告: 没有找到有面的物体")
+            
             # 暂存当前集合内所有物体的渲染可见性
             original_hide_render = {o: o.hide_render for o in self.intended_collection.objects}
             print(f"保存了 {len(original_hide_render)} 个对象的原始渲染可见性")
@@ -204,10 +216,18 @@ class AutoRenderer():
             
             # 如果需要聚焦到对象
             if self.focus_each_object:
-                focus_msg = f"聚焦到对象组: {top_parent_name}，包含 {len(visible_objects)} 个可见物体"
+                # 确定要聚焦的物体列表
+                focus_objects = visible_objects
+                if self.focus_only_faces:
+                    focus_objects = [obj for obj in visible_objects if self.has_faces(obj)]
+                    if not focus_objects:
+                        print("警告: 没有找到有面的物体用于聚焦，跳过聚焦")
+                        focus_objects = visible_objects  # 回退到所有可见物体
+                
+                focus_msg = f"聚焦到对象组: {top_parent_name}，包含 {len(focus_objects)} 个物体"
                 print(focus_msg)
                 try:
-                    self.focus_object(visible_objects)  # 聚焦到所有可见物体
+                    self.focus_object(focus_objects)  # 聚焦到确定的物体列表
                 except Exception as e:
                     error_msg = f"聚焦对象时出错: {str(e)}"
                     print(error_msg)
@@ -345,6 +365,21 @@ class AutoRenderer():
         print(f"=== {complete_msg} ===\n")
         self.report_info({'INFO'}, complete_msg)
 
+    def has_faces(self, obj):
+        """检查物体是否具有面"""
+        if obj.type != 'MESH':
+            return False
+        
+        # 检查是否有网格数据
+        if not obj.data:
+            return False
+        
+        # 检查是否有面
+        if len(obj.data.polygons) > 0:
+            return True
+        
+        return False
+    
     def get_all_related_objects(self, top_parent_name):
         """获取顶级父物体的所有相关子物体，包括空物体的情况"""
         related_objects = []
@@ -359,7 +394,12 @@ class AutoRenderer():
             children = []
             # 添加物体本身（如果不是空物体）
             if obj.type != 'EMPTY':
-                children.append(obj)
+                # 如果启用了只聚焦有面的物体，则检查是否有面
+                if self.focus_only_faces:
+                    if self.has_faces(obj):
+                        children.append(obj)
+                else:
+                    children.append(obj)
             
             # 递归添加所有子物体
             for child in obj.children:
@@ -436,6 +476,12 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         min=0,
         max=1000
     ) # type: ignore
+    focus_only_faces: bpy.props.BoolProperty(
+        name="Focus Only Objects with Faces",
+        description="When enabled, only focus on objects that have faces, ignoring empty objects, points, and lines. This is useful when parent objects are empty and you want to focus on the actual visible geometry.",
+        default=False
+    ) # type: ignore
+
 class AUTO_RENDER_OT_Execute(bpy.types.Operator):
     bl_idname = "auto_render.execute"
     bl_label = "渲染"
@@ -453,6 +499,7 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
         print(f"选中的集合: {auto_render_settings.collections}")
         print(f"选中的相机: {auto_render_settings.cameras}")
         print(f"聚焦到每个物体: {auto_render_settings.focus_each_object}")
+        print(f"仅聚焦有面的物体: {auto_render_settings.focus_only_faces}")
         print(f"边框距离: {auto_render_settings.margin_distance}")
 
         try:
@@ -506,13 +553,14 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
             output_name = auto_render_settings.output_name
             output_format = auto_render_settings.output_format
             focus_each_object = auto_render_settings.focus_each_object
+            focus_only_faces = auto_render_settings.focus_only_faces
 
             print("创建AutoRenderer实例...")
             # 传递self.report作为回调函数
             auto_renderer = AutoRenderer([collection_name], camera_name=camera_name,
                                         output_path=output_path, output_name=output_name,
                                         output_format=output_format, focus_each_object=focus_each_object,
-                                        report_callback=self.report)
+                                        focus_only_faces=focus_only_faces, report_callback=self.report)
             
             print("开始执行渲染...")
             auto_renderer.auto_render()
