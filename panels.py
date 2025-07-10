@@ -449,6 +449,17 @@ class CustomFunctionsPanel(Panel):
             row2.operator("animation.clear_rotation_animation", text="清除旋转动画", icon='DRIVER_ROTATIONAL_DIFFERENCE')
             row2.operator("animation.clear_all_animation", text="清除所有动画", icon='CANCEL')
             
+            # 动画修改器工具
+            animation_modifier_box = col_animation.box()
+            animation_modifier_box.label(text="动画修改器工具:", icon='MODIFIER')
+            
+            row1 = animation_modifier_box.row(align=True)
+            row1.operator("animation.paste_modifiers", text="添加循环修改器(带偏移)", icon='PASTEDOWN')
+            row1.operator("animation.add_cycle_modifier_no_offset", text="添加循环修改器(无偏移)", icon='PASTEDOWN')
+            
+            row2 = animation_modifier_box.row(align=True)
+            row2.operator("animation.remove_all_modifiers", text="移除所有修改器", icon='X')
+            
             # 骨架操作工具
             armature_tools_box = col_animation.box()
             armature_tools_box.label(text="骨架操作工具（测试）:", icon='ARMATURE_DATA')
