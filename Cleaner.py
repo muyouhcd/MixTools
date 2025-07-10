@@ -135,18 +135,40 @@ class UNUSED_MATERIAL_SLOTS_OT_Remove(bpy.types.Operator):
 
         return {'FINISHED'}
 
+#清理无子集空物体
+class OBJECT_OT_clean_empty(bpy.types.Operator):
+    """My Object Empty Deleting Script"""
+    bl_idname = "object.clean_empty"
+    bl_label = "清除无子集空物体"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        # 获取当前场景的所有对象
+        scene_objects = context.scene.objects
+        # 收集所有没有子对象的空物体
+        empties_to_delete = [obj for obj in scene_objects if obj.type == 'EMPTY' and not obj.children]
+        # 删除这些空物体
+        for empty in empties_to_delete:
+            bpy.data.objects.remove(empty)
+        
+        self.report({'INFO'}, f"Deleted {len(empties_to_delete)} empty objects without children.")
+
+        return {'FINISHED'}
+
 
 def register():
     bpy.utils.register_class(IMAGE_OT_RemoveBrokenImages)
     bpy.utils.register_class(UVCleaner)
     bpy.utils.register_class(OBJECT_OT_clean_meshes_without_faces)
     bpy.utils.register_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
+    bpy.utils.register_class(OBJECT_OT_clean_empty)
 
 def unregister():
     bpy.utils.unregister_class(IMAGE_OT_RemoveBrokenImages)
     bpy.utils.unregister_class(UVCleaner)
     bpy.utils.unregister_class(OBJECT_OT_clean_meshes_without_faces)
     bpy.utils.unregister_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
+    bpy.utils.unregister_class(OBJECT_OT_clean_empty)
 
 if __name__ == "__main__":
      register()

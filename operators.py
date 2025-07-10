@@ -1716,25 +1716,7 @@ class CleanEmpty(bpy.types.Operator):
         bpy.context.view_layer.update()
         return {"FINISHED"}
         ####
-#清理无子集空物体
-class OBJECT_OT_clean_empty(bpy.types.Operator):
-    """My Object Empty Deleting Script"""
-    bl_idname = "object.clean_empty"
-    bl_label = "清除无子集空物体"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def execute(self, context):
-        # 获取当前场景的所有对象
-        scene_objects = context.scene.objects
-        # 收集所有没有子对象的空物体
-        empties_to_delete = [obj for obj in scene_objects if obj.type == 'EMPTY' and not obj.children]
-        # 删除这些空物体
-        for empty in empties_to_delete:
-            bpy.data.objects.remove(empty)
-        
-        self.report({'INFO'}, f"Deleted {len(empties_to_delete)} empty objects without children.")
 
-        return {'FINISHED'}
 # 递归清理场景
 class CleanSense(bpy.types.Operator):
     bl_idname = "object.miao_clean_sense"
@@ -1966,7 +1948,6 @@ class OBJECT_OT_move_to_surface(bpy.types.Operator):
 
 classes = [
     OBJECT_OT_reset_z_axis,
-    OBJECT_OT_clean_empty,
     ParentByBoundingbox,
     OBJECT_OT_make_single_user,
     OBJECT_OT_convex_hull_creator,
