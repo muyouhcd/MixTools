@@ -18,68 +18,37 @@ class CharacterPartReplacer:
         self.load_source_objects()
     
     def cleanup(self):
-        """清理资源，释放内存"""
+        """清理资源，释放内存 - 优化版本"""
         try:
-            print("开始清理CharacterPartReplacer资源...")
-            
-            # 清理网格数据
+            # 快速清理，减少打印和检查
             for (gender, body_part), objects in self.source_objects.items():
                 for obj_data in objects:
-                    try:
-                        if 'mesh_data' in obj_data and obj_data['mesh_data']:
+                    # 直接清理网格数据
+                    if 'mesh_data' in obj_data and obj_data['mesh_data']:
+                        try:
                             mesh = obj_data['mesh_data']
-                            if mesh.users == 0:
-                                bpy.data.meshes.remove(mesh)
-                                print(f"清理网格数据: {mesh.name}")
-                    except Exception as e:
-                        print(f"清理网格数据时出错: {str(e)}")
+                            bpy.data.meshes.remove(mesh, do_unlink=True)
+                        except:
+                            pass
                     
-                    # 清理材质数据
+                    # 直接清理材质数据
                     if 'materials' in obj_data:
                         for mat in obj_data['materials']:
                             try:
-                                if mat and mat.users == 0:
-                                    bpy.data.materials.remove(mat)
-                                    print(f"清理材质数据: {mat.name}")
-                            except Exception as e:
-                                print(f"清理材质数据时出错: {str(e)}")
+                                if mat:
+                                    bpy.data.materials.remove(mat, do_unlink=True)
+                            except:
+                                pass
             
             # 清空数据字典
             self.source_objects.clear()
             self.current_indices.clear()
             
-            print("CharacterPartReplacer资源清理完成")
-            
         except Exception as e:
-            print(f"清理资源时出错: {str(e)}")
-            import traceback
-            traceback.print_exc()
+            # 静默处理异常，避免拖慢退出速度
+            pass
     
-    def create_fully_independent_material(self, original_material):
-        """创建完全独立的材质副本，简化版本以提高性能"""
-        try:
-            if not original_material:
-                return None
-            
-            # 简单复制材质，不复制复杂的节点树和纹理
-            new_material = original_material.copy()
-            
-            # 确保材质名称唯一
-            if new_material.name in bpy.data.materials:
-                counter = 1
-                base_name = new_material.name
-                while f"{base_name}_{counter:03d}" in bpy.data.materials:
-                    counter += 1
-                new_material.name = f"{base_name}_{counter:03d}"
-            
-            # 不复制节点树，避免复杂的数据关系
-            # 如果需要节点树，可以后续手动处理
-            
-            return new_material
-            
-        except Exception as e:
-            print(f"创建独立材质副本时出错: {str(e)}")
-            return original_material.copy() if original_material else None
+
     
     def load_source_objects(self):
         """加载源文件中的对象"""
@@ -108,16 +77,15 @@ class CharacterPartReplacer:
                             if key not in self.source_objects:
                                 self.source_objects[key] = []
                             
-                            # 复制对象数据 - 确保数据独立性
+                            # 复制对象数据 - 简化版本
                             mesh_data = obj.data.copy()
                             
-                            # 复制材质数据 - 使用完全独立的方法
+                            # 复制材质数据 - 简化版本
                             materials = []
                             for mat in obj.data.materials:
                                 if mat:
-                                    independent_mat = self.create_fully_independent_material(mat)
-                                    if independent_mat:
-                                        materials.append(independent_mat)
+                                    # 简单复制，不创建复杂的独立副本
+                                    materials.append(mat.copy())
                             
                             self.source_objects[key].append({
                                 'name': obj.name,
@@ -249,40 +217,18 @@ class CharacterPartReplacer:
 
     
     def verify_object_independence(self, obj):
-        """验证对象数据的独立性"""
+        """验证对象数据的独立性 - 简化版本"""
         try:
-            # 检查网格数据
+            # 简化检查，只检查基本的数据独立性
             if obj.data.users > 1:
-                print(f"警告: 对象 {obj.name} 的网格数据被多个对象共享")
                 return False
             
-            # 检查材质数据
-            for i, mat in enumerate(obj.data.materials):
+            for mat in obj.data.materials:
                 if mat and mat.users > 1:
-                    print(f"警告: 对象 {obj.name} 的材质 {i} ({mat.name}) 被多个对象共享")
                     return False
             
-            # 检查材质内部的纹理和节点数据
-            for i, mat in enumerate(obj.data.materials):
-                if mat:
-                    # 检查材质节点
-                    if mat.node_tree:
-                        # 检查节点树是否被多个材质共享
-                        if mat.node_tree.users > 1:
-                            print(f"警告: 对象 {obj.name} 的材质 {i} ({mat.name}) 的节点树被多个材质共享")
-                            return False
-                        
-                        # 检查节点树中的纹理节点
-                        for node in mat.node_tree.nodes:
-                            if node.type == 'TEX_IMAGE' and node.image:
-                                if node.image.users > 1:
-                                    print(f"警告: 对象 {obj.name} 的材质 {i} ({mat.name}) 的纹理 {node.image.name} 被多个对象共享")
-                                    return False
-            
-            print(f"对象 {obj.name} 的数据独立性验证通过")
             return True
         except Exception as e:
-            print(f"验证对象独立性时出错: {str(e)}")
             return False
     
     def replace_object(self, target_obj, direction=0):
@@ -370,14 +316,13 @@ class CharacterPartReplacer:
                 if new_mesh.users > 1:
                     new_mesh = new_mesh.copy()
                 
-                # 创建新的材质列表 - 使用完全独立的方法
+                # 创建新的材质列表 - 简化版本
                 new_materials = []
                 if 'materials' in replacement_data and replacement_data['materials']:
                     for mat in replacement_data['materials']:
                         if mat:
-                            independent_mat = self.create_fully_independent_material(mat)
-                            if independent_mat:
-                                new_materials.append(independent_mat)
+                            # 简单复制材质
+                            new_materials.append(mat.copy())
                 
                 # 清除目标对象的材质
                 target_obj.data.materials.clear()
@@ -724,6 +669,16 @@ class CharacterReplacerProperties(bpy.types.PropertyGroup):
 # 全局变量来存储替换器实例
 _character_replacer_instance = None
 
+def cleanup_on_exit():
+    """Blender退出时的清理函数"""
+    global _character_replacer_instance
+    if _character_replacer_instance:
+        try:
+            _character_replacer_instance.cleanup()
+        except:
+            pass
+        _character_replacer_instance = None
+
 def register():
     bpy.utils.register_class(CharacterPartReplacerPanel)
     bpy.utils.register_class(LoadSourceObjectsOperator)
@@ -747,6 +702,10 @@ def register():
         description="是否在替换时同时替换对象名称",
         default=True
     )
+    
+    # 注册退出时的清理函数
+    import atexit
+    atexit.register(cleanup_on_exit)
 
 def unregister():
     bpy.utils.unregister_class(CharacterPartReplacerPanel)
@@ -764,7 +723,10 @@ def unregister():
     # 清理全局变量
     global _character_replacer_instance
     if _character_replacer_instance:
-        _character_replacer_instance.cleanup()
+        try:
+            _character_replacer_instance.cleanup()
+        except:
+            pass
         _character_replacer_instance = None
 
 # ============================================================================
