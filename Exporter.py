@@ -4,6 +4,17 @@ import math
 import time  # 添加时间模块以便测量性能
 import mathutils
 
+# 检测Blender版本
+def get_blender_version():
+    """获取Blender版本号"""
+    version = bpy.app.version
+    return version[0], version[1]  # 返回主版本号和次版本号
+
+def is_blender_4_3_or_newer():
+    """检查是否为Blender 4.3或更新版本"""
+    major, minor = get_blender_version()
+    return major > 4 or (major == 4 and minor >= 3)
+
 # 导出配置类
 class ExportConfig:
     def __init__(self, name, description, fbx_params=None, obj_params=None):
@@ -144,6 +155,15 @@ def export_fbx(obj, dest_path, config_name='default'):
     original_parent = obj.parent
     original_matrix = obj.matrix_world.copy()
     
+    # 临时隐藏灯光对象以避免Blender 4.3的API兼容性问题
+    hidden_lights = []
+    if is_blender_4_3_or_newer():
+        for light_obj in bpy.context.scene.objects:
+            if light_obj.type in {'LIGHT', 'LAMP'}:
+                if light_obj.hide_viewport == False:
+                    light_obj.hide_viewport = True
+                    hidden_lights.append(light_obj)
+    
     # 如果需要排除顶级空物体
     if bpy.context.scene.clear_parent_on_export and obj.type == 'EMPTY' and obj.parent is None:
         # 保存所有子物体的世界空间变换
@@ -206,6 +226,10 @@ def export_fbx(obj, dest_path, config_name='default'):
             'global_scale': 1.0,  # 设为1.0，因为我们已经手动应用了缩放
             'apply_scale_options': 'FBX_SCALE_ALL'  # 应用所有缩放
         })
+        
+        # 在Blender 4.3+版本中添加object_types参数来排除灯光对象
+        if is_blender_4_3_or_newer():
+            export_params['object_types'] = {'MESH', 'ARMATURE', 'EMPTY'}
 
         # 使用配置参数导出
         bpy.ops.export_scene.fbx(
@@ -260,6 +284,10 @@ def export_fbx(obj, dest_path, config_name='default'):
         'global_scale': 1.0,  # 设为1.0，因为我们已经手动应用了缩放
         'apply_scale_options': 'FBX_SCALE_ALL'  # 应用所有缩放
     })
+    
+    # 在Blender 4.3+版本中添加object_types参数来排除灯光对象
+    if is_blender_4_3_or_newer():
+        export_params['object_types'] = {'MESH', 'ARMATURE', 'EMPTY'}
 
     # 使用配置参数导出
     bpy.ops.export_scene.fbx(
@@ -274,6 +302,11 @@ def export_fbx(obj, dest_path, config_name='default'):
     if original_parent is not None:
         obj.parent = original_parent
         obj.matrix_world = original_matrix
+    
+    # 恢复灯光对象的可见性
+    if is_blender_4_3_or_newer():
+        for light_obj in hidden_lights:
+            light_obj.hide_viewport = False
 
     return fbx_file_path
 
@@ -419,6 +452,15 @@ class ExportFbxByMesh(bpy.types.Operator):
         if not check_result:
             return {'CANCELLED'}
 
+        # 临时隐藏灯光对象以避免Blender 4.3的API兼容性问题
+        hidden_lights = []
+        if is_blender_4_3_or_newer():
+            for light_obj in bpy.context.scene.objects:
+                if light_obj.type in {'LIGHT', 'LAMP'}:
+                    if light_obj.hide_viewport == False:
+                        light_obj.hide_viewport = True
+                        hidden_lights.append(light_obj)
+
         # 获取所有顶级父物体
         parents = [obj for obj in bpy.context.scene.objects if obj.parent is None]
         
@@ -453,20 +495,25 @@ class ExportFbxByMesh(bpy.types.Operator):
                 file_path = os.path.join(dest_path, f"{parent.name}_{obj.name}.fbx")
 
                 # 使用优化的参数导出
-                bpy.ops.export_scene.fbx(
-                    filepath=file_path,
-                    use_selection=True,
-                    global_scale=0.01,
-                    apply_unit_scale=True,
-                    axis_forward='-Z',
-                    axis_up='Y',
-                    use_space_transform=True,
-                    bake_space_transform=True,
-                    object_types={'MESH', 'ARMATURE', 'EMPTY'},
-                    mesh_smooth_type='FACE',
-                    use_custom_props=False,  # 不导出自定义属性
-                    add_leaf_bones=False     # 不添加叶骨骼
-                )
+                export_params = {
+                    'filepath': file_path,
+                    'use_selection': True,
+                    'global_scale': 0.01,
+                    'apply_unit_scale': True,
+                    'axis_forward': '-Z',
+                    'axis_up': 'Y',
+                    'use_space_transform': True,
+                    'bake_space_transform': True,
+                    'mesh_smooth_type': 'FACE',
+                    'use_custom_props': False,  # 不导出自定义属性
+                    'add_leaf_bones': False     # 不添加叶骨骼
+                }
+                
+                # 在Blender 4.3+版本中添加object_types参数来排除灯光对象
+                if is_blender_4_3_or_newer():
+                    export_params['object_types'] = {'MESH', 'ARMATURE', 'EMPTY'}
+                
+                bpy.ops.export_scene.fbx(**export_params)
                 
                 processed_count += 1
                 
@@ -477,6 +524,12 @@ class ExportFbxByMesh(bpy.types.Operator):
             bpy.context.view_layer.update()
 
         elapsed_time = time.time() - start_time
+        
+        # 恢复灯光对象的可见性
+        if is_blender_4_3_or_newer():
+            for light_obj in hidden_lights:
+                light_obj.hide_viewport = False
+            
         self.report({'INFO'}, f"导出完成! 耗时: {elapsed_time:.2f}秒, 共导出{processed_count}个物体")
         return {'FINISHED'}
 
@@ -509,7 +562,7 @@ class ExportFbxByColMark(bpy.types.Operator):
 
 
                 print(f"开始导出：{highest_parent.name}")
-                export_fbx(highest_parent, dest_path, col_mark=True, scale_factor=0.01, rotation_euler=(math.radians(90), 0, 0))
+                export_fbx(highest_parent, dest_path, config_name='max')
 
                 print(f"恢复对象：{highest_parent.name}")
 
@@ -530,6 +583,15 @@ class ExportFbxByCollection(bpy.types.Operator):
         if not check_result:
             return {'CANCELLED'}
 
+        # 临时隐藏灯光对象以避免Blender 4.3的API兼容性问题
+        hidden_lights = []
+        if is_blender_4_3_or_newer():
+            for light_obj in bpy.context.scene.objects:
+                if light_obj.type in {'LIGHT', 'LAMP'}:
+                    if light_obj.hide_viewport == False:
+                        light_obj.hide_viewport = True
+                        hidden_lights.append(light_obj)
+
         for collection in bpy.data.collections:
             collection_dir = os.path.join(export_dir, collection.name)
             os.makedirs(collection_dir, exist_ok=True)
@@ -541,10 +603,21 @@ class ExportFbxByCollection(bpy.types.Operator):
                 obj.select_set(True)
                 bpy.context.view_layer.objects.active = obj
                 fbx_path = os.path.join(collection_dir, obj.name + ".fbx")
-                bpy.ops.export_scene.fbx(filepath=fbx_path, use_selection=True, global_scale=0.01)
+                bpy.ops.export_scene.fbx(
+                    filepath=fbx_path, 
+                    use_selection=True, 
+                    global_scale=0.01,
+                    object_types={'MESH', 'ARMATURE', 'EMPTY'}
+                )
 
         # 最后统一更新视图
         bpy.context.view_layer.update()
+        
+        # 恢复灯光对象的可见性
+        if is_blender_4_3_or_newer():
+            for light_obj in hidden_lights:
+                light_obj.hide_viewport = False
+            
         print("All objects in collections have been exported as FBX files to " + export_dir)
         return {'FINISHED'}
     
