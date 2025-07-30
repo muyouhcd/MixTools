@@ -100,9 +100,9 @@ def find_matching_objects_by_parent(source_objects, target_objects):
     
     return matches
 
-class MIAO_OT_RoleReplacer(bpy.types.Operator):
+class mian_OT_RoleReplacer(bpy.types.Operator):
     """替换角色部件"""
-    bl_idname = "object.miao_role_replacer"
+    bl_idname = "object.mian_role_replacer"
     bl_label = "随机替换角色部件"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -176,9 +176,9 @@ class MIAO_OT_RoleReplacer(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class MIAO_OT_RoleReplacerParent(bpy.types.Operator):
+class mian_OT_RoleReplacerParent(bpy.types.Operator):
     """基于父级关系替换角色部件"""
-    bl_idname = "object.miao_role_replacer_parent"
+    bl_idname = "object.mian_role_replacer_parent"
     bl_label = "基于父级关系替换"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -237,9 +237,9 @@ class MIAO_OT_RoleReplacerParent(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class MIAO_OT_RoleReplacerSelected(bpy.types.Operator):
+class mian_OT_RoleReplacerSelected(bpy.types.Operator):
     """替换所选角色部件"""
-    bl_idname = "object.miao_role_replacer_selected"
+    bl_idname = "object.mian_role_replacer_selected"
     bl_label = "随机替换所选部件"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -308,9 +308,9 @@ class MIAO_OT_RoleReplacerSelected(bpy.types.Operator):
 
         return {'FINISHED'}
 
-class MIAO_OT_RoleReplacerSelectedParent(bpy.types.Operator):
+class mian_OT_RoleReplacerSelectedParent(bpy.types.Operator):
     """基于父级关系替换所选角色部件"""
-    bl_idname = "object.miao_role_replacer_selected_parent"
+    bl_idname = "object.mian_role_replacer_selected_parent"
     bl_label = "基于父级关系替换所选"
     bl_options = {'REGISTER', 'UNDO'}
 
@@ -371,13 +371,13 @@ class MIAO_OT_RoleReplacerSelectedParent(bpy.types.Operator):
         return {'FINISHED'}
 
 def register():
-    bpy.utils.register_class(MIAO_OT_RoleReplacer)
-    bpy.utils.register_class(MIAO_OT_RoleReplacerParent)
-    bpy.utils.register_class(MIAO_OT_RoleReplacerSelected)
-    bpy.utils.register_class(MIAO_OT_RoleReplacerSelectedParent)
+    bpy.utils.register_class(mian_OT_RoleReplacer)
+    bpy.utils.register_class(mian_OT_RoleReplacerParent)
+    bpy.utils.register_class(mian_OT_RoleReplacerSelected)
+    bpy.utils.register_class(mian_OT_RoleReplacerSelectedParent)
 
 def unregister():
-    bpy.utils.unregister_class(MIAO_OT_RoleReplacer)
-    bpy.utils.unregister_class(MIAO_OT_RoleReplacerParent)
-    bpy.utils.unregister_class(MIAO_OT_RoleReplacerSelected)
-    bpy.utils.unregister_class(MIAO_OT_RoleReplacerSelectedParent) 
+    bpy.utils.unregister_class(mian_OT_RoleReplacer)
+    bpy.utils.unregister_class(mian_OT_RoleReplacerParent)
+    bpy.utils.unregister_class(mian_OT_RoleReplacerSelected)
+    bpy.utils.unregister_class(mian_OT_RoleReplacerSelectedParent) 

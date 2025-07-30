@@ -534,7 +534,7 @@ def bind_skeleton():
 def set_material():
     #设置材质
     bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.miao_merge_material()
+    bpy.ops.object.mian_merge_material()
     bpy.ops.object.select_all(action='SELECT')
     set_material_for_selected_objects("Material")
 
@@ -583,9 +583,9 @@ class BoneDataExporterPanel(bpy.types.Panel):
 
         box_step=layout.box()
         row = box_step.row()
-        box_step.operator("object.miao_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
+        box_step.operator("object.mian_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
         box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
-        box_step.operator("object.miao_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
+        box_step.operator("object.mian_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
         box_step.operator("object.with_combin_rename", text="重命名并合并",icon='COMMUNITY')
 
 
@@ -646,7 +646,7 @@ class OneClickOperator(bpy.types.Operator):
 
     def execute(self, context):
         bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.object.miao_apply_and_separate()
+        bpy.ops.object.mian_apply_and_separate()
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.reset_normals_flat_shading()
         bpy.ops.object.select_all(action='SELECT')
@@ -677,7 +677,7 @@ class OneClickOperator(bpy.types.Operator):
         bpy.ops.object.clean_empty()
         bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
         #底部中心创建父级
-        bpy.ops.object.miao_create_empty_at_bottom()
+        bpy.ops.object.mian_create_empty_at_bottom()
         bpy.ops.object.select_all(action='SELECT')
         #选取顶级父级清除位移
         select_top_level_parent()
@@ -695,7 +695,7 @@ class OneClickOperator(bpy.types.Operator):
         #设置骨架为父级
         set_armature_as_parent(keep_transform=True)
         #设置材质
-        bpy.ops.object.miao_merge_material()
+        bpy.ops.object.mian_merge_material()
         bpy.ops.object.select_all(action='SELECT')
         set_material_for_selected_objects("Material")
 
@@ -706,7 +706,7 @@ class OneClickOperator(bpy.types.Operator):
     # def execute(self, context):
     #     #断开所有约束，清空变换
     #     bpy.ops.object.select_all(action='SELECT')
-    #     bpy.ops.object.miao_apply_and_separate()
+    #     bpy.ops.object.mian_apply_and_separate()
     #     bpy.ops.object.select_all(action='SELECT')
     #     bpy.ops.transform.resize(value=(0.25, 0.25, 0.25), orient_type='GLOBAL',
     #                             orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
@@ -737,7 +737,7 @@ class OneClickOperator(bpy.types.Operator):
     #     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
     #     #底部中心创建父级
-    #     bpy.ops.object.miao_create_empty_at_bottom()
+    #     bpy.ops.object.mian_create_empty_at_bottom()
     #     #选取顶级父级清除位移
     #     select_top_level_parent()
     #     bpy.ops.object.location_clear(clear_delta=False)
@@ -1026,7 +1026,7 @@ class RefreshJsonListOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class CharOperater(bpy.types.Operator):
-    bl_idname = "object.miao_char_operater"
+    bl_idname = "object.mian_char_operater"
     bl_label = "角色一键处理"
     def apply_transforms_recursive(self, obj):
         if obj.data is not None and obj.data.users > 1:
@@ -1050,11 +1050,11 @@ class CharOperater(bpy.types.Operator):
         bpy.ops.object.vox_operation()
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-        bpy.ops.object.miao_apply_and_separate()
+        bpy.ops.object.mian_apply_and_separate()
         bpy.ops.object.clean_empty()
         bpy.ops.object.reset_normals_flat_shading()
         print("开始处理碰撞")
-        bpy.ops.object.miao_parent_byboundingbox()
+        bpy.ops.object.mian_parent_byboundingbox()
         apply_change_to_scene()
         for parent_obj in bpy.context.scene.objects:
             if parent_obj.parent is None:

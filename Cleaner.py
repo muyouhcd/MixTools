@@ -21,7 +21,7 @@ class UVCleaner(bpy.types.Operator):
         # print("开始处理顶点")
         # bpy.ops.object.vox_operation()
         # print("开始处理碰撞")
-        # bpy.ops.object.miao_parent_byboundingbox()
+        # bpy.ops.object.mian_parent_byboundingbox()
         def validate_and_fix_uvs():
             for mesh in bpy.data.meshes:
                 for uv_layer in mesh.uv_layers:

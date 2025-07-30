@@ -30,17 +30,17 @@ class CustomFunctionsPanel(Panel):
             # Edit Tools
             layout.label(text="编辑工具:", icon='TOOL_SETTINGS')
             edit_box = layout.box()
-            edit_box.operator("object.miao_remove_vertex_group", text="移除顶点组", icon='GROUP_VERTEX')
+            edit_box.operator("object.mian_remove_vertex_group", text="移除顶点组", icon='GROUP_VERTEX')
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='UNLINKED')
-            edit_box.operator("object.miao_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
+            edit_box.operator("object.mian_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
             
 
             
             # Animation Tools
             layout.label(text="清理工具:", icon='BRUSH_DATA')
             clean_box = layout.box()
-            clean_box.operator("object.miao_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
+            clean_box.operator("object.mian_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
             clean_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
             clean_box.operator("object.clear_animation_data", text="批量清空动画", icon='ANIM_DATA')
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='MESH_DATA')
@@ -50,16 +50,17 @@ class CustomFunctionsPanel(Panel):
             # 场景简化工具
             layout.label(text="场景简化工具:", icon='VIEW_CAMERA')
             scene_clean_box = layout.box()
-            scene_clean_box.operator("object.auto_hide_clean", text="创建AutoHidden集合并隐藏", icon='HIDE_OFF')
+            scene_clean_box.operator("object.auto_hide_clean", text="将相机拍不到的物体放入集合并隐藏", icon='HIDE_OFF')
             scene_clean_box.operator("object.auto_hide_delete", text="直接删除不可见物体", icon='TRASH')
 
             # Generation Tools
             layout.label(text="生成工具:", icon='SHADERFX')
             gen_box = layout.box()
-            gen_box.operator("object.miao_boundbox_gen", text="生成包围盒", icon='CUBE')
+            gen_box.operator("object.mian_boundbox_gen", text="生成包围盒", icon='CUBE')
             gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='META_CUBE')
-            gen_box.operator("object.miao_safecombin", text="安全合并", icon='AUTOMERGE_ON')
-            gen_box.operator("object.object_instance", text="转换实例化", icon='DUPLICATE')
+            gen_box.operator("object.mian_safecombin", text="安全合并", icon='AUTOMERGE_ON')
+            gen_box.operator("object.object_instance", text="对所选物体进行转换实例化", icon='DUPLICATE')
+            gen_box.operator("object.geometry_matcher", text="对全场景进行几何相同性检测并实例化", icon='MESH_DATA')
 
             # Alignment Tools
             layout.label(text="对齐工具:", icon='ORIENTATION_GLOBAL')
@@ -128,8 +129,8 @@ class CustomFunctionsPanel(Panel):
             bounding_box_operations.label(text="碰撞检测与集合绑定:", icon='MOD_BOOLEAN')
             
             col = bounding_box_operations.column(align=True)
-            col.operator("object.miao_collection_byboundingbox", text="检测碰撞归集合", icon='SNAP_VOLUME')
-            col.operator("object.miao_parent_byboundingbox", text="检测碰撞归子集", icon='SNAP_FACE')
+            col.operator("object.mian_collection_byboundingbox", text="检测碰撞归集合", icon='SNAP_VOLUME')
+            col.operator("object.mian_parent_byboundingbox", text="检测碰撞归子集", icon='SNAP_FACE')
             col.operator("object.collection_by_attached", text="检测并合并碰撞", icon='FACE_MAPS')
             
             # 集合父级设置
@@ -140,13 +141,13 @@ class CustomFunctionsPanel(Panel):
             col = parent_by_collections_box.column()
             col.prop(scene, "collectionA", text="父级集合", icon='COLLECTION_COLOR_01')
             col.prop(scene, "collectionB", text="子级集合", icon='COLLECTION_COLOR_04')
-            parent_by_collections_box.operator("object.miao_set_parent_collections", text="设置父级关系", icon='LINKED')
+            parent_by_collections_box.operator("object.mian_set_parent_collections", text="设置父级关系", icon='LINKED')
 
             # 空物体父级绑定
             empty_parent_box = col_BindOperation.box()
             empty_parent_box.label(text="空物体父级绑定:", icon='EMPTY_DATA')
             empty_parent_box.prop(scene, "multiple_object_binding", text="为多个物体创建共同父级")
-            empty_parent_box.operator("object.miao_create_empty_at_bottom", text="创建空物体父级", icon='EMPTY_ARROWS')
+            empty_parent_box.operator("object.mian_create_empty_at_bottom", text="创建空物体父级", icon='EMPTY_ARROWS')
 
 # 材质操作
         col_meterialoperation = layout.column()
@@ -253,11 +254,11 @@ class CustomFunctionsPanel(Panel):
             material_manager_box.label(text="材质管理:", icon='MATERIAL_DATA')
             
             row1 = material_manager_box.row(align=True)
-            row1.operator("object.miao_material_sort", text="材质球排序", icon='SORTSIZE')
+            row1.operator("object.mian_material_sort", text="材质球排序", icon='SORTSIZE')
             row1.operator("scene.random_meterial", text="随机材质", icon='NODE_TEXTURE')
             
             row2 = material_manager_box.row(align=True)
-            row2.operator("object.miao_merge_material", text="清除材质", icon='TRASH')
+            row2.operator("object.mian_merge_material", text="清除材质", icon='TRASH')
             row2.operator("object.remove_unused_material_slots", text="清理空材质槽", icon='PANEL_CLOSE')
             
             row3 = material_manager_box.row(align=True)
@@ -299,21 +300,21 @@ class CustomFunctionsPanel(Panel):
             box_auto_rename_car = col_renameoperation.box()
             box_auto_rename_car.label(text="车辆部件自动重命名:", icon='AUTO')
             row = box_auto_rename_car.row(align=True)
-            row.operator("object.miao_auto_rename_car", text="Unity车辆命名", icon='EVENT_U')
-            row.operator("object.miao_auto_rename_car_for_rigcar", text="RigCar命名", icon='EVENT_R')
+            row.operator("object.mian_auto_rename_car", text="Unity车辆命名", icon='EVENT_U')
+            row.operator("object.mian_auto_rename_car_for_rigcar", text="RigCar命名", icon='EVENT_R')
 
             # 层级与集合命名
             spatial_rename_box = col_renameoperation.box()
             spatial_rename_box.label(text="层级与集合命名:", icon='OUTLINER')
             row = spatial_rename_box.row(align=True)
-            row.operator("object.miao_rename_by_parent", text="子级命名为顶级", icon='OUTLINER_OB_EMPTY')
+            row.operator("object.mian_rename_by_parent", text="子级命名为顶级", icon='OUTLINER_OB_EMPTY')
             row.operator("object.rename_to_collection", text="命名为所处集合", icon='GROUP')
 
             # 后缀管理
             remove_suffix_box = col_renameoperation.box()
             remove_suffix_box.label(text="名称后缀管理:", icon='SORTALPHA')
             row = remove_suffix_box.row(align=True)
-            row.operator("object.miao_remove_name_suffix", text="移除后缀", icon='X')
+            row.operator("object.mian_remove_name_suffix", text="移除后缀", icon='X')
             row.operator("object.remove_suffix_and_resolve", text="移除后缀并解决重名", icon='DECORATE_KEYFRAME')
             
             # 数据命名同步
@@ -337,7 +338,7 @@ class CustomFunctionsPanel(Panel):
             box_rename_by_collections.label(text="集合内位置重命名:")
             box_rename_by_collections.prop(context.scene, "collectionA", text="集合 A")
             box_rename_by_collections.prop(context.scene, "collectionB", text="集合 B")
-            box_rename_by_collections.operator("object.miao_rename_collections", text="按位置重命名集合", icon='COLLECTION_NEW')
+            box_rename_by_collections.operator("object.mian_rename_collections", text="按位置重命名集合", icon='COLLECTION_NEW')
             
             # 空间顺序重命名
             box_rename_by_location = position_rename_box.box()
@@ -345,7 +346,7 @@ class CustomFunctionsPanel(Panel):
             row = box_rename_by_location.row(align=True)
             row.prop(context.scene, "rename_axis", text="轴向")
             row.prop(context.scene, "rename_order", text="排序类型")
-            box_rename_by_location.operator("object.miao_rename_location", text="按空间顺序重命名", icon='SORTSIZE')
+            box_rename_by_location.operator("object.mian_rename_location", text="按空间顺序重命名", icon='SORTSIZE')
 
 # 旋转缩放位移操作
         col_rsm = layout.column()
@@ -367,7 +368,7 @@ class CustomFunctionsPanel(Panel):
             row.prop(context.scene, "queue_up_axis", text="轴向")
             
             col.prop(context.scene, "use_bounding_box", text="使用包围盒")
-            col.operator("object.miao_queue_up", text="执行列队排列", icon='MOD_ARRAY')
+            col.operator("object.mian_queue_up", text="执行列队排列", icon='MOD_ARRAY')
             
             # 随机放置工具
             random_box = col_rsm.box()
@@ -377,7 +378,7 @@ class CustomFunctionsPanel(Panel):
             random_placement_box = random_box.box()
             random_placement_box.label(text="随机位置:", icon='DRIVER_TRANSFORM')
             random_placement_box.prop(context.scene, "random_placement_extent", text="随机范围")
-            random_placement_box.operator("object.miao_random_placement", text="随机分布位置", icon='STICKY_UVS_DISABLE')
+            random_placement_box.operator("object.mian_random_placement", text="随机分布位置", icon='STICKY_UVS_DISABLE')
             
             # 随机缩放
             random_scale_box = random_box.box()
@@ -386,7 +387,7 @@ class CustomFunctionsPanel(Panel):
             col.prop(context.scene, "random_scale_extent_x", text="X轴范围")
             col.prop(context.scene, "random_scale_extent_y", text="Y轴范围")
             col.prop(context.scene, "random_scale_extent_z", text="Z轴范围")
-            random_scale_box.operator("object.miao_random_scale", text="应用随机缩放", icon='ARROW_LEFTRIGHT')
+            random_scale_box.operator("object.mian_random_scale", text="应用随机缩放", icon='ARROW_LEFTRIGHT')
             
             # 对齐集合顶级父级
             align_parent_box = col_rsm.box()
@@ -429,13 +430,13 @@ class CustomFunctionsPanel(Panel):
             col = role_replace_box.column(align=True)
             col.label(text="替换集合内物体:")
             row = col.row(align=True)
-            row.operator("object.miao_role_replacer", text="随机替换", icon='ARMATURE_DATA')
-            row.operator("object.miao_role_replacer_parent", text="基于父级关系", icon='CONSTRAINT')
+            row.operator("object.mian_role_replacer", text="随机替换", icon='ARMATURE_DATA')
+            row.operator("object.mian_role_replacer_parent", text="基于父级关系", icon='CONSTRAINT')
             
             col.label(text="替换所选物体:")
             row = col.row(align=True)
-            row.operator("object.miao_role_replacer_selected", text="随机替换", icon='OBJECT_DATA')
-            row.operator("object.miao_role_replacer_selected_parent", text="基于父级关系", icon='CONSTRAINT')
+            row.operator("object.mian_role_replacer_selected", text="随机替换", icon='OBJECT_DATA')
+            row.operator("object.mian_role_replacer_selected_parent", text="基于父级关系", icon='CONSTRAINT')
 
             # 动画清理工具
             animation_tools_box = col_animation.box()
@@ -524,7 +525,7 @@ class CustomFunctionsPanel(Panel):
             col = export_box.column(align=True)
             col.operator("scene.export_fbx_by_parent", text="按顶级父物体导出FBX", icon='OUTLINER_OB_EMPTY')
             col.operator("scene.export_fbx_by_col_mark", text="按.col标记导出FBX", icon='BOOKMARKS')
-            col.operator("object.miao_output_fbx_as_collection", text="按集合分文件夹导出FBX", icon='OUTLINER_COLLECTION')
+            col.operator("object.mian_output_fbx_as_collection", text="按集合分文件夹导出FBX", icon='OUTLINER_COLLECTION')
             col.operator("object.export_objs", text="批量导出OBJ", icon='EXPORT')
             
             # 批量关联场景
@@ -551,18 +552,19 @@ class CustomFunctionsPanel(Panel):
             box_assestoperation = col_assestoperation.box()
             box_assestoperation.label(text="模型预处理流程:", icon='PRESET_NEW')
             col = box_assestoperation.column(align=True)
-            col.operator("object.miao_apply_and_separate", text="1.独立化应用所有变换", icon='OBJECT_DATA')
-            col.operator("object.miao_merge_top_level", text="2.按顶级层级合并", icon='OUTLINER_OB_GROUP_INSTANCE')
-            col.operator("object.miao_reset_normals", text="3.重置所选矢量", icon='NORMALS_VERTEX')
-            col.operator("object.miao_clean_empty", text="4.清理所选空物体", icon='OUTLINER_OB_EMPTY')
-            col.operator("object.miao_clean_sense", text="5.递归清理场景", icon='PARTICLEMODE')
+            col.operator("object.mian_apply_and_separate", text="1.独立化应用所有变换", icon='OBJECT_DATA')
+            col.operator("object.mian_merge_top_level", text="2.按顶级层级合并", icon='OUTLINER_OB_GROUP_INSTANCE')
+            col.operator("object.mian_reset_normals", text="3.重置所选矢量", icon='NORMALS_VERTEX')
+            col.operator("object.mian_clean_empty", text="4.清理所选空物体", icon='OUTLINER_OB_EMPTY')
+            col.operator("object.mian_clean_sense", text="5.递归清理场景", icon='PARTICLEMODE')
 
             # 批量标记资产
             assembly_asset_box = col_assestoperation.box()
             assembly_asset_box.label(text="批量标记资产:", icon='ASSET_MANAGER')
             assembly_asset_box.prop(context.scene, "asset_collection", text="目标集合", icon='COLLECTION_COLOR_04')
             assembly_asset_box.prop(context.scene, "create_top_level_parent", text="创建顶级父级")
-            assembly_asset_box.operator("object.miao_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
+            
+            assembly_asset_box.operator("object.mian_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
 
             # Voxelizer设置
             box_voxelizer = col_assestoperation.box()
@@ -830,6 +832,8 @@ def register():
         default=False
     )
 
+
+
 def unregister():
     bpy.utils.unregister_class(CustomFunctionsPanel)
     bpy.utils.unregister_class(MaterialPropertyGroup)
@@ -868,7 +872,9 @@ def unregister():
         # 骨骼动画转移参数
         "transfer_bone_animation_keyframe_sample_rate",
         "transfer_bone_animation_batch_size",
-        "transfer_bone_animation_show_detailed_info"
+        "transfer_bone_animation_show_detailed_info",
+
+
     ]
     
     # 安全地删除所有属性

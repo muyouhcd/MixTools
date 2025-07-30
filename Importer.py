@@ -3,7 +3,7 @@ import os
 from bpy.props import StringProperty
 from bpy.types import Operator
 
-class MIAO_OT_batch_import_fbx(Operator):
+class mian_OT_batch_import_fbx(Operator):
     """批量导入FBX文件"""
     bl_idname = "miao.batch_import_fbx"
     bl_label = "批量导入FBX"
@@ -37,7 +37,7 @@ class MIAO_OT_batch_import_fbx(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
-class MIAO_OT_batch_import_obj(Operator):
+class mian_OT_batch_import_obj(Operator):
     """批量导入OBJ文件"""
     bl_idname = "miao.batch_import_obj"
     bl_label = "批量导入OBJ"
@@ -82,12 +82,12 @@ class MIAO_OT_batch_import_obj(Operator):
         return {'RUNNING_MODAL'}
 
 def register():
-    bpy.utils.register_class(MIAO_OT_batch_import_fbx)
-    bpy.utils.register_class(MIAO_OT_batch_import_obj)
+    bpy.utils.register_class(mian_OT_batch_import_fbx)
+    bpy.utils.register_class(mian_OT_batch_import_obj)
 
 def unregister():
-    bpy.utils.unregister_class(MIAO_OT_batch_import_fbx)
-    bpy.utils.unregister_class(MIAO_OT_batch_import_obj)
+    bpy.utils.unregister_class(mian_OT_batch_import_fbx)
+    bpy.utils.unregister_class(mian_OT_batch_import_obj)
 
 if __name__ == "__main__":
     register()

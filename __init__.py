@@ -84,7 +84,7 @@ from . import Importer
 from . import BetterFbxOperation
 from . import AutoHideClean
 from . import CharacterPartReplacer
-# from . import BoneConverter
+from . import BoneConverter
 
 def register():
     # 先注册基础模块
@@ -116,7 +116,7 @@ def register():
     BetterFbxOperation.register()
     AutoHideClean.register()
     CharacterPartReplacer.register()
-    # BoneConverter.register()
+    BoneConverter.register()
     
     # 最后注册UI面板
     panels.register()
@@ -150,7 +150,7 @@ def unregister():
     Importer.unregister()
     BetterFbxOperation.unregister()
     AutoHideClean.unregister()
-    # BoneConverter.unregister()
+    BoneConverter.unregister()
     
     # 最后注销基础模块
     operators.unregister()

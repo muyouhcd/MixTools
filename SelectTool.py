@@ -100,7 +100,7 @@ def update_small_objects_threshold(self, context):
 
 # 按体积筛选物体
 class SelectByVolume(bpy.types.Operator):
-    bl_idname = "object.miao_select_by_volume"
+    bl_idname = "object.mian_select_by_volume"
     bl_label = "按体积筛选物体"
 
     filter_mode: bpy.props.EnumProperty(

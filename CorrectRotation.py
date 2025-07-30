@@ -4,7 +4,7 @@ import bpy
 # 校正旋转
 
 class CorrectRotation(bpy.types.Operator):
-    bl_idname = "object.miao_correct_rotation"
+    bl_idname = "object.mian_correct_rotation"
     bl_label = "校正旋转"
 
     def execute(self, context):

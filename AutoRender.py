@@ -427,7 +427,7 @@ class AUTO_RENDER_OneClick(bpy.types.Operator):
         bpy.ops.object.set_roughness(roughness=10)
         bpy.ops.object.set_emission_strength(strength=0)
         bpy.ops.object.set_texture_interpolation()
-        bpy.ops.object.miao_queue_up()
+        bpy.ops.object.mian_queue_up()
         bpy.ops.object.select_all(action='DESELECT')
 
         return {'FINISHED'}

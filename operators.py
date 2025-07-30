@@ -6,6 +6,7 @@ import collections
 import os
 import math
 import time
+import hashlib
 from bpy.types import Menu
 from mathutils import Matrix
 from mathutils import Vector
@@ -76,6 +77,108 @@ class ObjectInstancer(bpy.types.Operator):
 
         self.report({'INFO'}, "替换完成")
         return {'FINISHED'}   
+
+# 几何相同性检测和实例化
+class GeometryMatcherOperator(bpy.types.Operator):
+    bl_idname = "object.geometry_matcher"
+    bl_label = "几何相同性检测并实例化"
+    bl_description = "检测几何相同的物体并转换为实例化对象"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 获取所有网格物体
+        mesh_objects = [obj for obj in bpy.data.objects if obj.type == 'MESH']
+        
+        if len(mesh_objects) < 2:
+            self.report({'WARNING'}, "场景中至少需要2个网格物体")
+            return {'CANCELLED'}
+
+        # 按几何相同性分组
+        identical_groups = self.group_identical_objects_by_hash(mesh_objects)
+        
+        if not identical_groups:
+            self.report({'INFO'}, "未发现几何相同的物体")
+            return {'FINISHED'}
+
+        # 处理每组几何相同的物体
+        processed_count = 0
+        for group in identical_groups:
+            if len(group) > 1:  # 只处理有多个物体的组
+                if self.process_object_group(context, group):
+                    processed_count += 1
+
+        self.report({'INFO'}, f"成功处理了 {processed_count} 组几何相同的物体")
+        return {'FINISHED'}
+
+    def get_mesh_identifier(self, obj):
+        """
+        获取网格对象的唯一标识，用于比较几何相同性。
+        通过顶点坐标、边、面信息生成哈希值，不比较物体位置、旋转、缩放信息。
+        """
+        if obj.type != 'MESH':
+            return None  # 非网格对象返回 None
+
+        mesh = obj.data
+
+        # 将顶点、边、面数据拼接成字符串，用于哈希生成
+        vertex_data = "".join([f"{v.co.x},{v.co.y},{v.co.z}" for v in mesh.vertices])
+        edge_data = "".join([f"{e.vertices[0]},{e.vertices[1]}" for e in mesh.edges])
+        polygon_data = "".join(["".join(map(str, sorted(p.vertices))) for p in mesh.polygons])
+
+        # 创建哈希值，唯一标识该物体的网格几何
+        data = vertex_data + edge_data + polygon_data
+        mesh_hash = hashlib.md5(data.encode('utf-8')).hexdigest()
+
+        return mesh_hash
+
+    def group_identical_objects_by_hash(self, mesh_objects):
+        """
+        使用网格哈希值将几何相同的网格对象分组。
+        返回分组列表，每组是一列表，内含相同几何的物体。
+        """
+        mesh_groups = {}  # 使用字典存储组 {hash: [object, object,...]}
+
+        for obj in mesh_objects:
+            if obj.type != 'MESH':  # 跳过非网格对象
+                continue
+
+            mesh_hash = self.get_mesh_identifier(obj)
+            if not mesh_hash:  # 如果无法生成哈希值，跳过
+                continue
+
+            # 根据哈希值分组
+            if mesh_hash in mesh_groups:
+                mesh_groups[mesh_hash].append(obj)  # 添加到现有组
+            else:
+                mesh_groups[mesh_hash] = [obj]  # 创建新的组
+
+        # 返回分组后的结果，每组是一个物体列表
+        return [group for group in mesh_groups.values() if len(group) > 1]
+
+    def process_object_group(self, context, group_objects):
+        """
+        对一组几何相同的物体执行实例化操作。
+        """
+        try:
+            # 清除所有选择，并选择组中的所有物体
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in group_objects:
+                if obj and obj.name in bpy.data.objects:  # 确保对象有效
+                    obj.select_set(True)
+
+            # 设置组中的第一个物体为活动对象
+            if group_objects[0] and group_objects[0].name in bpy.data.objects:
+                bpy.context.view_layer.objects.active = group_objects[0]
+
+            # 执行实例化操作
+            bpy.ops.object.object_instance()
+            
+            return True
+            
+        except Exception as e:
+            print(f"错误：无法对物体组执行操作，物体组：{[obj.name for obj in group_objects if obj]}")
+            print(f"详细错误信息: {str(e)}")
+            return False
 
 class OBJECT_OT_reset_z_axis(Operator):
     bl_idname = "object.reset_z_axis"
@@ -240,7 +343,7 @@ class ClearAnimationData(bpy.types.Operator):
 
 # 置乱位置
 class RandomPlacement(bpy.types.Operator):
-    bl_idname = "object.miao_random_placement"
+    bl_idname = "object.mian_random_placement"
     bl_label = "随机放置"
 
     def execute(self, context):
@@ -285,7 +388,7 @@ bpy.types.Scene.random_scale_extent_z = bpy.props.FloatVectorProperty(
     size=2
 )
 class RandomScale(bpy.types.Operator):
-    bl_idname = "object.miao_random_scale"
+    bl_idname = "object.mian_random_scale"
     bl_label = "随机缩放"
 
     def execute(self, context):
@@ -330,7 +433,7 @@ bpy.types.Scene.queue_up_axis = bpy.props.EnumProperty(
     default="Y"
 )
 class QueueUp(bpy.types.Operator):
-    bl_idname = "object.miao_queue_up"
+    bl_idname = "object.mian_queue_up"
     bl_label = "列队"
 
     def execute(self, context):
@@ -412,7 +515,7 @@ def link_empty(obj_collection, empty_name, location):
     return empty
 
 class CreateEmptyAtObjectBottom(bpy.types.Operator):
-    bl_idname = "object.miao_create_empty_at_bottom"
+    bl_idname = "object.mian_create_empty_at_bottom"
     bl_label = "在选中物体底部创建父级空物体"
 
     def execute(self, context):
@@ -472,7 +575,7 @@ class CreateEmptyAtObjectBottom(bpy.types.Operator):
 
 # 按距离划分编组并绑定最高的物体为父级
 class CollectionByDistance(bpy.types.Operator):
-    bl_idname = "object.miao_collection_bydistance"
+    bl_idname = "object.mian_collection_bydistance"
     bl_label = "按距离划分编组并绑定最高的物体为父级"
 
     def execute(self, context):
@@ -597,7 +700,7 @@ class CollectionByAttached(bpy.types.Operator):
 
 # 碰撞检测（Boundbox）并打组
 class CollectionByBoundingbox(bpy.types.Operator):
-    bl_idname = "object.miao_collection_byboundingbox"
+    bl_idname = "object.mian_collection_byboundingbox"
     bl_label = "检测碰撞归为一个集合（无法撤回请及时保存）"
 
     def execute(self, context):
@@ -698,7 +801,7 @@ class VoxOperation(bpy.types.Operator):
 
     def execute(self, context):
 
-        # bpy.ops.object.miao_apply_and_sparate()
+        # bpy.ops.object.mian_apply_and_sparate()
         bpy.ops.object.reset_normals_flat_shading()
         # bpy.ops.object.merge_vertices_operator()
 
@@ -706,7 +809,7 @@ class VoxOperation(bpy.types.Operator):
 
 # 碰撞检测（Boundbox）并创建父级
 class ParentByBoundingbox(bpy.types.Operator):
-    bl_idname = "object.miao_parent_byboundingbox"
+    bl_idname = "object.mian_parent_byboundingbox"
     bl_label = "检测碰撞归为一个子集"
 
     def execute(self, context):
@@ -809,8 +912,8 @@ class ParentByBoundingbox(bpy.types.Operator):
             if group:  # 如果组非空
                 context.view_layer.objects.active = next(iter(group))
             
-            # 调用自定义操作，这里假设 `miao_create_empty_at_bottom` 正常工作
-            bpy.ops.object.miao_create_empty_at_bottom()
+            # 调用自定义操作，这里假设 `mian_create_empty_at_bottom` 正常工作
+            bpy.ops.object.mian_create_empty_at_bottom()
 
         return {'FINISHED' if colliding_groups else 'CANCELLED'}
 
@@ -841,7 +944,7 @@ def clean_collection(collection):
     bpy.data.collections.remove(collection)
 
 class CleanCollection(bpy.types.Operator):
-    bl_idname = "object.miao_clean_collection"
+    bl_idname = "object.mian_clean_collection"
     bl_label = "清空空集合"
 
     def execute(self, context):
@@ -853,7 +956,7 @@ class CleanCollection(bpy.types.Operator):
 
 
 class BoundboxGen(bpy.types.Operator):
-    bl_idname = "object.miao_boundbox_gen"
+    bl_idname = "object.mian_boundbox_gen"
     bl_label = "生成包围盒"
 
     def execute(self, context):
@@ -928,7 +1031,7 @@ class BoundboxGen(bpy.types.Operator):
     
 # 选择合并，不破坏集合关系
 class CombinObject(bpy.types.Operator):
-    bl_idname = "object.miao_safecombin"
+    bl_idname = "object.mian_safecombin"
     bl_label = "安全合并（不破坏集合）"
 
     def execute(self, context):
@@ -981,7 +1084,7 @@ class CombinObject(bpy.types.Operator):
 
 # 移除选中物体的顶点组
 class RemoveVertexGroup(bpy.types.Operator):
-    bl_idname = "object.miao_remove_vertex_group"
+    bl_idname = "object.mian_remove_vertex_group"
     bl_label = "移除选中物体的顶点组"
 
     def execute(self, context):
@@ -1000,7 +1103,7 @@ class RemoveVertexGroup(bpy.types.Operator):
         return {'FINISHED'}
 # 对齐原点
 class AlignOrign(bpy.types.Operator):
-    bl_idname = "object.miao_align_orign"
+    bl_idname = "object.mian_align_orign"
     bl_label = "对齐原点（需要勾选仅影响原点）"
 
     def execute(self, context):
@@ -1076,24 +1179,19 @@ class FixSizeOperator(bpy.types.Operator):
 
 # 标记资产
 class CreateAssemblyAsset(bpy.types.Operator):
-    bl_idname = "object.miao_create_assembly_asset"
+    bl_idname = "object.mian_create_assembly_asset"
     bl_label = "批量标记资产（需要m3插件）"
     bl_options = {'REGISTER', 'UNDO'}
 
-    # 添加批处理大小属性
-    batch_size: bpy.props.IntProperty(
-        name="批处理大小",
-        description="每次处理的物体数量",
-        default=5,  # 减小默认批处理大小
-        min=1,
-        max=50
-    )
+    # 移除批处理大小属性，改为逐个处理
 
     def execute(self, context):
         # 检查 Machin3tools 插件是否已安装
         if not hasattr(bpy.ops, 'machin3'):
             self.report({'ERROR'}, "请先安装并启用 Machin3tools 插件")
             return {'CANCELLED'}
+
+        # 逐个处理，不使用批处理
 
         def get_3d_view_region():
             for area in bpy.context.window.screen.areas:
@@ -1105,20 +1203,27 @@ class CreateAssemblyAsset(bpy.types.Operator):
 
         def save_scene_state():
             """保存当前场景状态"""
-            state = {
-                'visible_objects': {ob.name: ob.hide_viewport for ob in bpy.context.visible_objects},
-                'selected_objects': {ob.name: ob.select_get() for ob in bpy.context.visible_objects},
-                'active_object': bpy.context.active_object.name if bpy.context.active_object else None,
-                'view_settings': {
-                    'view_perspective': context.space_data.region_3d.view_perspective,
-                    'view_rotation': context.space_data.region_3d.view_rotation.copy(),
-                    'view_distance': context.space_data.region_3d.view_distance
+            try:
+                state = {
+                    'visible_objects': {ob.name: ob.hide_viewport for ob in bpy.context.visible_objects},
+                    'selected_objects': {ob.name: ob.select_get() for ob in bpy.context.visible_objects},
+                    'active_object': bpy.context.active_object.name if bpy.context.active_object else None,
+                    'view_settings': {
+                        'view_perspective': context.space_data.region_3d.view_perspective,
+                        'view_rotation': context.space_data.region_3d.view_rotation.copy(),
+                        'view_distance': context.space_data.region_3d.view_distance
+                    }
                 }
-            }
-            return state
+                return state
+            except Exception as e:
+                print(f"保存场景状态时出错: {str(e)}")
+                return None
 
         def restore_scene_state(state):
             """恢复场景状态"""
+            if state is None:
+                return
+                
             try:
                 # 恢复可见性
                 for obj_name, visibility in state['visible_objects'].items():
@@ -1228,67 +1333,69 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 print(f"创建空物体父级时出错: {str(e)}")
                 return None
 
-        def process_batch(objects, viewport_area, viewport_region, create_top_level_parent):
-            processed_count = 0
-            for obj in objects:
-                if obj.parent is not None:
-                    continue
+        def process_single_object(obj, viewport_area, viewport_region, create_top_level_parent):
+            """处理单个物体"""
+            if obj.parent is not None:
+                return 0
 
-                try:
-                    # 检查对象是否仍然存在于场景中
-                    if obj.name not in bpy.data.objects:
-                        print(f"对象 {obj.name} 已不存在于场景中")
-                        continue
+            try:
+                # 检查对象是否仍然存在于场景中
+                if obj.name not in bpy.data.objects:
+                    print(f"对象 {obj.name} 已不存在于场景中")
+                    return 0
 
-                    # 保存场景状态
-                    scene_state = save_scene_state()
-                    original_parent = obj.parent
+                # 检查对象是否有效
+                if not obj or obj.type not in ['MESH', 'EMPTY', 'CURVE', 'SURFACE', 'META', 'FONT', 'ARMATURE', 'LATTICE']:
+                    print(f"跳过无效对象: {obj.name}")
+                    return 0
 
-                    # 准备物体
-                    prepare_object_for_asset(obj)
+                # 保存场景状态
+                scene_state = save_scene_state()
+                original_parent = obj.parent
 
-                    # 创建视图上下文
-                    override = context.copy()
-                    override['area'] = viewport_area
-                    override['region'] = viewport_region
+                # 准备物体
+                prepare_object_for_asset(obj)
 
-                    # 将视图对准选中的物体
-                    bpy.ops.view3d.view_selected(override)
-                    bpy.context.view_layer.update()
-                    time.sleep(0.3)  # 增加等待时间确保视图更新
+                # 创建视图上下文
+                override = context.copy()
+                override['area'] = viewport_area
+                override['region'] = viewport_region
 
-                    # 创建空物体父级（如果需要）
-                    if create_top_level_parent:
-                        empty = create_empty_parent(obj)
-                        if empty is None:
-                            continue
+                # 将视图对准选中的物体
+                bpy.ops.view3d.view_selected(override)
+                bpy.context.view_layer.update()
+                time.sleep(0.5)  # 等待时间确保视图更新
 
-                    # 执行 Machin3tools 的标记资产操作
-                    bpy.ops.machin3.create_assembly_asset(override)
-                    
-                    # 等待资产创建完成
-                    time.sleep(0.5)  # 增加资产创建后的等待时间
+                # 创建空物体父级（如果需要）
+                if create_top_level_parent:
+                    empty = create_empty_parent(obj)
+                    if empty is None:
+                        return 0
 
-                    # 恢复原始父级关系
-                    if original_parent is not None and obj.name in bpy.data.objects:
-                        obj = bpy.data.objects[obj.name]
-                        if obj.name in bpy.context.view_layer.objects:
-                            obj.parent = original_parent
+                # 执行 Machin3tools 的标记资产操作
+                bpy.ops.machin3.create_assembly_asset(override)
+                
+                # 等待资产创建完成
+                time.sleep(0.8)  # 资产创建后的等待时间
 
-                    processed_count += 1
-                    self.report({'INFO'}, f"成功添加资产 {processed_count} 个")
+                # 恢复原始父级关系
+                if original_parent is not None and obj.name in bpy.data.objects:
+                    obj = bpy.data.objects[obj.name]
+                    if obj.name in bpy.context.view_layer.objects:
+                        obj.parent = original_parent
 
-                except Exception as e:
-                    self.report({'ERROR'}, f"处理物体 {obj.name} 时出错: {str(e)}")
-                    continue
+                self.report({'INFO'}, f"成功处理物体: {obj.name}")
+                return 1
 
-                finally:
-                    # 恢复场景状态
-                    restore_scene_state(scene_state)
-                    bpy.context.view_layer.update()
-                    time.sleep(0.2)  # 添加状态恢复后的等待时间
+            except Exception as e:
+                self.report({'ERROR'}, f"处理物体 {obj.name} 时出错: {str(e)}")
+                return 0
 
-            return processed_count
+            finally:
+                # 恢复场景状态
+                restore_scene_state(scene_state)
+                bpy.context.view_layer.update()
+                time.sleep(0.3)  # 状态恢复后的等待时间
 
         collection_name = context.scene.asset_collection.name
         collection = bpy.data.collections.get(collection_name)
@@ -1309,16 +1416,33 @@ class CreateAssemblyAsset(bpy.types.Operator):
             # 获取所有顶级物体
             top_level_objects = [obj for obj in collection.objects if obj.parent is None]
             
-            # 分批处理物体
-            for i in range(0, len(top_level_objects), self.batch_size):
-                batch = top_level_objects[i:i + self.batch_size]
-                processed = process_batch(batch, viewport_area, viewport_region, create_top_level_parent)
+            if not top_level_objects:
+                self.report({'WARNING'}, "集合中没有顶级物体")
+                return {'CANCELLED'}
+            
+            # 显示开始处理信息
+            self.report({'INFO'}, f"开始逐个处理 {len(top_level_objects)} 个物体")
+            
+            # 逐个处理物体
+            for i, obj in enumerate(top_level_objects):
+                # 检查是否被取消
+                if context.window_manager.get('cancel_operation', False):
+                    self.report({'INFO'}, "操作被用户取消")
+                    return {'CANCELLED'}
+                
+                self.report({'INFO'}, f"处理物体 {i+1}/{len(top_level_objects)}: {obj.name}")
+                
+                processed = process_single_object(obj, viewport_area, viewport_region, create_top_level_parent)
                 total_processed += processed
                 
                 # 强制更新视图和内存
                 bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
                 bpy.context.view_layer.update()
-                time.sleep(0.3)  # 增加批次间的等待时间
+                time.sleep(0.3)  # 每个物体间的等待时间
+                
+                # 强制垃圾回收
+                import gc
+                gc.collect()
 
             if total_processed > 0:
                 self.report({'INFO'}, f"成功处理 {total_processed} 个资产")
@@ -1329,11 +1453,13 @@ class CreateAssemblyAsset(bpy.types.Operator):
 
         except Exception as e:
             self.report({'ERROR'}, f"发生错误: {str(e)}")
+            import traceback
+            print(f"详细错误信息: {traceback.format_exc()}")
             return {'CANCELLED'}
 
 #批量更改子级名称为顶级父级，忽略隐藏物体
 class RenameByParent(bpy.types.Operator):
-    bl_idname = "object.miao_rename_by_parent"
+    bl_idname = "object.mian_rename_by_parent"
     bl_label = "更改所选物体为其顶级名称"
 
     def execute(self, context):
@@ -1411,7 +1537,7 @@ def set_nearest_parent_for_collection(self, context):
 
 # ----       
 class OBJECT_OT_SetParentButton(bpy.types.Operator):
-    bl_idname = "object.miao_set_parent_collections"
+    bl_idname = "object.mian_set_parent_collections"
     bl_label = "Set Parent Collections"
     bl_description = "Set parent of collections based on closest object in target collection"
 
@@ -1501,7 +1627,7 @@ class UVObjectMatcherOperator(bpy.types.Operator):
 
 # 重置所选矢量
 class ResetNormals(bpy.types.Operator):
-    bl_idname = "object.miao_reset_normals"
+    bl_idname = "object.mian_reset_normals"
     bl_label = "重置所选矢量"
 
     def execute(self, context):
@@ -1568,7 +1694,7 @@ class ResetNormalsAndFlatShadingOperator(bpy.types.Operator):
 
 # 合并顶级层级
 class MergeTopLevel(bpy.types.Operator):
-  bl_idname = "object.miao_merge_top_level"
+  bl_idname = "object.mian_merge_top_level"
   bl_label = "合并顶级层级"
 
   def execute(self, context):
@@ -1625,7 +1751,7 @@ class MergeTopLevel(bpy.types.Operator):
     return {'FINISHED'}
 
 class ApplyAndSeparate(bpy.types.Operator):
-    bl_idname = "object.miao_apply_and_separate"
+    bl_idname = "object.mian_apply_and_separate"
     bl_label = "独立化、应用所有变换"
 
     def execute(self, context):
@@ -1701,7 +1827,7 @@ class ApplyAndSeparate(bpy.types.Operator):
 
 # 清理空物体
 class CleanEmpty(bpy.types.Operator):
-    bl_idname = "object.miao_clean_empty"
+    bl_idname = "object.mian_clean_empty"
     bl_label = "清理所选空物体"
 
     def execute(self, context):
@@ -1719,7 +1845,7 @@ class CleanEmpty(bpy.types.Operator):
 
 # 递归清理场景
 class CleanSense(bpy.types.Operator):
-    bl_idname = "object.miao_clean_sense"
+    bl_idname = "object.mian_clean_sense"
     bl_label = "清理场景"
 
     def execute(self, context):
@@ -1985,6 +2111,7 @@ classes = [
     RandomScale,
     UVObjectMatcherOperator,
     ObjectInstancer,
+    GeometryMatcherOperator,
 ]
 
 def register():

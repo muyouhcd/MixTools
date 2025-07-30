@@ -256,7 +256,7 @@ class SetMaterialSpecularTint(bpy.types.Operator):
 
 # 材质球排序
 class MaterialSort(bpy.types.Operator):
-    bl_idname = "object.miao_material_sort"
+    bl_idname = "object.mian_material_sort"
     bl_label = "材质球排序"
 
     def execute(self, context):
@@ -335,7 +335,7 @@ class OBJ_OT_random_meterial(bpy.types.Operator):
         return {'FINISHED'}
 # 合并材质
 class MergeMaterial(bpy.types.Operator):
-    bl_idname = "object.miao_merge_material"
+    bl_idname = "object.mian_merge_material"
     bl_label = "合并材质"
 
     def execute(self, context):
@@ -787,7 +787,7 @@ class OBJECT_OT_RemoveUnusedMaterialSlots(bpy.types.Operator):
         return {'FINISHED'}
 
 # 设置材质渲染模式为Alpha Clip
-class MIAO_OT_SetMaterialAlphaClipMode(bpy.types.Operator):
+class mian_OT_SetMaterialAlphaClipMode(bpy.types.Operator):
     bl_idname = "object.set_material_alpha_clip"
     bl_label = "设置Alpha裁剪模式"
     bl_description = "将所选物体的所有材质视图显示设置为Alpha裁剪模式"
@@ -1020,7 +1020,7 @@ def register():
         MaterialCleaner,
         OBJECT_OT_MergeDuplicateMaterials,
         OBJECT_OT_RemoveUnusedMaterialSlots,
-        MIAO_OT_SetMaterialAlphaClipMode,
+        mian_OT_SetMaterialAlphaClipMode,
         SetMaterialAlphaBlendMode,
         SetShadowInvisible,
         SetShadowVisible,
@@ -1043,7 +1043,7 @@ def unregister():
         SetShadowVisible,
         SetShadowInvisible,
         SetMaterialAlphaBlendMode,
-        MIAO_OT_SetMaterialAlphaClipMode,
+        mian_OT_SetMaterialAlphaClipMode,
         OBJECT_OT_RemoveUnusedMaterialSlots,
         OBJECT_OT_MergeDuplicateMaterials,
         MaterialCleaner,

@@ -45,7 +45,7 @@ class RenameTextureOrign(bpy.types.Operator):
     
 #去除名称后缀
 class RemoveNameSuffix(bpy.types.Operator):
-    bl_idname = "object.miao_remove_name_suffix"
+    bl_idname = "object.mian_remove_name_suffix"
     bl_label = "移除名称后缀"
 
     def execute(self, context):
@@ -154,7 +154,7 @@ def rename_collections(self, context):
         collB.name = closest_top_objA.name
 
 class OBJECT_OT_RenameButton(bpy.types.Operator):
-    bl_idname = "object.miao_rename_collections"
+    bl_idname = "object.mian_rename_collections"
     bl_label = "Rename Collections"
     bl_description = "Rename collections based on closest object in target collection"
 
@@ -164,7 +164,7 @@ class OBJECT_OT_RenameButton(bpy.types.Operator):
 
 # 按照空间前后顺序对所选物体重命名
 class RenameByLocation(bpy.types.Operator):
-    bl_idname = "object.miao_rename_location"
+    bl_idname = "object.mian_rename_location"
     bl_label = "按轴空间顺序重命名"
 
     def execute(self, context):
@@ -327,7 +327,7 @@ def move_digits_to_end(name):
     return '_'.join(non_digit_parts + digit_parts)
 
 class AutoRenameCar(bpy.types.Operator):
-    bl_idname = "object.miao_auto_rename_car"
+    bl_idname = "object.mian_auto_rename_car"
     bl_label = "自动重命名汽车For Unity(-y朝前)"
     
     def execute(self, context):
@@ -509,7 +509,7 @@ class AutoRenameCar(bpy.types.Operator):
         return {"FINISHED"}
     
 class AutoRenameCarForRigCar(bpy.types.Operator):
-    bl_idname = "object.miao_auto_rename_car_for_rigcar"
+    bl_idname = "object.mian_auto_rename_car_for_rigcar"
     bl_label = "自动重命名汽车For Rig-car(-y朝前)"
 
     def execute(self, context):

@@ -300,17 +300,17 @@ class UpdateAddonOperator(bpy.types.Operator):
                 return
                 
             # 定位MiaoTools子目录
-            miao_tools_path = os.path.join(addon_dir, "MiaoTools")
-            if not os.path.exists(miao_tools_path):
-                os.makedirs(miao_tools_path)
+            mian_tools_path = os.path.join(addon_dir, "MiaoTools")
+            if not os.path.exists(mian_tools_path):
+                os.makedirs(mian_tools_path)
             
             # 备份当前版本
             update_status.update("正在备份当前版本...", 0.8)
-            # backup_path = backup_current_addon(miao_tools_path)
+            # backup_path = backup_current_addon(mian_tools_path)
             
             # 安装新版本
             update_status.update("正在安装新版本...", 0.9)
-            self.copy_new_version(miao_tools_path, new_addon_dir)
+            self.copy_new_version(mian_tools_path, new_addon_dir)
             
             # 清理临时文件
             update_status.update("正在清理临时文件...", 0.95)

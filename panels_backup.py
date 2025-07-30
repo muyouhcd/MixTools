@@ -28,11 +28,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
         # if context.scene.tools_expand:
             
             # 移除选中物体顶点组
-            # layout.operator("object.miao_remove_vertex_group")
+            # layout.operator("object.mian_remove_vertex_group")
             # 移除选中物体修改器
             # layout.operator("object.remove_modifiers")
             # 清空空集合
-            # layout.operator("object.miao_clean_collection")
+            # layout.operator("object.mian_clean_collection")
             #清除无子集空物体
             # layout.operator("object.clean_empty")
             #批量清空动画
@@ -40,13 +40,13 @@ class CustomFunctionsPanel(bpy.types.Panel):
             #一键批量独立化
             # layout.operator("object.make_single_user_operator")
             # 生成包围盒
-            # layout.operator("object.miao_boundbox_gen")
+            # layout.operator("object.mian_boundbox_gen")
             # 生成凸包
             # layout.operator("object.convex_hull_creator")
             # 安全合并（不破坏集合）
-            # layout.operator("object.miao_safecombin")
+            # layout.operator("object.mian_safecombin")
             # 对齐原点到底部
-            # layout.operator("object.miao_alignment_ground")
+            # layout.operator("object.mian_alignment_ground")
             #原点批量移动至-y中心
             # operator=layout.operator("object.move_origin_to_bottom")
             # layout.prop(operator, "axis")  
@@ -73,9 +73,9 @@ class CustomFunctionsPanel(bpy.types.Panel):
         
         # if context.scene.BindOperation_expand:
             # 检测碰撞归为一个集合
-            # layout.operator("object.miao_collection_byboundingbox")
+            # layout.operator("object.mian_collection_byboundingbox")
             # 检测碰撞归为一个子集
-            # layout.operator("object.miao_parent_byboundingbox")
+            # layout.operator("object.mian_parent_byboundingbox")
             # 检测碰撞并合并
             # layout.operator("object.collection_by_attached")
             # 按照集合位置划分父级绑定
@@ -83,11 +83,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # box_parent_by_collections.label(text="以集合物体设置子集合的父级")
             # box_parent_by_collections.prop(context.scene, "collectionA", text="集合A")
             # box_parent_by_collections.prop(context.scene, "collectionB", text="集合B")
-            # box_parent_by_collections.operator("object.miao_set_parent_collections", text="设置父级")
+            # box_parent_by_collections.operator("object.mian_set_parent_collections", text="设置父级")
             # 为选中物体绑定空物体父级
             # create_empty_at_origin_box = layout.box()
             # create_empty_at_origin_box.prop(scene, "multiple_object_binding", text="为多个物体绑定父级")
-            # create_empty_at_origin_box.operator("object.miao_create_empty_at_bottom", text="创建空物体父级")
+            # create_empty_at_origin_box.operator("object.mian_create_empty_at_bottom", text="创建空物体父级")
 
 # 材质操作
         col_meterialoperation = layout.column()
@@ -96,11 +96,11 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         # if context.scene.meterialoperation_expand:
             # 材质球排序
-            # layout.operator("object.miao_material_sort")
+            # layout.operator("object.mian_material_sort")
             # 随机材质
             # layout.operator("scene.random_meterial")
             # 清理材质
-            # layout.operator("object.miao_merge_material")
+            # layout.operator("object.mian_merge_material")
             #设置所选物体材质为临近采样（硬边缘）
             # layout.operator("object.set_texture_interpolation")
             #清理空的材质槽
@@ -120,16 +120,16 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_set_remaining_objects = col_renameoperation.box()
             box_set_remaining_objects.label(text="车辆部件自动重命名")
             #box_set_remaining_objects.prop(context.scene, "move_children_to_same_level", text="Move children to same level")
-            box_set_remaining_objects.operator("object.miao_auto_rename_car")
-            box_set_remaining_objects.operator("object.miao_auto_rename_car_for_rigcar")
+            box_set_remaining_objects.operator("object.mian_auto_rename_car")
+            box_set_remaining_objects.operator("object.mian_auto_rename_car_for_rigcar")
             #按空间顺序改名
-            # layout.operator("object.miao_rename_location")
+            # layout.operator("object.mian_rename_location")
             # 更改子级名称为顶级物体
-            # layout.operator("object.miao_rename_by_parent")
+            # layout.operator("object.mian_rename_by_parent")
             # 重命名为所处集合名称
             # layout.operator("object.rename_to_collection")
             #去除名称后缀
-            # layout.operator("object.miao_remove_name_suffix")
+            # layout.operator("object.mian_remove_name_suffix")
             #移除顶级物体名称后缀，重名则交换
             # layout.operator("object.remove_suffix_and_resolve")
             #命名mesh为物体名称
@@ -141,7 +141,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # box_rename_by_collections.label(text="按位置物体重命名集合名称")
             # box_rename_by_collections.prop(context.scene, "collectionA", text="集合A(获取物体名称)")
             # box_rename_by_collections.prop(context.scene, "collectionB", text="集合B(重命名集合)")
-            # box_rename_by_collections.operator("object.miao_rename_collections", text="重命名")
+            # box_rename_by_collections.operator("object.mian_rename_collections", text="重命名")
             #按位置重命名
             # box_enameoperation = col_renameoperation.box()
             # box_enameoperation.label(text="按位置重命名")
@@ -162,19 +162,19 @@ class CustomFunctionsPanel(bpy.types.Panel):
             queue_up_box.label(text="列队")
             queue_up_box.prop(context.scene, "queue_up_distance")
             queue_up_box.prop(context.scene, "queue_up_axis", text="轴向")
-            queue_up_box.operator("object.miao_queue_up")
+            queue_up_box.operator("object.mian_queue_up")
             # 创建一个box来包含置乱位置相关功能
             random_placement_box = layout.box()
             random_placement_box.label(text="置乱位置")
             random_placement_box.prop(context.scene, "random_placement_extent")
-            random_placement_box.operator("object.miao_random_placement")
+            random_placement_box.operator("object.mian_random_placement")
             # 创建一个box来包含置乱缩放相关功能
             random_scale_box = layout.box()
             random_scale_box.label(text="置乱缩放")
             random_scale_box.prop(context.scene, "random_scale_extent_x")
             random_scale_box.prop(context.scene, "random_scale_extent_y")
             random_scale_box.prop(context.scene, "random_scale_extent_z")
-            random_scale_box.operator("object.miao_random_scale")
+            random_scale_box.operator("object.mian_random_scale")
             #对齐集合顶级父级
             align_parent_box = layout.box()
             align_parent_box.label(text="父级批量对齐")
@@ -198,7 +198,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
             # 按 ".col" 标记导出
             export_box.operator("scene.export_fbx_by_col_mark", text="按.col标记导出")
             # 按集合导出fbx
-            export_box.operator("object.miao_output_fbx_as_collection", text="按集合分文件夹批量导出")
+            export_box.operator("object.mian_output_fbx_as_collection", text="按集合分文件夹批量导出")
             #批量导出obj
             export_box.operator("object.export_objs", text="批量导出obj")
             # 批量关联场景
@@ -218,7 +218,7 @@ class CustomFunctionsPanel(bpy.types.Panel):
 
         if context.scene.GTAtranslate_expand:
             # 校正物体旋转
-            layout.operator("object.miao_correct_rotation")
+            layout.operator("object.mian_correct_rotation")
             #GTA导入载具一键处理
             # layout.operator("object.process_objects")
 
@@ -231,23 +231,23 @@ class CustomFunctionsPanel(bpy.types.Panel):
             box_vox.operator("object.vox_operation", text="导入VOX一键处理")
             #一键定位并绑定角色
             box_character = col_assestoperation.box()
-            box_character.operator("object.miao_char_operater", text="导入角色一键处理")
+            box_character.operator("object.mian_char_operater", text="导入角色一键处理")
             box_character.prop(scene,"assign_contact_weights")
             box_character.prop(scene, "threshold_distance")
             box_character.operator(CharOperaterBoneWeight.bl_idname, text="角色一键绑定")
         
             box_assestoperation = col_assestoperation.box()
-            box_assestoperation.operator("object.miao_apply_and_separate", text="1.独立化应用所有变换")
-            box_assestoperation.operator("object.miao_merge_top_level", text="2.按顶级层级合并")
-            box_assestoperation.operator("object.miao_reset_normals", text="3.重置所选矢量")
-            box_assestoperation.operator("object.miao_clean_empty", text="4.清理所选空物体")
-            box_assestoperation.operator("object.miao_clean_sense", text="5.递归清理场景")
+            box_assestoperation.operator("object.mian_apply_and_separate", text="1.独立化应用所有变换")
+            box_assestoperation.operator("object.mian_merge_top_level", text="2.按顶级层级合并")
+            box_assestoperation.operator("object.mian_reset_normals", text="3.重置所选矢量")
+            box_assestoperation.operator("object.mian_clean_empty", text="4.清理所选空物体")
+            box_assestoperation.operator("object.mian_clean_sense", text="5.递归清理场景")
 
             assembly_asset_box = col_assestoperation.box()
             assembly_asset_box.label(text="批量标记资产设置")
             assembly_asset_box.prop(context.scene, "asset_collection")
             assembly_asset_box.prop(context.scene, "create_top_level_parent")
-            assembly_asset_box.operator("object.miao_create_assembly_asset")
+            assembly_asset_box.operator("object.mian_create_assembly_asset")
 
             box_voxelizer = layout.box()
             box_voxelizer.prop(context.scene.voxelizer_tool, "path")

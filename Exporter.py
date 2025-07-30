@@ -574,7 +574,7 @@ class ExportFbxByColMark(bpy.types.Operator):
 
 # 按集合导出FBX
 class ExportFbxByCollection(bpy.types.Operator):
-    bl_idname = "object.miao_output_fbx_as_collection"
+    bl_idname = "object.mian_output_fbx_as_collection"
     bl_label = "按集合导出FBX"
 
     def execute(self, context):
