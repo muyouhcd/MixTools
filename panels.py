@@ -61,6 +61,7 @@ class CustomFunctionsPanel(Panel):
             gen_box.operator("object.mian_safecombin", text="安全合并", icon='AUTOMERGE_ON')
             gen_box.operator("object.object_instance", text="对所选物体进行转换实例化", icon='DUPLICATE')
             gen_box.operator("object.geometry_matcher", text="对全场景进行几何相同性检测并实例化", icon='MESH_DATA')
+            gen_box.operator("object.remove_instance_duplicates", text="删除实例化物体重复项", icon='TRASH')
 
             # Alignment Tools
             layout.label(text="对齐工具:", icon='ORIENTATION_GLOBAL')
@@ -420,6 +421,8 @@ class CustomFunctionsPanel(Panel):
                           icon='TRIA_DOWN' if context.scene.animation_tools_expand else 'TRIA_RIGHT')
         
         if scene.animation_tools_expand:
+
+            
             # 角色部件替换工具
             role_replace_box = col_animation.box()
             role_replace_box.label(text="角色部件替换:", icon='OUTLINER_OB_ARMATURE')
@@ -465,12 +468,12 @@ class CustomFunctionsPanel(Panel):
             armature_tools_box = col_animation.box()
             armature_tools_box.label(text="骨架操作工具（测试）:", icon='ARMATURE_DATA')
             
-            # 添加骨架位置设置工具
-            armature_position_box = armature_tools_box.box()
-            armature_position_box.label(text="骨架位置设置:", icon='ARMATURE_DATA')
-            row = armature_position_box.row(align=True)
-            row.operator("armature.set_to_rest_position", text="设置为静置位置", icon='ARMATURE_DATA')
-            row.operator("armature.set_to_pose_position", text="设置为姿态位置", icon='POSE_HLT')
+            # # 添加骨架位置设置工具
+            # armature_position_box = armature_tools_box.box()
+            # armature_position_box.label(text="骨架位置设置:", icon='ARMATURE_DATA')
+            # row = armature_position_box.row(align=True)
+            # row.operator("armature.set_to_rest_position", text="设置为静置位置", icon='ARMATURE_DATA')
+            # row.operator("armature.set_to_pose_position", text="设置为姿态位置", icon='POSE_HLT')
             
             # 添加空物体转骨骼工具
             empty_to_bone_box = armature_tools_box.box()
@@ -510,6 +513,13 @@ class CustomFunctionsPanel(Panel):
             row = better_fbx_box.row(align=True)
             row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
             row.operator("better_fbx.batch_import_files", text="选择多个FBX文件", icon='DOCUMENTS')
+            
+            # 按名称列表批量导入
+            name_list_box = better_fbx_box.box()
+            name_list_box.label(text="按名称列表批量导入:", icon='TEXT')
+            name_list_box.prop(context.scene, "fbx_name_list_text", text="名称列表", icon='TEXT')
+            name_list_box.prop(context.scene, "fbx_search_directory", text="搜索目录", icon='FILE_FOLDER')
+            name_list_box.operator("better_fbx.batch_import_by_name_list", text="按名称列表导入", icon='IMPORT')
             
             # 批量导出
             export_box = col_inout.box()
@@ -831,7 +841,33 @@ def register():
         description="是否显示详细的处理信息",
         default=False
     )
+    
+    # FBX名称列表批量导入相关属性
+    bpy.types.Scene.fbx_name_list_text = bpy.props.StringProperty(
+        name="FBX名称列表",
+        description="要查找的FBX文件名称列表，每行一个名称。例如：\nmy_model\nmy_character",
+        default="",
+        maxlen=1024,
+    )
+    bpy.types.Scene.fbx_search_directory = bpy.props.StringProperty(
+        name="搜索目录",
+        description="要搜索FBX文件的目录路径",
+        subtype='DIR_PATH',
+        default="",
+    )
 
+    # 添加工具搜索功能
+    bpy.types.Scene.tool_search_text = bpy.props.StringProperty(
+        name="搜索工具",
+        description="输入关键词快速查找工具",
+        default="",
+        maxlen=100,
+    )
+    bpy.types.Scene.show_quick_tools = bpy.props.BoolProperty(
+        name="显示常用工具",
+        description="在面板顶部显示常用工具",
+        default=True,
+    )
 
 
 def unregister():
@@ -873,6 +909,14 @@ def unregister():
         "transfer_bone_animation_keyframe_sample_rate",
         "transfer_bone_animation_batch_size",
         "transfer_bone_animation_show_detailed_info",
+        
+        # FBX名称列表批量导入相关属性
+        "fbx_name_list_text",
+        "fbx_search_directory",
+
+        # 添加工具搜索功能
+        "tool_search_text",
+        "show_quick_tools",
 
 
     ]

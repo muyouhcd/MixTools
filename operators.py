@@ -177,8 +177,117 @@ class GeometryMatcherOperator(bpy.types.Operator):
             
         except Exception as e:
             print(f"错误：无法对物体组执行操作，物体组：{[obj.name for obj in group_objects if obj]}")
-            print(f"详细错误信息: {str(e)}")
             return False
+
+# 删除实例化物体重复项
+class RemoveInstanceDuplicatesOperator(bpy.types.Operator):
+    bl_idname = "object.remove_instance_duplicates"
+    bl_label = "删除实例化物体重复项"
+    bl_description = "删除所有相关联（实例化）出来的物体，仅保留一个"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 获取所有网格物体
+        mesh_objects = [obj for obj in bpy.data.objects if obj.type == 'MESH']
+        
+        if len(mesh_objects) < 2:
+            self.report({'WARNING'}, "场景中至少需要2个网格物体")
+            return {'CANCELLED'}
+
+        # 按几何相同性分组
+        identical_groups = self.group_identical_objects_by_hash(mesh_objects)
+        
+        if not identical_groups:
+            self.report({'INFO'}, "未发现几何相同的物体")
+            return {'FINISHED'}
+
+        # 处理每组几何相同的物体，删除重复项
+        processed_count = 0
+        deleted_count = 0
+        
+        for group in identical_groups:
+            if len(group) > 1:  # 只处理有多个物体的组
+                deleted_in_group = self.remove_duplicates_from_group(context, group)
+                if deleted_in_group > 0:
+                    processed_count += 1
+                    deleted_count += deleted_in_group
+
+        if processed_count > 0:
+            self.report({'INFO'}, f"成功处理了 {processed_count} 组几何相同的物体，删除了 {deleted_count} 个重复物体")
+        else:
+            self.report({'INFO'}, "未发现需要删除的重复物体")
+        
+        return {'FINISHED'}
+
+    def get_mesh_identifier(self, obj):
+        """
+        获取网格对象的唯一标识，用于比较几何相同性。
+        通过顶点坐标、边、面信息生成哈希值，不比较物体位置、旋转、缩放信息。
+        """
+        if obj.type != 'MESH':
+            return None  # 非网格对象返回 None
+
+        mesh = obj.data
+
+        # 将顶点、边、面数据拼接成字符串，用于哈希生成
+        vertex_data = "".join([f"{v.co.x},{v.co.y},{v.co.z}" for v in mesh.vertices])
+        edge_data = "".join([f"{e.vertices[0]},{e.vertices[1]}" for e in mesh.edges])
+        polygon_data = "".join(["".join(map(str, sorted(p.vertices))) for p in mesh.polygons])
+
+        # 创建哈希值，唯一标识该物体的网格几何
+        data = vertex_data + edge_data + polygon_data
+        mesh_hash = hashlib.md5(data.encode('utf-8')).hexdigest()
+
+        return mesh_hash
+
+    def group_identical_objects_by_hash(self, mesh_objects):
+        """
+        使用网格哈希值将几何相同的网格对象分组。
+        返回分组列表，每组是一列表，内含相同几何的物体。
+        """
+        mesh_groups = {}  # 使用字典存储组 {hash: [object, object,...]}
+
+        for obj in mesh_objects:
+            if obj.type != 'MESH':  # 跳过非网格对象
+                continue
+
+            mesh_hash = self.get_mesh_identifier(obj)
+            if not mesh_hash:  # 如果无法生成哈希值，跳过
+                continue
+
+            # 根据哈希值分组
+            if mesh_hash in mesh_groups:
+                mesh_groups[mesh_hash].append(obj)  # 添加到现有组
+            else:
+                mesh_groups[mesh_hash] = [obj]  # 创建新的组
+
+        # 返回分组后的结果，每组是一个物体列表
+        return [group for group in mesh_groups.values() if len(group) > 1]
+
+    def remove_duplicates_from_group(self, context, group_objects):
+        """
+        从一组几何相同的物体中删除重复项，只保留第一个。
+        返回删除的物体数量。
+        """
+        try:
+            if len(group_objects) <= 1:
+                return 0
+
+            # 保留第一个物体，删除其余的
+            objects_to_delete = group_objects[1:]
+            deleted_count = 0
+
+            for obj in objects_to_delete:
+                if obj and obj.name in bpy.data.objects:
+                    # 删除物体
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                    deleted_count += 1
+
+            return deleted_count
+            
+        except Exception as e:
+            print(f"错误：无法删除重复物体，物体组：{[obj.name for obj in group_objects if obj]}")
+            return 0
 
 class OBJECT_OT_reset_z_axis(Operator):
     bl_idname = "object.reset_z_axis"
@@ -2112,6 +2221,7 @@ classes = [
     UVObjectMatcherOperator,
     ObjectInstancer,
     GeometryMatcherOperator,
+    RemoveInstanceDuplicatesOperator,
 ]
 
 def register():
