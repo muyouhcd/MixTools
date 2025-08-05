@@ -85,6 +85,7 @@ from . import BetterFbxOperation
 from . import AutoHideClean
 
 from . import BoneConverter
+from . import AssetMarker
 
 def register():
     # 先注册基础模块
@@ -117,6 +118,7 @@ def register():
     AutoHideClean.register()
 
     BoneConverter.register()
+    AssetMarker.register()
     
     # 最后注册UI面板
     panels.register()
@@ -151,6 +153,7 @@ def unregister():
     BetterFbxOperation.unregister()
     AutoHideClean.unregister()
     BoneConverter.unregister()
+    AssetMarker.unregister()
     
     # 最后注销基础模块
     operators.unregister()
