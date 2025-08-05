@@ -194,14 +194,32 @@ class CreateAssemblyAsset(bpy.types.Operator):
         create_top_level_parent = context.scene.create_top_level_parent
         total_processed = 0
 
+        def get_all_objects_recursive(collection):
+            """递归获取集合及其子集合中的所有物体"""
+            objects = []
+            
+            # 添加当前集合中的物体
+            for obj in collection.objects:
+                objects.append(obj)
+            
+            # 递归处理子集合
+            for child_collection in collection.children:
+                objects.extend(get_all_objects_recursive(child_collection))
+            
+            return objects
+        
         try:
-            top_level_objects = [obj for obj in collection.objects if obj.parent is None]
+            # 递归获取所有物体
+            all_objects = get_all_objects_recursive(collection)
+            
+            # 过滤出顶级物体（没有父级的物体）
+            top_level_objects = [obj for obj in all_objects if obj.parent is None]
             
             if not top_level_objects:
-                self.report({'WARNING'}, "集合中没有顶级物体")
+                self.report({'WARNING'}, "集合及其子集合中没有顶级物体")
                 return {'CANCELLED'}
             
-            self.report({'INFO'}, f"开始逐个处理 {len(top_level_objects)} 个物体")
+            self.report({'INFO'}, f"开始逐个处理 {len(top_level_objects)} 个物体（包含子集合）")
             
             for i, obj in enumerate(top_level_objects):
                 if context.window_manager.get('cancel_operation', False):
