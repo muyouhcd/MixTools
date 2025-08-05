@@ -423,23 +423,7 @@ class CustomFunctionsPanel(Panel):
         if scene.animation_tools_expand:
 
             
-            # 角色部件替换工具
-            role_replace_box = col_animation.box()
-            role_replace_box.label(text="角色部件替换:", icon='OUTLINER_OB_ARMATURE')
-            role_replace_box.prop(context.scene, "collectionA", text="源集合", icon='COLLECTION_COLOR_01')
-            role_replace_box.prop(context.scene, "collectionB", text="目标集合", icon='COLLECTION_COLOR_04')
-            
-            # 添加四个按钮
-            col = role_replace_box.column(align=True)
-            col.label(text="替换集合内物体:")
-            row = col.row(align=True)
-            row.operator("object.mian_role_replacer", text="随机替换", icon='ARMATURE_DATA')
-            row.operator("object.mian_role_replacer_parent", text="基于父级关系", icon='CONSTRAINT')
-            
-            col.label(text="替换所选物体:")
-            row = col.row(align=True)
-            row.operator("object.mian_role_replacer_selected", text="随机替换", icon='OBJECT_DATA')
-            row.operator("object.mian_role_replacer_selected_parent", text="基于父级关系", icon='CONSTRAINT')
+
 
             # 动画清理工具
             animation_tools_box = col_animation.box()
@@ -591,6 +575,11 @@ class CustomFunctionsPanel(Panel):
             convert_box.label(text="体素化设置:", icon='LIGHTPROBE_GRID')
             convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='CONSOLE')
             convert_box.prop(scene, "resolution_factor", text="分辨率因子")
+
+            # 物体分类工具
+            object_classifier_box = col_assestoperation.box()
+            object_classifier_box.label(text="物体分类工具:", icon='OUTLINER_COLLECTION')
+            object_classifier_box.operator("object.mian_object_classifier", text="按名称分类物体", icon='OUTLINER_COLLECTION')
 
 #批量渲染
         col_autorender = layout.column()

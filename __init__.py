@@ -83,7 +83,7 @@ from . import RoleReplacer
 from . import Importer
 from . import BetterFbxOperation
 from . import AutoHideClean
-from . import CharacterPartReplacer
+
 from . import BoneConverter
 
 def register():
@@ -115,7 +115,7 @@ def register():
     Importer.register()
     BetterFbxOperation.register()
     AutoHideClean.register()
-    CharacterPartReplacer.register()
+
     BoneConverter.register()
     
     # 最后注册UI面板
@@ -126,7 +126,7 @@ def unregister():
     panels.unregister()
     
     # 注销功能模块
-    CharacterPartReplacer.unregister()
+
     RoleReplacer.unregister()
     animationoperater.unregister()
     Voxelizer.unregister()
