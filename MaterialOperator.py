@@ -990,6 +990,29 @@ class SetTextureAlphaPacking(bpy.types.Operator):
         self.report({'INFO'}, f"已将 {changed_count} 个贴图设置为Alpha通道打包模式")
         return {'FINISHED'}
 
+# 设置材质渲染模式为Opaque
+class SetMaterialOpaqueMode(bpy.types.Operator):
+    bl_idname = "object.set_material_opaque"
+    bl_label = "设置Opaque模式"
+    bl_description = "将所选物体的所有材质视图显示设置为Opaque模式"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        changed_count = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                for slot in obj.material_slots:
+                    material = slot.material
+                    if material:
+                        # 设置材质的混合模式为Opaque
+                        material.blend_method = 'OPAQUE'
+                        changed_count += 1
+        
+        self.report({'INFO'}, f"已将 {changed_count} 个材质设置为Opaque模式")
+        return {'FINISHED'}
+
 def register():
     # 注册材质替换操作符的属性
     bpy.types.Scene.source_materials = bpy.props.CollectionProperty(
@@ -1026,7 +1049,8 @@ def register():
         SetShadowVisible,
         CleanUnusedMaterials,
         ReplaceMaterialOperator,
-        SetTextureAlphaPacking
+        SetTextureAlphaPacking,
+        SetMaterialOpaqueMode
     ]
     
     for cls in classes:
@@ -1038,6 +1062,8 @@ def register():
 def unregister():
     # 注销操作符类（反向顺序）
     classes = [
+        SetMaterialOpaqueMode,
+        SetTextureAlphaPacking,
         ReplaceMaterialOperator,
         CleanUnusedMaterials,
         SetShadowVisible,
@@ -1058,8 +1084,7 @@ def unregister():
         SetMaterialMetallic,
         SetMaterialSpecular,
         SetMaterialSpecularTint,
-        SetEmissionStrength,
-        SetTextureAlphaPacking
+        SetEmissionStrength
     ]
     
     for cls in classes:

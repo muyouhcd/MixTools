@@ -203,6 +203,9 @@ class CustomFunctionsPanel(Panel):
             row3.operator("object.set_material_alpha_clip", text="设置Alpha裁剪模式", icon='CLIPUV_HLT')
             row3.operator("object.set_material_alpha_blend", text="设置Alpha混合模式", icon='SNAP_VOLUME')
             
+            row3_5 = material_operations_box.row(align=True)
+            row3_5.operator("object.set_material_opaque", text="设置Opaque模式", icon='MATERIAL')
+            
             row4 = material_operations_box.row(align=True)
             row4.operator("object.set_shadow_invisible", text="设置选中物体阴影不可见", icon='GHOST_ENABLED')
             row4.operator("object.set_shadow_visible", text="设置选中物体阴影可见", icon='GHOST_DISABLED')
@@ -558,7 +561,9 @@ class CustomFunctionsPanel(Panel):
             assembly_asset_box.prop(context.scene, "asset_collection", text="目标集合", icon='COLLECTION_COLOR_04')
             assembly_asset_box.prop(context.scene, "create_top_level_parent", text="创建顶级父级")
             
-            assembly_asset_box.operator("object.mian_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
+            row = assembly_asset_box.row()
+            row.operator("object.mian_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
+            row.operator("object.mian_create_asset_library_outline", text="创建分类大纲", icon='OUTLINER_COLLECTION')
 
             # Voxelizer设置
             box_voxelizer = col_assestoperation.box()
