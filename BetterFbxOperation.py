@@ -1,9 +1,12 @@
 import bpy
 import os
+import time
 from pathlib import Path
 from bpy.props import StringProperty
-from bpy.types import Operator
 from bpy_extras.io_utils import ImportHelper
+from bpy.types import Operator
+import threading
+import queue
 
 def normalize_blender_path(path_string):
     """
@@ -82,7 +85,7 @@ def find_valid_path(original_path):
     except Exception as e:
         print(f"方法4失败: {e}")
     
-    # 方法5: 尝试处理常见的路径问题
+    # 方法5: 优化驱动器搜索 - 只搜索常用驱动器
     try:
         # 移除可能的驱动器前缀问题
         clean_path = original_path
@@ -90,10 +93,10 @@ def find_valid_path(original_path):
             clean_path = clean_path[2:]
         clean_path = clean_path.replace('\\', '/')
         
-        # 尝试不同的驱动器
-        drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'H:', 'I:', 'J:', 'K:', 'L:', 'M:', 'N:', 'O:', 'P:', 'Q:', 'R:', 'S:', 'T:', 'U:', 'V:', 'W:', 'X:', 'Y:', 'Z:']
+        # 只搜索常用的驱动器，减少不必要的检查
+        common_drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'H:']
         
-        for drive in drives:
+        for drive in common_drives:
             test_path = Path(f"{drive}/{clean_path}")
             if test_path.exists():
                 print(f"方法5成功: {test_path}")
@@ -110,10 +113,10 @@ def find_valid_path(original_path):
             # 处理Windows路径分隔符
             clean_path = clean_path.replace('\\', '/')
             
-            # 尝试不同的驱动器
-            drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'H:', 'I:', 'J:', 'K:', 'L:', 'M:', 'N:', 'O:', 'P:', 'Q:', 'R:', 'S:', 'T:', 'U:', 'V:', 'W:', 'X:', 'Y:', 'Z:']
+            # 只搜索常用驱动器
+            common_drives = ['C:', 'D:', 'E:', 'F:', 'G:', 'H:']
             
-            for drive in drives:
+            for drive in common_drives:
                 test_path = Path(f"{drive}/{clean_path}")
                 if test_path.exists():
                     print(f"方法6成功: {test_path}")
@@ -140,7 +143,7 @@ def find_valid_path(original_path):
     except Exception as e:
         print(f"方法7失败: {e}")
     
-    print("所有路径解析方法都失败了")
+    print(f"所有路径解析方法都失败了")
     return None
 
 def get_unique_name(base_name):
@@ -372,6 +375,74 @@ def batch_import_fbx_directories(directory_paths, file_extension=".fbx"):
     # 使用新的文件列表导入函数
     return batch_import_fbx_files(all_file_paths)
 
+def import_with_timeout(file_path, timeout_seconds=30):
+    """
+    带超时机制的FBX导入函数
+    
+    参数:
+    file_path: FBX文件路径
+    timeout_seconds: 超时时间（秒）
+    
+    返回:
+    (success, result_message, imported_objects)
+    """
+    result_queue = queue.Queue()
+    
+    def import_worker():
+        try:
+            # 记录导入前的对象
+            objects_before = set(bpy.context.scene.objects)
+            
+            # 尝试使用Better FBX导入器
+            try:
+                result = bpy.ops.better_import.fbx(filepath=file_path)
+                print(f"Better FBX导入器返回结果: {result}")
+            except Exception as better_fbx_error:
+                print(f"Better FBX导入器失败: {better_fbx_error}")
+                result_queue.put((False, f"Better FBX导入器错误: {str(better_fbx_error)}", []))
+                return
+            
+            # 获取新导入的对象
+            objects_after = set(bpy.context.scene.objects)
+            imported_objects = list(objects_after - objects_before)
+            
+            if len(imported_objects) == 0:
+                # 尝试使用Blender内置的FBX导入器
+                try:
+                    result = bpy.ops.import_scene.fbx(filepath=file_path)
+                    print(f"内置导入器结果: {result}")
+                    
+                    # 再次检查新对象
+                    objects_after_builtin = set(bpy.context.scene.objects)
+                    imported_objects_builtin = list(objects_after_builtin - objects_before)
+                    
+                    if len(imported_objects_builtin) > 0:
+                        result_queue.put((True, "内置导入器成功", imported_objects_builtin))
+                        return
+                except Exception as builtin_error:
+                    print(f"内置导入器也失败: {builtin_error}")
+                
+                result_queue.put((False, "没有检测到新导入的对象", []))
+                return
+            
+            result_queue.put((True, "Better FBX导入器成功", imported_objects))
+            
+        except Exception as e:
+            result_queue.put((False, f"导入过程出错: {str(e)}", []))
+    
+    # 启动导入线程
+    import_thread = threading.Thread(target=import_worker)
+    import_thread.daemon = True
+    import_thread.start()
+    
+    # 等待导入完成或超时
+    try:
+        success, message, imported_objects = result_queue.get(timeout=timeout_seconds)
+        return success, message, imported_objects
+    except queue.Empty:
+        print(f"导入超时: {file_path}")
+        return False, f"导入超时（{timeout_seconds}秒）", []
+
 class BETTER_FBX_OT_BatchImport(Operator):
     """使用Better FBX导入器批量导入FBX文件"""
     bl_idname = "better_fbx.batch_import"
@@ -538,28 +609,55 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
             self.report({'ERROR'}, f"路径处理错误: {search_directory}\n错误信息: {str(e)}")
             return {'CANCELLED'}
         
-        # 递归搜索目录下的所有FBX文件
+        # 优化：限制搜索深度和文件数量
         print(f"开始搜索FBX文件...")
-        fbx_files_found = list(search_path.rglob("*.fbx"))
-        print(f"找到 {len(fbx_files_found)} 个FBX文件")
+        fbx_files_found = []
+        search_count = 0
+        max_search_files = 1000  # 限制最大搜索文件数
         
-        for fbx_file in fbx_files_found:
-            file_name_without_ext = fbx_file.stem  # 文件名（不含扩展名）
-            print(f"检查文件: {file_name_without_ext}")
-            
-            # 检查文件名是否在名称列表中
-            for name in name_list:
-                if name.lower() in file_name_without_ext.lower():
-                    found_files.append(str(fbx_file))
-                    print(f"匹配成功: {name} -> {file_name_without_ext}")
-                    break  # 找到匹配就跳出内层循环
+        # 显示搜索进度
+        self.report({'INFO'}, "开始搜索FBX文件...")
+        
+        try:
+            # 使用更高效的搜索方式
+            for fbx_file in search_path.rglob("*.fbx"):
+                search_count += 1
+                if search_count > max_search_files:
+                    print(f"警告: 搜索文件数量超过限制({max_search_files})，停止搜索")
+                    self.report({'WARNING'}, f"搜索文件数量超过限制({max_search_files})，已停止搜索")
+                    break
+                    
+                # 每搜索100个文件更新一次进度
+                if search_count % 100 == 0:
+                    print(f"已搜索 {search_count} 个文件...")
+                    self.report({'INFO'}, f"已搜索 {search_count} 个文件...")
+                
+                file_name_without_ext = fbx_file.stem  # 文件名（不含扩展名）
+                
+                # 检查文件名是否在名称列表中
+                for name in name_list:
+                    if name.lower() in file_name_without_ext.lower():
+                        found_files.append(str(fbx_file))
+                        print(f"匹配成功: {name} -> {file_name_without_ext}")
+                        break  # 找到匹配就跳出内层循环
+                        
+        except Exception as search_error:
+            print(f"搜索过程中出错: {search_error}")
+            self.report({'WARNING'}, f"搜索过程中出错: {search_error}")
+        
+        print(f"搜索完成，找到 {len(found_files)} 个匹配的文件")
+        self.report({'INFO'}, f"搜索完成，找到 {len(found_files)} 个匹配的文件")
         
         if not found_files:
             self.report({'WARNING'}, f"在目录 {search_directory} 中未找到匹配的FBX文件")
             return {'CANCELLED'}
         
-        # 执行批量导入
-        success, message = batch_import_fbx_files(found_files)
+        # 执行批量导入（添加进度反馈）
+        print(f"开始导入 {len(found_files)} 个文件...")
+        self.report({'INFO'}, f"开始导入 {len(found_files)} 个文件...")
+        
+        # 使用改进的批量导入函数
+        success, message = self.batch_import_with_progress(found_files)
         
         if success:
             self.report({'INFO'}, f"成功导入 {len(found_files)} 个文件: {message}")
@@ -567,6 +665,65 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
         else:
             self.report({'ERROR'}, message)
             return {'CANCELLED'}
+    
+    def batch_import_with_progress(self, file_paths):
+        """带进度反馈的批量导入"""
+        if not file_paths:
+            return False, "没有选择任何文件"
+        
+        # 统计导入结果
+        success_count = 0
+        error_count = 0
+        error_messages = []
+        total_files = len(file_paths)
+        
+        print(f"\n=== 开始批量导入 {total_files} 个文件 ===")
+        
+        # 遍历并导入每个文件
+        for i, file_path in enumerate(file_paths):
+            # 更新进度
+            progress = (i + 1) / total_files
+            print(f"\n进度: {progress:.1%} ({i + 1}/{total_files})")
+            
+            if not os.path.exists(file_path):
+                error_msg = f"文件不存在: {file_path}"
+                print(error_msg)
+                error_messages.append(error_msg)
+                error_count += 1
+                continue
+                
+            # 获取文件名（不包含扩展名）
+            file_name = os.path.splitext(os.path.basename(file_path))[0]
+            print(f"\n=== 开始导入文件: {os.path.basename(file_path)} ===")
+            
+            try:
+                # 使用带超时的导入函数
+                success, message, imported_objects = import_with_timeout(file_path, timeout_seconds=60)
+                
+                if success:
+                    print(f"成功导入: {os.path.basename(file_path)}")
+                    success_count += 1
+                    
+                    # 重命名骨架
+                    if imported_objects:
+                        rename_armature_to_filename(file_name, imported_objects)
+                else:
+                    print(f"导入失败: {os.path.basename(file_path)} - {message}")
+                    error_count += 1
+                    error_messages.append(f"导入 {os.path.basename(file_path)} 失败: {message}")
+                
+            except Exception as e:
+                error_msg = f"导入 {os.path.basename(file_path)} 时出错: {str(e)}"
+                print(error_msg)
+                error_messages.append(error_msg)
+                error_count += 1
+        
+        # 生成结果消息
+        result_message = f"导入完成！成功: {success_count}, 失败: {error_count}"
+        if error_messages:
+            result_message += f"\n错误详情:\n" + "\n".join(error_messages)
+        
+        return success_count > 0, result_message
 
 def register():
     bpy.utils.register_class(BETTER_FBX_OT_BatchImport)
