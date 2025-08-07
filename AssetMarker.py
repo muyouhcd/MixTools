@@ -12,6 +12,13 @@ class CreateAssemblyAsset(bpy.types.Operator):
             self.report({'ERROR'}, "请先安装并启用 Machin3tools 插件")
             return {'CANCELLED'}
 
+        def get_top_level_name(obj):
+            """获取物体的顶级父级名称，如果没有父级则返回物体自身名称"""
+            current_obj = obj
+            while current_obj.parent is not None:
+                current_obj = current_obj.parent
+            return current_obj.name
+
         def get_3d_view_region():
             for area in bpy.context.window.screen.areas:
                 if area.type == 'VIEW_3D':
@@ -115,7 +122,20 @@ class CreateAssemblyAsset(bpy.types.Operator):
 
         def create_empty_parent(obj):
             try:
-                empty = bpy.data.objects.new(f"Empty_{obj.name}", None)
+                # 使用顶级名称创建空物体，添加序号避免重名
+                top_level_name = get_top_level_name(obj)
+                
+                # 生成唯一的空物体名称
+                base_name = f"Empty_{top_level_name}"
+                counter = 1
+                empty_name = base_name
+                
+                # 检查名称是否已存在，如果存在则添加序号
+                while empty_name in bpy.data.objects:
+                    empty_name = f"{base_name}_{counter:03d}"
+                    counter += 1
+                
+                empty = bpy.data.objects.new(empty_name, None)
                 scene = bpy.context.scene
                 scene.collection.objects.link(empty)
 
@@ -129,6 +149,7 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 return None
 
         def process_single_object(obj, viewport_area, viewport_region, create_top_level_parent):
+            # 只处理顶级物体（没有父级的物体）
             if obj.parent is not None:
                 return 0
 
@@ -154,12 +175,89 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 bpy.context.view_layer.update()
                 time.sleep(0.5)
 
+                # 获取顶级名称
+                top_level_name = get_top_level_name(obj)
+                
+                # 保存原始名称
+                original_name = obj.name
+                
+                # 临时重命名物体为顶级名称，这样资产名称就会使用顶级名称
+                obj.name = top_level_name
+                
+                # 如果有资产数据，也预先设置资产名称
+                if hasattr(obj, 'asset_data') and obj.asset_data:
+                    try:
+                        if hasattr(obj.asset_data, 'name'):
+                            obj.asset_data.name = top_level_name
+                    except:
+                        pass
+                
                 if create_top_level_parent:
                     empty = create_empty_parent(obj)
                     if empty is None:
                         return 0
+                    else:
+                        self.report({'INFO'}, f"为物体 {original_name} 创建了顶级父物体: {empty.name}")
 
+                # 记录创建资产前的物体列表
+                objects_before = set(bpy.data.objects.keys())
+                
                 bpy.ops.machin3.create_assembly_asset(override)
+                
+                # 等待一下让 Machin3tools 完成资产创建
+                time.sleep(1.0)
+                
+                # 恢复原始名称
+                obj.name = original_name
+                
+                # 检测新创建的资产对象
+                objects_after = set(bpy.data.objects.keys())
+                new_objects = objects_after - objects_before
+                
+                # 处理新创建的资产对象
+                for new_obj_name in new_objects:
+                    new_obj = bpy.data.objects[new_obj_name]
+                    if hasattr(new_obj, 'asset_data') and new_obj.asset_data:
+                        # 调试信息：打印资产数据的属性
+                        self.report({'INFO'}, f"检测到新资产对象: {new_obj_name}")
+                        self.report({'INFO'}, f"资产数据类型: {type(new_obj.asset_data)}")
+                        self.report({'INFO'}, f"资产数据属性: {dir(new_obj.asset_data)}")
+                        
+                        # 尝试直接修改物体名称，这可能会影响资产名称
+                        if new_obj.name != top_level_name:
+                            original_obj_name = new_obj.name
+                            new_obj.name = top_level_name
+                            self.report({'INFO'}, f"已修改物体名称: {original_obj_name} -> {top_level_name}")
+                        
+                        # 尝试修改资产数据
+                        try:
+                            # 尝试不同的方法修改资产名称
+                            if hasattr(new_obj.asset_data, 'name'):
+                                new_obj.asset_data.name = top_level_name
+                                self.report({'INFO'}, f"已修改资产数据名称: {new_obj.asset_data.name}")
+                            
+                            # 尝试通过资产库修改
+                            if hasattr(bpy.data, 'assets'):
+                                for asset in bpy.data.assets:
+                                    if asset.name == original_obj_name or asset.name.endswith('AssemblyAsset'):
+                                        asset.name = top_level_name
+                                        self.report({'INFO'}, f"已修改资产库中的资产名称: {asset.name}")
+                                        break
+                            
+                            # 尝试通过资产标记修改
+                            if hasattr(new_obj, 'asset_mark'):
+                                new_obj.asset_mark = top_level_name
+                                self.report({'INFO'}, f"已修改资产标记: {new_obj.asset_mark}")
+                                
+                        except Exception as e:
+                            self.report({'WARNING'}, f"修改资产名称时出错: {str(e)}")
+                        
+                        # 强制更新资产库
+                        try:
+                            bpy.ops.asset.library_refresh()
+                            self.report({'INFO'}, "已刷新资产库")
+                        except:
+                            pass
                 time.sleep(0.8)
 
                 if original_parent is not None and obj.name in bpy.data.objects:
@@ -167,7 +265,8 @@ class CreateAssemblyAsset(bpy.types.Operator):
                     if obj.name in bpy.context.view_layer.objects:
                         obj.parent = original_parent
 
-                self.report({'INFO'}, f"成功处理物体: {obj.name}")
+                # 使用顶级名称报告处理结果
+                self.report({'INFO'}, f"成功处理物体: {original_name} -> 资产名称: {top_level_name}")
                 return 1
 
             except Exception as e:
@@ -226,7 +325,8 @@ class CreateAssemblyAsset(bpy.types.Operator):
                     self.report({'INFO'}, "操作被用户取消")
                     return {'CANCELLED'}
                 
-                self.report({'INFO'}, f"处理物体 {i+1}/{len(top_level_objects)}: {obj.name}")
+                top_level_name = get_top_level_name(obj)
+                self.report({'INFO'}, f"处理物体 {i+1}/{len(top_level_objects)}: {obj.name} (顶级名称: {top_level_name})")
                 
                 processed = process_single_object(obj, viewport_area, viewport_region, create_top_level_parent)
                 total_processed += processed
