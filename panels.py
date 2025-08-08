@@ -42,6 +42,12 @@ class CustomFunctionsPanel(Panel):
             clean_box = layout.box()
             clean_box.operator("object.mian_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
             clean_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
+            
+            # 空物体显示尺寸设置
+            empty_size_row = clean_box.row(align=True)
+            empty_size_row.prop(context.scene, "empty_display_size", text="空物体显示尺寸")
+            empty_size_row.operator("object.set_empty_display_size", text="应用", icon='EMPTY_DATA')
+            
             clean_box.operator("object.clear_animation_data", text="批量清空动画", icon='ANIM_DATA')
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='MESH_DATA')
             clean_box.operator("object.uv_cleaner", text="清理UV非法数据", icon='UV')

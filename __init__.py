@@ -86,6 +86,7 @@ from . import AutoHideClean
 
 from . import BoneConverter
 from . import AssetMarker
+from . import EmptySizeSetter
 
 def register():
     # 先注册基础模块
@@ -119,6 +120,7 @@ def register():
 
     BoneConverter.register()
     AssetMarker.register()
+    EmptySizeSetter.register()
     
     # 最后注册UI面板
     panels.register()
@@ -154,6 +156,7 @@ def unregister():
     AutoHideClean.unregister()
     BoneConverter.unregister()
     AssetMarker.unregister()
+    EmptySizeSetter.unregister()
     
     # 最后注销基础模块
     operators.unregister()

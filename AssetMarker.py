@@ -75,13 +75,51 @@ class CreateAssemblyAsset(bpy.types.Operator):
 
         def setup_view_for_preview(obj):
             try:
-                bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-                min_corner = Vector((min(c.x for c in bbox_corners),
-                                   min(c.y for c in bbox_corners),
-                                   min(c.z for c in bbox_corners)))
-                max_corner = Vector((max(c.x for c in bbox_corners),
-                                   max(c.y for c in bbox_corners),
-                                   max(c.z for c in bbox_corners)))
+                # 收集所有mesh物体（包括主物体和子物体）
+                mesh_objects = []
+                
+                # 添加主物体（如果是mesh类型）
+                if obj.type == 'MESH':
+                    mesh_objects.append(obj)
+                
+                # 添加所有子物体中的mesh物体
+                for child in obj.children_recursive:
+                    if child.type == 'MESH':
+                        mesh_objects.append(child)
+                
+                if not mesh_objects:
+                    # 如果没有mesh物体，使用原始方法
+                    bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                    min_corner = Vector((min(c.x for c in bbox_corners),
+                                       min(c.y for c in bbox_corners),
+                                       min(c.z for c in bbox_corners)))
+                    max_corner = Vector((max(c.x for c in bbox_corners),
+                                       max(c.y for c in bbox_corners),
+                                       max(c.z for c in bbox_corners)))
+                else:
+                    # 计算所有mesh物体的边界框
+                    all_corners = []
+                    for mesh_obj in mesh_objects:
+                        if hasattr(mesh_obj, 'bound_box') and mesh_obj.bound_box:
+                            corners = [mesh_obj.matrix_world @ Vector(corner) for corner in mesh_obj.bound_box]
+                            all_corners.extend(corners)
+                    
+                    if all_corners:
+                        min_corner = Vector((min(c.x for c in all_corners),
+                                           min(c.y for c in all_corners),
+                                           min(c.z for c in all_corners)))
+                        max_corner = Vector((max(c.x for c in all_corners),
+                                           max(c.y for c in all_corners),
+                                           max(c.z for c in all_corners)))
+                    else:
+                        # 如果无法获取边界框，使用原始方法
+                        bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                        min_corner = Vector((min(c.x for c in bbox_corners),
+                                           min(c.y for c in bbox_corners),
+                                           min(c.z for c in bbox_corners)))
+                        max_corner = Vector((max(c.x for c in bbox_corners),
+                                           max(c.y for c in bbox_corners),
+                                           max(c.z for c in bbox_corners)))
                 
                 center = (min_corner + max_corner) / 2
                 size = max_corner - min_corner
@@ -105,17 +143,32 @@ class CreateAssemblyAsset(bpy.types.Operator):
                     if ob != obj and ob not in obj.children_recursive:
                         ob.hide_viewport = True
                 
+                # 显示主物体和所有子物体
                 obj.hide_viewport = False
                 for child in obj.children_recursive:
                     child.hide_viewport = False
                 
                 bpy.ops.object.select_all(action='DESELECT')
+                
+                # 选中完整的资产结构
                 obj.select_set(True)
                 for child in obj.children_recursive:
                     child.select_set(True)
-                
                 bpy.context.view_layer.objects.active = obj
-                setup_view_for_preview(obj)
+                
+                # 使用mesh物体计算视图距离，但不改变选中状态
+                mesh_objects = []
+                if obj.type == 'MESH':
+                    mesh_objects.append(obj)
+                for child in obj.children_recursive:
+                    if child.type == 'MESH':
+                        mesh_objects.append(child)
+                
+                # 如果有mesh物体，使用mesh物体计算视图距离
+                if mesh_objects:
+                    setup_view_for_preview(obj)
+                else:
+                    setup_view_for_preview(obj)
                 
             except Exception as e:
                 print(f"准备物体 {obj.name} 时出错: {str(e)}")
