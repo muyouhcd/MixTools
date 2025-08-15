@@ -1,12 +1,9 @@
 import bpy
 import os
-import time
 from pathlib import Path
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.io_utils import ImportHelper
 from bpy.types import Operator
-import threading
-import queue
 
 # 支持的3D文件格式
 SUPPORTED_FORMATS = [
@@ -412,32 +409,6 @@ def batch_import_fbx_files(file_paths):
             
             if len(imported_objects) == 0:
                 print(f"警告: 没有检测到新导入的对象！")
-                print(f"可能的原因:")
-                print(f"1. 文件导入失败")
-                print(f"2. 文件内容为空")
-                print(f"3. 导入设置有问题")
-                print(f"4. Better FBX插件可能有问题")
-                
-                # 尝试使用Blender内置的FBX导入器
-                print(f"尝试使用Blender内置FBX导入器...")
-                try:
-                    result = bpy.ops.import_scene.fbx(filepath=file_path)
-                    print(f"内置导入器结果: {result}")
-                    
-                    # 再次检查新对象
-                    objects_after_builtin = set(bpy.context.scene.objects)
-                    imported_objects_builtin = list(objects_after_builtin - objects_before)
-                    print(f"内置导入器新对象数量: {len(imported_objects_builtin)}")
-                    
-                    if len(imported_objects_builtin) > 0:
-                        print(f"内置导入器成功！")
-                        imported_objects = imported_objects_builtin
-                        success_count += 1
-                        rename_armature_to_filename(file_name, imported_objects)
-                        continue
-                except Exception as builtin_error:
-                    print(f"内置导入器也失败: {builtin_error}")
-                
                 error_count += 1
                 error_messages.append(f"导入 {os.path.basename(file_path)} 失败: 没有检测到新对象")
                 continue
@@ -595,73 +566,7 @@ def batch_import_fbx_directories(directory_paths, file_extension=".fbx", recursi
     # 使用新的文件列表导入函数
     return batch_import_fbx_files(all_file_paths)
 
-def import_with_timeout(file_path, timeout_seconds=30):
-    """
-    带超时机制的FBX导入函数
-    
-    参数:
-    file_path: FBX文件路径
-    timeout_seconds: 超时时间（秒）
-    
-    返回:
-    (success, result_message, imported_objects)
-    """
-    result_queue = queue.Queue()
-    
-    def import_worker():
-        try:
-            # 记录导入前的对象
-            objects_before = set(bpy.context.scene.objects)
-            
-            # 尝试使用Better FBX导入器
-            try:
-                result = bpy.ops.better_import.fbx(filepath=file_path)
-                print(f"Better FBX导入器返回结果: {result}")
-            except Exception as better_fbx_error:
-                print(f"Better FBX导入器失败: {better_fbx_error}")
-                result_queue.put((False, f"Better FBX导入器错误: {str(better_fbx_error)}", []))
-                return
-            
-            # 获取新导入的对象
-            objects_after = set(bpy.context.scene.objects)
-            imported_objects = list(objects_after - objects_before)
-            
-            if len(imported_objects) == 0:
-                # 尝试使用Blender内置的FBX导入器
-                try:
-                    result = bpy.ops.import_scene.fbx(filepath=file_path)
-                    print(f"内置导入器结果: {result}")
-                    
-                    # 再次检查新对象
-                    objects_after_builtin = set(bpy.context.scene.objects)
-                    imported_objects_builtin = list(objects_after_builtin - objects_before)
-                    
-                    if len(imported_objects_builtin) > 0:
-                        result_queue.put((True, "内置导入器成功", imported_objects_builtin))
-                        return
-                except Exception as builtin_error:
-                    print(f"内置导入器也失败: {builtin_error}")
-                
-                result_queue.put((False, "没有检测到新导入的对象", []))
-                return
-            
-            result_queue.put((True, "Better FBX导入器成功", imported_objects))
-            
-        except Exception as e:
-            result_queue.put((False, f"导入过程出错: {str(e)}", []))
-    
-    # 启动导入线程
-    import_thread = threading.Thread(target=import_worker)
-    import_thread.daemon = True
-    import_thread.start()
-    
-    # 等待导入完成或超时
-    try:
-        success, message, imported_objects = result_queue.get(timeout=timeout_seconds)
-        return success, message, imported_objects
-    except queue.Empty:
-        print(f"导入超时: {file_path}")
-        return False, f"导入超时（{timeout_seconds}秒）", []
+
 
 class BETTER_FBX_OT_BatchImport(Operator):
     """使用Better FBX导入器批量导入3D文件"""
@@ -691,14 +596,11 @@ class BETTER_FBX_OT_BatchImport(Operator):
             self.report({'ERROR'}, "请先设置3D文件目录路径")
             return {'CANCELLED'}
         
-        # 添加路径格式检查和验证
+        # 路径验证
         print(f"批量导入路径分析:")
         print(f"- 原始路径: {directory_path}")
         print(f"- 选择的格式: {file_format}")
         print(f"- 文件扩展名: {get_file_extension_from_format(file_format)}")
-        print(f"- 路径长度: {len(directory_path)}")
-        print(f"- 是否以//开头: {directory_path.startswith('//')}")
-        print(f"- 是否包含驱动器号: {len(directory_path) >= 2 and directory_path[1] == ':' and directory_path[0].isalpha()}")
         
         # 尝试解析路径
         try:
@@ -1011,20 +913,31 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
             print(f"\n=== 开始导入文件: {os.path.basename(file_path)} ===")
             
             try:
-                # 使用带超时的导入函数
-                success, message, imported_objects = import_with_timeout(file_path, timeout_seconds=60)
+                # 记录导入前的对象
+                objects_before = set(bpy.context.scene.objects)
                 
-                if success:
-                    print(f"成功导入: {os.path.basename(file_path)}")
-                    success_count += 1
+                # 调用Better FBX导入器
+                result = bpy.ops.better_import.fbx(filepath=file_path)
+                
+                if result == {'FINISHED'}:
+                    # 获取新导入的对象
+                    objects_after = set(bpy.context.scene.objects)
+                    imported_objects = list(objects_after - objects_before)
                     
-                    # 重命名骨架
-                    if imported_objects:
+                    if len(imported_objects) > 0:
+                        print(f"成功导入: {os.path.basename(file_path)}")
+                        success_count += 1
+                        
+                        # 重命名骨架
                         rename_armature_to_filename(file_name, imported_objects)
+                    else:
+                        print(f"导入失败: {os.path.basename(file_path)} - 没有检测到新对象")
+                        error_count += 1
+                        error_messages.append(f"导入 {os.path.basename(file_path)} 失败: 没有检测到新对象")
                 else:
-                    print(f"导入失败: {os.path.basename(file_path)} - {message}")
+                    print(f"导入失败: {os.path.basename(file_path)} - Better FBX导入器返回: {result}")
                     error_count += 1
-                    error_messages.append(f"导入 {os.path.basename(file_path)} 失败: {message}")
+                    error_messages.append(f"导入 {os.path.basename(file_path)} 失败: Better FBX导入器返回: {result}")
                 
             except Exception as e:
                 error_msg = f"导入 {os.path.basename(file_path)} 时出错: {str(e)}"
@@ -1039,10 +952,229 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
         
         return success_count > 0, result_message
 
+# ==================== BetterFBX直接导入功能 ====================
+
+def check_better_fbx_available():
+    """检查BetterFBX插件是否可用"""
+    try:
+        if hasattr(bpy.ops, 'better_import') and hasattr(bpy.ops.better_import, 'fbx'):
+            return True
+        else:
+            return False
+    except:
+        return False
+
+def import_fbx_with_better_fbx_direct(file_path, import_settings=None):
+    """
+    直接使用BetterFBX导入FBX文件，不进行回退
+    
+    参数:
+    file_path: FBX文件路径
+    import_settings: 导入设置（可选）
+    
+    返回:
+    (success, message, imported_objects)
+    """
+    if not check_better_fbx_available():
+        return False, "BetterFBX插件不可用，请先安装并启用BetterFBX插件", []
+    
+    if not os.path.exists(file_path):
+        return False, f"文件不存在: {file_path}", []
+    
+    try:
+        # 记录导入前的对象
+        objects_before = set(bpy.context.scene.objects)
+        
+        # 直接调用BetterFBX导入器
+        result = bpy.ops.better_import.fbx(filepath=file_path)
+        
+        if result != {'FINISHED'}:
+            return False, f"BetterFBX导入失败: {result}", []
+        
+        # 获取新导入的对象
+        objects_after = set(bpy.context.scene.objects)
+        imported_objects = list(objects_after - objects_before)
+        
+        if len(imported_objects) == 0:
+            return False, "没有检测到新导入的对象", []
+        
+        # 检查导入的对象是否有顶点组和骨骼
+        has_vertex_groups = False
+        has_armature = False
+        
+        for obj in imported_objects:
+            if obj.type == 'MESH' and obj.vertex_groups:
+                has_vertex_groups = True
+            if obj.type == 'ARMATURE':
+                has_armature = True
+                if obj.data.bones:
+                    print(f"检测到骨骼: {obj.name}，包含 {len(obj.data.bones)} 个骨骼")
+        
+        if has_vertex_groups:
+            print(f"✓ 成功导入带顶点组的网格对象")
+        if has_armature:
+            print(f"✓ 成功导入骨骼对象")
+        
+        return True, f"成功导入 {len(imported_objects)} 个对象", imported_objects
+        
+    except Exception as e:
+        return False, f"导入过程出错: {str(e)}", []
+
+def batch_import_fbx_files_with_better_fbx_direct(file_paths):
+    """
+    使用BetterFBX直接批量导入FBX文件列表
+    
+    参数:
+    file_paths: FBX文件路径列表
+    
+    返回:
+    (success, message)
+    """
+    if not file_paths:
+        return False, "没有选择任何文件"
+    
+    if not check_better_fbx_available():
+        return False, "BetterFBX插件不可用，请先安装并启用BetterFBX插件"
+    
+    print("\n=== 使用BetterFBX直接导入器批量导入 ===")
+    
+    success_count = 0
+    error_count = 0
+    error_messages = []
+    
+    for file_path in file_paths:
+        file_name = os.path.splitext(os.path.basename(file_path))[0]
+        print(f"\n=== 开始导入文件: {os.path.basename(file_path)} ===")
+        
+        success, message, imported_objects = import_fbx_with_better_fbx_direct(file_path)
+        
+        if success:
+            print(f"✓ 成功导入: {os.path.basename(file_path)}")
+            success_count += 1
+            
+            # 重命名骨架
+            if imported_objects:
+                rename_armature_to_filename(file_name, imported_objects)
+        else:
+            print(f"✗ 导入失败: {os.path.basename(file_path)} - {message}")
+            error_count += 1
+            error_messages.append(f"导入 {os.path.basename(file_path)} 失败: {message}")
+    
+    # 生成结果消息
+    result_message = f"BetterFBX直接导入完成！成功: {success_count}, 失败: {error_count}"
+    if error_messages:
+        result_message += f"\n错误详情:\n" + "\n".join(error_messages)
+    
+    return success_count > 0, result_message
+
+def rename_armature_to_filename(file_name, imported_objects):
+    """重命名导入的骨架为文件名"""
+    for obj in imported_objects:
+        if obj.type == 'ARMATURE':
+            obj.name = file_name
+            print(f"重命名骨架: {obj.name}")
+
+# BetterFBX直接导入操作器
+class BETTER_FBX_OT_DirectBatchImport(Operator):
+    """使用BetterFBX直接批量导入FBX文件（推荐）"""
+    bl_idname = "better_fbx.direct_batch_import"
+    bl_label = "BetterFBX直接批量导入"
+    bl_description = "使用BetterFBX直接批量导入，确保顶点组和骨骼信息完整"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        directory_path = context.scene.better_fbx_import_directory
+        if not directory_path:
+            self.report({'ERROR'}, "请先设置3D文件目录路径")
+            return {'CANCELLED'}
+        
+        # 路径验证
+        try:
+            valid_path = validate_and_fix_path(directory_path)
+            if valid_path is None:
+                self.report({'ERROR'}, f"无法找到有效的路径: {directory_path}")
+                return {'CANCELLED'}
+            directory_path = str(valid_path)
+        except Exception as e:
+            self.report({'ERROR'}, f"路径验证失败: {str(e)}")
+            return {'CANCELLED'}
+        
+        # 搜索FBX文件
+        try:
+            dir_path = Path(directory_path)
+            files = list(dir_path.rglob("*.fbx"))
+            
+            if not files:
+                self.report({'WARNING'}, f"在目录 {dir_path} 中没有找到FBX文件")
+                return {'CANCELLED'}
+            
+            file_paths = [str(f) for f in files]
+            print(f"找到 {len(file_paths)} 个FBX文件")
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"搜索文件失败: {str(e)}")
+            return {'CANCELLED'}
+        
+        # 执行BetterFBX直接导入
+        success, message = batch_import_fbx_files_with_better_fbx_direct(file_paths)
+        
+        if success:
+            self.report({'INFO'}, message)
+        else:
+            self.report({'ERROR'}, message)
+        
+        return {'FINISHED'}
+
+class BETTER_FBX_OT_DirectBatchImportFiles(Operator, ImportHelper):
+    """选择多个FBX文件进行BetterFBX直接导入"""
+    bl_idname = "better_fbx.direct_batch_import_files"
+    bl_label = "选择多个FBX文件（BetterFBX）"
+    bl_description = "选择多个FBX文件进行BetterFBX直接导入，确保顶点组和骨骼信息完整"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    # 支持多选文件
+    files: bpy.props.CollectionProperty(
+        type=bpy.types.OperatorFileListElement,
+        options={'HIDDEN', 'SKIP_SAVE'}
+    )
+    
+    directory: StringProperty(
+        maxlen=1024,
+        subtype='DIR_PATH',
+        options={'HIDDEN', 'SKIP_SAVE'}
+    )
+    
+    def execute(self, context):
+        # 构建文件路径列表
+        file_paths = []
+        for file_elem in self.files:
+            file_path = os.path.join(self.directory, file_elem.name)
+            file_paths.append(file_path)
+        
+        if not file_paths:
+            self.report({'ERROR'}, "没有选择任何文件")
+            return {'CANCELLED'}
+        
+        print(f"选择的FBX文件数量: {len(file_paths)}")
+        
+        # 执行BetterFBX直接导入
+        success, message = batch_import_fbx_files_with_better_fbx_direct(file_paths)
+        
+        if success:
+            self.report({'INFO'}, message)
+        else:
+            self.report({'ERROR'}, message)
+        
+        return {'FINISHED'}
+
 def register():
     bpy.utils.register_class(BETTER_FBX_OT_BatchImport)
     bpy.utils.register_class(BETTER_FBX_OT_BatchImportFiles)
     bpy.utils.register_class(BETTER_FBX_OT_BatchImportByNameList)
+    
+    # 注册BetterFBX直接导入操作器
+    bpy.utils.register_class(BETTER_FBX_OT_DirectBatchImport)
+    bpy.utils.register_class(BETTER_FBX_OT_DirectBatchImportFiles)
     
     # 注册场景属性
     bpy.types.Scene.better_fbx_import_directory = bpy.props.StringProperty(
@@ -1077,6 +1209,10 @@ def unregister():
     bpy.utils.unregister_class(BETTER_FBX_OT_BatchImport)
     bpy.utils.unregister_class(BETTER_FBX_OT_BatchImportFiles)
     bpy.utils.unregister_class(BETTER_FBX_OT_BatchImportByNameList)
+    
+    # 注销BetterFBX直接导入操作器
+    bpy.utils.unregister_class(BETTER_FBX_OT_DirectBatchImport)
+    bpy.utils.unregister_class(BETTER_FBX_OT_DirectBatchImportFiles)
     
     # 注销场景属性
     try:
