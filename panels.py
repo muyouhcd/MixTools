@@ -511,6 +511,15 @@ class CustomFunctionsPanel(Panel):
             row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
             row.operator("better_fbx.batch_import_files", text="选择多个文件", icon='DOCUMENTS')
             
+            # BetterFBX直接批量导入（确保顶点组）
+            better_fbx_direct_box = import_box.box()
+            better_fbx_direct_box.label(text="BetterFBX直接导入（推荐）:", icon='ARMATURE_DATA')
+            better_fbx_direct_box.label(text="确保导入的物体有顶点组和骨骼信息", icon='INFO')
+            
+            direct_row = better_fbx_direct_box.row(align=True)
+            direct_row.operator("better_fbx.direct_batch_import", text="目录批量导入", icon='IMPORT')
+            direct_row.operator("better_fbx.direct_batch_import_files", text="选择多个文件", icon='DOCUMENTS')
+            
             # 按名称列表批量导入
             name_list_box = better_fbx_box.box()
             name_list_box.label(text="按名称列表批量导入:", icon='TEXT')
