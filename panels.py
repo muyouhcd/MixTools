@@ -68,6 +68,13 @@ class CustomFunctionsPanel(Panel):
             gen_box.operator("object.object_instance", text="对所选物体进行转换实例化", icon='DUPLICATE')
             gen_box.operator("object.geometry_matcher", text="对全场景进行几何相同性检测并实例化", icon='MESH_DATA')
             gen_box.operator("object.remove_instance_duplicates", text="删除实例化物体重复项", icon='TRASH')
+            
+            # 批量顶点组工具
+            vertex_group_box = gen_box.box()
+            vertex_group_box.label(text="批量顶点组工具:", icon='GROUP_VERTEX')
+            vertex_group_row = vertex_group_box.row(align=True)
+            vertex_group_row.prop(scene, "vertex_group_name", text="顶点组名称")
+            vertex_group_row.operator("object.batch_create_vertex_group", text="创建顶点组", icon='ADD')
 
             # Alignment Tools
             layout.label(text="对齐工具:", icon='ORIENTATION_GLOBAL')
@@ -511,15 +518,6 @@ class CustomFunctionsPanel(Panel):
             row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
             row.operator("better_fbx.batch_import_files", text="选择多个文件", icon='DOCUMENTS')
             
-            # BetterFBX直接批量导入（确保顶点组）
-            better_fbx_direct_box = import_box.box()
-            better_fbx_direct_box.label(text="BetterFBX直接导入（推荐）:", icon='ARMATURE_DATA')
-            better_fbx_direct_box.label(text="确保导入的物体有顶点组和骨骼信息", icon='INFO')
-            
-            direct_row = better_fbx_direct_box.row(align=True)
-            direct_row.operator("better_fbx.direct_batch_import", text="目录批量导入", icon='IMPORT')
-            direct_row.operator("better_fbx.direct_batch_import_files", text="选择多个文件", icon='DOCUMENTS')
-            
             # 按名称列表批量导入
             name_list_box = better_fbx_box.box()
             name_list_box.label(text="按名称列表批量导入:", icon='TEXT')
@@ -886,6 +884,14 @@ def register():
         description="在面板顶部显示常用工具",
         default=True,
     )
+    
+    # 批量顶点组工具属性
+    bpy.types.Scene.vertex_group_name = bpy.props.StringProperty(
+        name="顶点组名称",
+        description="要创建的顶点组名称",
+        default="VertexGroup",
+        maxlen=100,
+    )
 
 
 def unregister():
@@ -935,6 +941,9 @@ def unregister():
         # 添加工具搜索功能
         "tool_search_text",
         "show_quick_tools",
+        
+        # 批量顶点组工具属性
+        "vertex_group_name",
 
 
     ]

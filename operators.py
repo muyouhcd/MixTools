@@ -1903,6 +1903,65 @@ class OBJECT_OT_move_to_surface(bpy.types.Operator):
 
         return {"FINISHED"}
 
+# 批量创建顶点组运算符
+class BatchCreateVertexGroup(bpy.types.Operator):
+    bl_idname = "object.batch_create_vertex_group"
+    bl_label = "批量创建顶点组"
+    bl_description = "为所选物体创建指定名称的顶点组，并将所有顶点写入"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 获取顶点组名称
+        vertex_group_name = context.scene.vertex_group_name
+        
+        if not vertex_group_name.strip():
+            self.report({'WARNING'}, "请输入顶点组名称")
+            return {'CANCELLED'}
+        
+        # 获取当前选择的物体
+        selected_objects = context.selected_objects
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请选择至少一个物体")
+            return {'CANCELLED'}
+        
+        # 统计处理的物体数量
+        processed_count = 0
+        
+        for obj in selected_objects:
+            # 确保物体类型为MESH
+            if obj.type == 'MESH':
+                # 检查是否已存在同名顶点组
+                existing_group = None
+                for vg in obj.vertex_groups:
+                    if vg.name == vertex_group_name:
+                        existing_group = vg
+                        break
+                
+                # 如果不存在，创建新的顶点组
+                if existing_group is None:
+                    existing_group = obj.vertex_groups.new(name=vertex_group_name)
+                
+                # 获取网格数据
+                mesh = obj.data
+                
+                # 确保网格有顶点
+                if len(mesh.vertices) > 0:
+                    # 创建顶点索引列表（所有顶点）
+                    vertex_indices = list(range(len(mesh.vertices)))
+                    
+                    # 为所有顶点分配权重1.0
+                    existing_group.add(vertex_indices, 1.0, 'REPLACE')
+                    
+                    processed_count += 1
+        
+        if processed_count > 0:
+            self.report({'INFO'}, f"成功为 {processed_count} 个物体创建顶点组 '{vertex_group_name}'")
+        else:
+            self.report({'WARNING'}, "没有找到可处理的网格物体")
+        
+        return {'FINISHED'}
+
 classes = [
     OBJECT_OT_reset_z_axis,
     ParentByBoundingbox,
@@ -1943,6 +2002,7 @@ classes = [
     ObjectInstancer,
     GeometryMatcherOperator,
     RemoveInstanceDuplicatesOperator,
+    BatchCreateVertexGroup,
 ]
 
 def register():
@@ -2045,4 +2105,3 @@ def unregister():
     bpy.types.Scene.inout_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
 
-    
