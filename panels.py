@@ -501,18 +501,26 @@ class CustomFunctionsPanel(Panel):
             # Better FBX导入
             better_fbx_box = import_box.box()
             better_fbx_box.label(text="Better FBX导入:", icon='ARMATURE_DATA')
-            better_fbx_box.prop(context.scene, "better_fbx_import_directory", text="FBX目录", icon='FILE_FOLDER')
+            better_fbx_box.prop(context.scene, "better_fbx_import_directory", text="3D文件目录", icon='FILE_FOLDER')
+            
+            # 添加格式选择
+            format_row = better_fbx_box.row(align=True)
+            format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
             
             row = better_fbx_box.row(align=True)
             row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
-            row.operator("better_fbx.batch_import_files", text="选择多个FBX文件", icon='DOCUMENTS')
+            row.operator("better_fbx.batch_import_files", text="选择多个文件", icon='DOCUMENTS')
             
             # 按名称列表批量导入
             name_list_box = better_fbx_box.box()
             name_list_box.label(text="按名称列表批量导入:", icon='TEXT')
             name_list_box.prop(context.scene, "fbx_name_list_text", text="名称列表", icon='TEXT')
             name_list_box.prop(context.scene, "fbx_search_directory", text="搜索目录", icon='FILE_FOLDER')
-            name_list_box.operator("better_fbx.batch_import_by_name_list", text="按名称列表导入", icon='IMPORT')
+            
+            # 在名称列表导入中也添加格式选择
+            name_format_row = name_list_box.row(align=True)
+            name_format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
+            name_format_row.operator("better_fbx.batch_import_by_name_list", text="按名称列表导入", icon='IMPORT')
             
             # 批量导出
             export_box = col_inout.box()
@@ -566,6 +574,7 @@ class CustomFunctionsPanel(Panel):
             assembly_asset_box.label(text="批量标记资产:", icon='ASSET_MANAGER')
             assembly_asset_box.prop(context.scene, "asset_collection", text="目标集合", icon='COLLECTION_COLOR_04')
             assembly_asset_box.prop(context.scene, "create_top_level_parent", text="创建顶级父级")
+            assembly_asset_box.prop(context.scene, "batch_size", text="批次大小", icon='SETTINGS')
             
             row = assembly_asset_box.row()
             row.operator("object.mian_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
