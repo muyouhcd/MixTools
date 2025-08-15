@@ -226,7 +226,7 @@ class CreateAssemblyAsset(bpy.types.Operator):
 
                 bpy.ops.view3d.view_selected(override)
                 bpy.context.view_layer.update()
-                time.sleep(0.5)
+                time.sleep(0.3)  # 减少等待时间
 
                 # 获取顶级名称
                 top_level_name = get_top_level_name(obj)
@@ -258,7 +258,7 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 bpy.ops.machin3.create_assembly_asset(override)
                 
                 # 等待一下让 Machin3tools 完成资产创建
-                time.sleep(1.0)
+                time.sleep(0.8)  # 减少等待时间
                 
                 # 恢复原始名称
                 obj.name = original_name
@@ -311,7 +311,7 @@ class CreateAssemblyAsset(bpy.types.Operator):
                             self.report({'INFO'}, "已刷新资产库")
                         except:
                             pass
-                time.sleep(0.8)
+                time.sleep(0.5)  # 减少等待时间
 
                 if original_parent is not None and obj.name in bpy.data.objects:
                     obj = bpy.data.objects[obj.name]
@@ -329,7 +329,51 @@ class CreateAssemblyAsset(bpy.types.Operator):
             finally:
                 restore_scene_state(scene_state)
                 bpy.context.view_layer.update()
-                time.sleep(0.3)
+                time.sleep(0.2)  # 减少等待时间
+
+        def process_batch(objects_batch, viewport_area, viewport_region, create_top_level_parent, batch_num, total_batches):
+            """处理一批物体"""
+            batch_processed = 0
+            self.report({'INFO'}, f"开始处理第 {batch_num}/{total_batches} 批，包含 {len(objects_batch)} 个物体")
+            
+            for i, obj in enumerate(objects_batch):
+                if context.window_manager.get('cancel_operation', False):
+                    self.report({'INFO'}, "操作被用户取消")
+                    return batch_processed
+                
+                top_level_name = get_top_level_name(obj)
+                self.report({'INFO'}, f"批次 {batch_num}: 处理物体 {i+1}/{len(objects_batch)}: {obj.name} (顶级名称: {top_level_name})")
+                
+                processed = process_single_object(obj, viewport_area, viewport_region, create_top_level_parent)
+                batch_processed += processed
+                
+                # 每处理几个物体后进行一次轻量级更新
+                if (i + 1) % 3 == 0:
+                    bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
+                    bpy.context.view_layer.update()
+            
+            return batch_processed
+
+        def cleanup_between_batches():
+            """在批次之间进行清理"""
+            try:
+                # 强制垃圾回收
+                import gc
+                gc.collect()
+                
+                # 清理未使用的数据块
+                bpy.ops.outliner.orphans_purge(do_recursive=True)
+                
+                # 刷新视图层
+                bpy.context.view_layer.update()
+                
+                # 短暂休息让系统恢复
+                time.sleep(0.5)
+                
+                self.report({'INFO'}, "批次间清理完成")
+                
+            except Exception as e:
+                self.report({'WARNING'}, f"批次间清理时出错: {str(e)}")
 
         collection_name = context.scene.asset_collection.name
         collection = bpy.data.collections.get(collection_name)
@@ -371,28 +415,49 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 self.report({'WARNING'}, "集合及其子集合中没有顶级物体")
                 return {'CANCELLED'}
             
-            self.report({'INFO'}, f"开始逐个处理 {len(top_level_objects)} 个物体（包含子集合）")
+            # 获取批次大小设置
+            batch_size = context.scene.batch_size
             
-            for i, obj in enumerate(top_level_objects):
+            # 将物体分组
+            total_objects = len(top_level_objects)
+            total_batches = (total_objects + batch_size - 1) // batch_size  # 向上取整
+            
+            self.report({'INFO'}, f"总共 {total_objects} 个物体，将分为 {total_batches} 批处理，每批最多 {batch_size} 个物体")
+            
+            # 分批处理
+            for batch_num in range(total_batches):
                 if context.window_manager.get('cancel_operation', False):
                     self.report({'INFO'}, "操作被用户取消")
-                    return {'CANCELLED'}
+                    break
                 
-                top_level_name = get_top_level_name(obj)
-                self.report({'INFO'}, f"处理物体 {i+1}/{len(top_level_objects)}: {obj.name} (顶级名称: {top_level_name})")
+                # 计算当前批次的物体
+                start_idx = batch_num * batch_size
+                end_idx = min(start_idx + batch_size, total_objects)
+                current_batch = top_level_objects[start_idx:end_idx]
                 
-                processed = process_single_object(obj, viewport_area, viewport_region, create_top_level_parent)
-                total_processed += processed
+                # 处理当前批次
+                batch_processed = process_batch(
+                    current_batch, 
+                    viewport_area, 
+                    viewport_region, 
+                    create_top_level_parent,
+                    batch_num + 1,
+                    total_batches
+                )
                 
+                total_processed += batch_processed
+                
+                # 如果不是最后一批，进行批次间清理
+                if batch_num < total_batches - 1:
+                    self.report({'INFO'}, f"第 {batch_num + 1} 批处理完成，已处理 {total_processed} 个物体，开始清理...")
+                    cleanup_between_batches()
+                
+                # 更新进度
                 bpy.ops.wm.redraw_timer(type='DRAW', iterations=1)
                 bpy.context.view_layer.update()
-                time.sleep(0.3)
-                
-                import gc
-                gc.collect()
 
             if total_processed > 0:
-                self.report({'INFO'}, f"成功处理 {total_processed} 个资产")
+                self.report({'INFO'}, f"所有批次处理完成！成功处理 {total_processed} 个资产")
                 return {'FINISHED'}
             else:
                 self.report({'WARNING'}, "没有处理任何资产")
@@ -417,12 +482,20 @@ def register():
         description="选择将要标记资产的集合",
         type=bpy.types.Collection
     )
+    bpy.types.Scene.batch_size = bpy.props.IntProperty(
+        name="批次大小",
+        description="每批处理的物体数量，较小的批次可以防止性能下降",
+        default=5,
+        min=1,
+        max=20
+    )
 
 def unregister():
     bpy.utils.unregister_class(CreateAssemblyAsset)
     
     del bpy.types.Scene.create_top_level_parent
     del bpy.types.Scene.asset_collection
+    del bpy.types.Scene.batch_size
 
 if __name__ == "__main__":
     register() 
