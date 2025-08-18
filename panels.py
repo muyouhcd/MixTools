@@ -646,6 +646,11 @@ class CustomFunctionsPanel(Panel):
             camera_col.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面的物体")
             camera_col.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
             
+            # 渲染效果设置
+            render_effects_col = box_autorender.column()
+            render_effects_col.label(text="渲染效果:", icon='NODE_COMPOSITING')
+            render_effects_col.prop(bpy.context.scene.auto_render_settings, "use_compositor", text="包含合成器效果（辉光等）")
+            
             # 执行按钮
             box_autorender.operator("auto_render.execute", text="执行渲染", icon='RENDER_STILL')
 

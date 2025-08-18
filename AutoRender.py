@@ -21,7 +21,7 @@ class AutoRenderer():
     def __init__(self, collections: list, camera_name="Camera", 
                     output_path="./", output_name="", 
                     output_format="PNG", focus_each_object=False,
-                    focus_only_faces=False, report_callback=None) -> None:
+                    focus_only_faces=False, use_compositor=True, report_callback=None) -> None:
         """
         集合：字符串列表，每个字符串都是一个集合的名称
         report_callback: 可选的回调函数，用于向Blender信息窗口报告信息
@@ -39,6 +39,7 @@ class AutoRenderer():
         self.output_format = output_format
         self.focus_each_object = focus_each_object
         self.focus_only_faces = focus_only_faces
+        self.use_compositor = use_compositor
         self.report_callback = report_callback
 
         self.intended_collection = None
@@ -243,29 +244,124 @@ class AutoRenderer():
 
                 # 设置渲染输出路径
                 bpy.context.scene.render.filepath = filepath
-                # 执行渲染并保存
-                bpy.ops.render.render(write_still=True)
+                
+                # 确保渲染设置一致性
+                original_render_settings = self.ensure_render_settings_consistency()
+                
+                # 检查合成器状态
+                compositor_status = self.check_compositor_status()
+                print(f"合成器状态检查结果:")
+                print(f"  - 启用节点: {compositor_status['use_nodes']}")
+                print(f"  - 节点树存在: {compositor_status['node_tree_exists']}")
+                print(f"  - 节点树类型: {compositor_status['node_tree_type']}")
+                print(f"  - 渲染合成器: {compositor_status['use_compositing']}")
+                print(f"  - 合成器节点数量: {compositor_status['total_nodes']}")
+                print(f"  - 合成器节点: {compositor_status['compositor_nodes']}")
+                
+                # 验证合成器设置
+                is_valid = False
+                validation_message = ""
+                if self.use_compositor:
+                    # 显示详细的合成器调试信息
+                    self.debug_compositor_nodes()
+                    
+                    is_valid, validation_message = self.validate_compositor_setup()
+                    print(f"合成器验证结果: {'✓' if is_valid else '⚠'} {validation_message}")
+                
+                # 检查是否启用了合成器渲染
+                if self.use_compositor:
+                    if (compositor_status['use_nodes'] and 
+                        compositor_status['node_tree_exists'] and
+                        compositor_status['node_tree_type'] == 'COMPOSITING' and
+                        compositor_status['total_nodes'] > 0 and
+                        is_valid):
+                        
+                        print("✓ 检测到有效的合成器节点树，使用合成器渲染以包含辉光等效果")
+                        
+                        # 确保合成器设置正确
+                        bpy.context.scene.render.use_compositing = True
+                        bpy.context.scene.render.use_sequencer = False
+                        
+                        # 使用合成器渲染，包含所有节点效果
+                        # 注意：write_still=True 会自动保存到指定路径，不需要再次保存
+                        bpy.ops.render.render(write_still=True, use_viewport=False)
+                        print("✓ 合成器渲染完成，包含辉光等效果")
+                        
+                        # 验证渲染结果
+                        if os.path.exists(filepath):
+                            print(f"✓ 渲染文件已保存: {filepath}")
+                            # 检查文件大小，确保不是空文件
+                            file_size = os.path.getsize(filepath)
+                            print(f"  - 文件大小: {file_size} 字节")
+                            if file_size < 1000:
+                                print("⚠ 警告: 文件大小过小，可能渲染失败")
+                        else:
+                            print("⚠ 警告: 渲染文件未找到")
+                            
+                    else:
+                        print("⚠ 未检测到有效的合成器节点树，尝试强制启用...")
+                        
+                        # 尝试强制启用合成器
+                        try:
+                            self.force_enable_compositor()
+                            
+                            # 重新验证
+                            is_valid, validation_message = self.validate_compositor_setup()
+                            print(f"强制启用后验证结果: {'✓' if is_valid else '⚠'} {validation_message}")
+                            
+                            if is_valid:
+                                print("✓ 强制启用成功，使用合成器渲染")
+                                bpy.ops.render.render(write_still=True, use_viewport=False)
+                                print("✓ 合成器渲染完成，包含辉光等效果")
+                                
+                                # 验证渲染结果
+                                if os.path.exists(filepath):
+                                    print(f"✓ 渲染文件已保存: {filepath}")
+                                    file_size = os.path.getsize(filepath)
+                                    print(f"  - 文件大小: {file_size} 字节")
+                                    if file_size < 1000:
+                                        print("⚠ 警告: 文件大小过小，可能渲染失败")
+                                else:
+                                    print("⚠ 警告: 渲染文件未找到")
+                            else:
+                                print("⚠ 强制启用失败，回退到标准渲染")
+                                bpy.context.scene.render.use_compositing = False
+                                bpy.ops.render.render(write_still=True)
+                                print("✓ 标准渲染完成")
+                                
+                        except Exception as e:
+                            print(f"⚠ 强制启用合成器时出错: {str(e)}")
+                            print("回退到标准渲染")
+                            bpy.context.scene.render.use_compositing = False
+                            bpy.ops.render.render(write_still=True)
+                            print("✓ 标准渲染完成")
+                            
+                else:
+                    print("ℹ 用户选择不使用合成器渲染，使用标准渲染")
+                    
+                    # 确保合成器被禁用
+                    bpy.context.scene.render.use_compositing = False
+                    
+                    # 标准渲染
+                    bpy.ops.render.render(write_still=True)
+                    print("✓ 标准渲染完成")
+                
                 print("渲染操作完成")
                 save_msg = f"已保存: {filepath}"
                 print(save_msg)
                 self.report_info({'INFO'}, save_msg)
+                
+                # 恢复原始渲染设置
+                self.restore_render_settings(original_render_settings)
+                
             except Exception as e:
                 error_msg = f"渲染操作失败: {str(e)}"
                 print(error_msg)
                 self.report_info({'ERROR'}, error_msg)
                 raise
             
-            # 保存渲染结果
-            try:
-                bpy.data.images["Render Result"].save_render(filepath=filepath)
-                save_msg = f"已保存: {filepath}"
-                print(save_msg)
-                self.report_info({'INFO'}, save_msg)
-            except Exception as e:
-                error_msg = f"保存渲染结果失败: {str(e)}"
-                print(error_msg)
-                self.report_info({'ERROR'}, error_msg)
-                raise
+            # 注意：渲染结果已经通过 write_still=True 自动保存到指定路径
+            # 不需要再次保存，避免覆盖合成器效果
             
             # 添加边框并保存图像
             try:
@@ -409,6 +505,167 @@ class AutoRenderer():
         
         related_objects = collect_children(top_parent)
         return related_objects
+    
+    def check_compositor_status(self):
+        """检查合成器状态，返回详细的合成器信息"""
+        scene = bpy.context.scene
+        
+        # 检查基础设置
+        use_nodes = scene.use_nodes
+        node_tree = scene.node_tree
+        
+        # 检查渲染设置
+        use_compositing = scene.render.use_compositing
+        use_sequencer = scene.render.use_sequencer
+        
+        # 检查合成器节点树
+        compositor_nodes = []
+        if node_tree and node_tree.type == 'COMPOSITING':
+            compositor_nodes = [node.name for node in node_tree.nodes if node.type != 'R_LAYERS']
+        
+        # 检查是否有输出节点
+        has_output = False
+        if node_tree:
+            for node in node_tree.nodes:
+                if node.type == 'OUTPUT_FILE' or node.type == 'COMPOSITE':
+                    has_output = True
+                    break
+        
+        status_info = {
+            'use_nodes': use_nodes,
+            'node_tree_exists': node_tree is not None,
+            'node_tree_type': node_tree.type if node_tree else None,
+            'use_compositing': use_compositing,
+            'use_sequencer': use_sequencer,
+            'compositor_nodes': compositor_nodes,
+            'has_output': has_output,
+            'total_nodes': len(compositor_nodes)
+        }
+        
+        return status_info
+    
+    def ensure_render_settings_consistency(self):
+        """确保渲染设置与直接渲染一致"""
+        scene = bpy.context.scene
+        
+        # 保存原始设置
+        original_settings = {
+            'use_compositing': scene.render.use_compositing,
+            'use_sequencer': scene.render.use_sequencer,
+            'use_nodes': scene.use_nodes
+        }
+        
+        print("保存原始渲染设置:")
+        for key, value in original_settings.items():
+            print(f"  - {key}: {value}")
+        
+        return original_settings
+    
+    def restore_render_settings(self, original_settings):
+        """恢复原始渲染设置"""
+        scene = bpy.context.scene
+        
+        print("恢复原始渲染设置:")
+        for key, value in original_settings.items():
+            setattr(scene.render if key.startswith('use_') and key != 'use_nodes' else scene, key, value)
+            print(f"  - {key}: {value}")
+    
+    def force_enable_compositor(self):
+        """强制启用合成器设置"""
+        scene = bpy.context.scene
+        
+        print("强制启用合成器设置:")
+        
+        # 确保场景启用节点
+        if not scene.use_nodes:
+            scene.use_nodes = True
+            print("  - 已启用场景节点")
+        
+        # 确保有合成器节点树
+        if not scene.node_tree or scene.node_tree.type != 'COMPOSITING':
+            # 创建新的合成器节点树
+            scene.node_tree = bpy.data.node_groups.new(type='COMPOSITING', name='Compositor')
+            print("  - 已创建新的合成器节点树")
+        
+        # 强制启用渲染合成器
+        scene.render.use_compositing = True
+        scene.render.use_sequencer = False
+        
+        print("  - 已启用渲染合成器")
+        print("  - 已禁用渲染序列器")
+        
+        return True
+    
+    def validate_compositor_setup(self):
+        """验证合成器设置是否正确"""
+        scene = bpy.context.scene
+        
+        if not scene.use_nodes or not scene.node_tree:
+            return False, "场景未启用节点或没有节点树"
+        
+        if scene.node_tree.type != 'COMPOSITING':
+            return False, f"节点树类型不是合成器 ({scene.node_tree.type})"
+        
+        # 检查是否有渲染层节点
+        render_layers = [node for node in scene.node_tree.nodes if node.type == 'R_LAYERS']
+        if not render_layers:
+            return False, "合成器中没有渲染层节点"
+        
+        # 检查是否有输出节点
+        output_nodes = [node for node in scene.node_tree.nodes if node.type in ['COMPOSITE', 'OUTPUT_FILE']]
+        if not output_nodes:
+            return False, "合成器中没有输出节点"
+        
+        # 检查节点连接 - 更宽松的验证
+        for output_node in output_nodes:
+            if not output_node.inputs:
+                continue
+            for input_socket in output_node.inputs:
+                if input_socket.links:
+                    return True, "合成器节点连接正常"
+        
+        # 如果没有检测到连接，但仍然有节点，也认为是有效的
+        if len(scene.node_tree.nodes) > 2:  # 至少有渲染层和输出节点
+            return True, "合成器节点存在，连接状态未知"
+        
+        return False, "合成器节点未正确连接"
+    
+    def debug_compositor_nodes(self):
+        """调试合成器节点状态"""
+        scene = bpy.context.scene
+        
+        print("\n=== 合成器节点调试信息 ===")
+        
+        if not scene.use_nodes:
+            print("❌ 场景未启用节点")
+            return
+        
+        if not scene.node_tree:
+            print("❌ 场景没有节点树")
+            return
+        
+        print(f"节点树类型: {scene.node_tree.type}")
+        print(f"节点树名称: {scene.node_tree.name}")
+        print(f"总节点数量: {len(scene.node_tree.nodes)}")
+        
+        print("\n节点列表:")
+        for i, node in enumerate(scene.node_tree.nodes):
+            print(f"  {i+1}. {node.name} (类型: {node.type})")
+            
+            # 检查输入连接
+            if hasattr(node, 'inputs'):
+                for j, input_socket in enumerate(node.inputs):
+                    if input_socket.links:
+                        from_node = input_socket.links[0].from_node
+                        from_socket = input_socket.links[0].from_socket
+                        print(f"    输入 {j+1}: 连接到 {from_node.name}.{from_socket.name}")
+                    else:
+                        print(f"    输入 {j+1}: 未连接")
+        
+        print("\n渲染设置:")
+        print(f"  use_compositing: {scene.render.use_compositing}")
+        print(f"  use_sequencer: {scene.render.use_sequencer}")
+        print("=== 调试信息结束 ===\n")
 
 def get_all_cameras(self, context):
     return [(obj.name, obj.name, obj.name) for obj in bpy.context.scene.objects if obj.type == 'CAMERA']
@@ -481,6 +738,11 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         description="When enabled, only focus on objects that have faces, ignoring empty objects, points, and lines. This is useful when parent objects are empty and you want to focus on the actual visible geometry.",
         default=False
     ) # type: ignore
+    use_compositor: bpy.props.BoolProperty(
+        name="Use Compositor",
+        description="Enable to include compositor effects (glow, color correction, etc.) in the rendered images. This will apply all nodes in the compositor including glow effects.",
+        default=True
+    ) # type: ignore
 
 class AUTO_RENDER_OT_Execute(bpy.types.Operator):
     bl_idname = "auto_render.execute"
@@ -500,6 +762,7 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
         print(f"选中的相机: {auto_render_settings.cameras}")
         print(f"聚焦到每个物体: {auto_render_settings.focus_each_object}")
         print(f"仅聚焦有面的物体: {auto_render_settings.focus_only_faces}")
+        print(f"使用合成器: {auto_render_settings.use_compositor}")
         print(f"边框距离: {auto_render_settings.margin_distance}")
 
         try:
@@ -554,13 +817,14 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
             output_format = auto_render_settings.output_format
             focus_each_object = auto_render_settings.focus_each_object
             focus_only_faces = auto_render_settings.focus_only_faces
+            use_compositor = auto_render_settings.use_compositor
 
             print("创建AutoRenderer实例...")
             # 传递self.report作为回调函数
             auto_renderer = AutoRenderer([collection_name], camera_name=camera_name,
                                         output_path=output_path, output_name=output_name,
                                         output_format=output_format, focus_each_object=focus_each_object,
-                                        focus_only_faces=focus_only_faces, report_callback=self.report)
+                                        focus_only_faces=focus_only_faces, use_compositor=use_compositor, report_callback=self.report)
             
             print("开始执行渲染...")
             auto_renderer.auto_render()
