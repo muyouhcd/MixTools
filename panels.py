@@ -618,7 +618,7 @@ class CustomFunctionsPanel(Panel):
             quick_render_box = col_autorender.box()
             quick_render_box.label(text="快速处理:", icon='SHADING_RENDERED')
             quick_render_box.operator("auto_render.oneclick", 
-                                   text="优化模型显示效果", 
+                                   text="优化体素模型显示效果", 
                                    icon='SHADERFX')
             
             # 批量渲染设置
@@ -627,9 +627,43 @@ class CustomFunctionsPanel(Panel):
             # 输出设置
             output_col = box_autorender.column(align=True)
             output_col.prop(bpy.context.scene.auto_render_settings, "output_path", text="路径", icon='FILE_FOLDER')
+            
+            # 命名模式选择
+            naming_row = output_col.row(align=True)
+            naming_row.prop(bpy.context.scene.auto_render_settings, "naming_mode", text="命名模式", icon='OUTLINER_OB_FONT')
+            
+            # 自定义名称输入（仅在需要时显示）
+            if bpy.context.scene.auto_render_settings.naming_mode in ['CUSTOM', 'HYBRID']:
+                output_col.prop(bpy.context.scene.auto_render_settings, "output_name", text="自定义名称", icon='FILE_BLANK')
+            
             output_row = output_col.row(align=True)
-            output_row.prop(bpy.context.scene.auto_render_settings, "output_name", text="名称", icon='FILE_BLANK')
             output_row.prop(bpy.context.scene.auto_render_settings, "output_format", text="格式", icon='FILE_IMAGE')
+            
+            # EXR格式说明
+            if bpy.context.scene.auto_render_settings.output_format == 'EXR':
+                exr_info = output_col.box()
+                exr_info.label(text="EXR格式特性:", icon='INFO')
+                exr_info.label(text="• 完美支持透明通道和32位色彩")
+                exr_info.label(text="• 高动态范围，适合后期处理")
+                exr_info.label(text="• 不支持图像尺寸调节和边框添加")
+                exr_info.label(text="• 建议使用Blender内置设置")
+            elif bpy.context.scene.auto_render_settings.output_format == 'EXR_TO_PNG':
+                exr_to_png_info = output_col.box()
+                exr_to_png_info.label(text="EXR→PNG模式特性:", icon='INFO')
+                exr_to_png_info.label(text="• 先渲染为EXR，完美支持透明通道")
+                exr_to_png_info.label(text="• 自动转换为PNG，解决alpha硬裁切问题")
+                exr_to_png_info.label(text="• 支持图像尺寸调节和边框添加")
+                exr_to_png_info.label(text="• 最终输出为PNG格式")
+
+            # 最终图像尺寸设置
+            final_size_col = box_autorender.column(align=True)
+            final_size_col.prop(bpy.context.scene.auto_render_settings, "enable_resize", text="启用图像尺寸后处理调节", icon='FULLSCREEN_ENTER')
+            if bpy.context.scene.auto_render_settings.enable_resize:
+                final_size_row = final_size_col.row(align=True)
+                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_width", text="宽度")
+                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
+                final_size_row = final_size_col.row(align=True)
+                final_size_row.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
             # 渲染对象
             render_col = box_autorender.column()
             render_row = render_col.row(align=True)
@@ -637,7 +671,6 @@ class CustomFunctionsPanel(Panel):
             render_row.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机", icon='CAMERA_DATA')
             # 相机设置
             camera_col = box_autorender.column()
-            camera_col.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
             # 功能选项 - 放在一排
             options_row = camera_col.row()
             options_row.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到物体")
