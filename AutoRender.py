@@ -21,7 +21,7 @@ class AutoRenderer():
     def __init__(self, collections: list, camera_name="Camera", 
                     output_path="./", output_name="", 
                     output_format="PNG", focus_each_object=False,
-                    focus_only_faces=False, use_compositor=True, report_callback=None) -> None:
+                    focus_only_faces=False, use_compositor=True, auto_keyframe=False, report_callback=None) -> None:
         """
         集合：字符串列表，每个字符串都是一个集合的名称
         report_callback: 可选的回调函数，用于向Blender信息窗口报告信息
@@ -40,6 +40,7 @@ class AutoRenderer():
         self.focus_each_object = focus_each_object
         self.focus_only_faces = focus_only_faces
         self.use_compositor = use_compositor
+        self.auto_keyframe = auto_keyframe
         self.report_callback = report_callback
 
         self.intended_collection = None
@@ -134,7 +135,89 @@ class AutoRenderer():
                         margin = bpy.context.scene.auto_render_settings.margin_distance
                         bpy.context.scene.camera.data.lens *= (1.0 + margin * 0.1)
                         
+                        # 自动关键帧：记录相机位置和旋转
+                        print(f"检查是否需要添加关键帧: self.auto_keyframe = {self.auto_keyframe}")
+                        if self.auto_keyframe:
+                            print("✓ 启用自动关键帧，开始添加关键帧...")
+                            self.auto_keyframe_camera()
+                        else:
+                            print("⚠ 自动关键帧未启用")
+                        
                         break
+
+    def auto_keyframe_camera(self):
+        """自动为相机添加关键帧，记录当前位置、旋转和焦距"""
+        try:
+            current_frame = bpy.context.scene.frame_current
+            camera = self.cam
+            
+            print(f"开始为相机 '{camera.name}' 添加关键帧...")
+            print(f"当前帧: {current_frame}")
+            print(f"相机位置: {camera.location}")
+            print(f"相机旋转: {camera.rotation_euler}")
+            if camera.data:
+                print(f"相机焦距: {camera.data.lens}")
+            
+            # 为相机位置添加关键帧
+            camera.keyframe_insert(data_path="location", frame=current_frame)
+            print(f"✓ 位置关键帧添加成功")
+            
+            # 为相机旋转添加关键帧
+            camera.keyframe_insert(data_path="rotation_euler", frame=current_frame)
+            print(f"✓ 旋转关键帧添加成功")
+            
+            # 为相机焦距添加关键帧
+            if camera.data:
+                camera.data.keyframe_insert(data_path="lens", frame=current_frame)
+                print(f"✓ 焦距关键帧添加成功")
+            
+            # 验证关键帧是否添加成功
+            if camera.animation_data and camera.animation_data.action:
+                print(f"✓ 相机动画数据验证成功")
+                print(f"  - 动作名称: {camera.animation_data.action.name}")
+                print(f"  - 总F曲线数: {len(camera.animation_data.action.fcurves)}")
+            else:
+                print("⚠ 警告: 相机没有动画数据")
+            
+            print(f"✓ 已为相机 '{camera.name}' 在第 {current_frame} 帧添加关键帧")
+            
+        except Exception as e:
+            print(f"⚠ 添加关键帧时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+    def clear_all_camera_keyframes(self):
+        """清除相机的所有关键帧"""
+        try:
+            camera = self.cam
+            if not camera:
+                print("⚠ 未找到相机对象")
+                return False
+            
+            # 清除位置关键帧
+            if camera.animation_data and camera.animation_data.action:
+                for fcurve in camera.animation_data.action.fcurves:
+                    if fcurve.data_path == "location":
+                        fcurve.keyframe_points.clear()
+            
+            # 清除旋转关键帧
+            if camera.animation_data and camera.animation_data.action:
+                for fcurve in camera.animation_data.action.fcurves:
+                    if fcurve.data_path == "rotation_euler":
+                        fcurve.keyframe_points.clear()
+            
+            # 清除焦距关键帧
+            if camera.data and camera.data.animation_data and camera.data.animation_data.action:
+                for fcurve in camera.data.animation_data.action.fcurves:
+                    if fcurve.data_path == "lens":
+                        fcurve.keyframe_points.clear()
+            
+            print(f"✓ 已清除相机 '{camera.name}' 的所有关键帧")
+            return True
+            
+        except Exception as e:
+            print(f"⚠ 清除关键帧时出错: {str(e)}")
+            return False
 
     def report_info(self, info_type, message):
         """向控制台和Blender信息窗口报告信息"""
@@ -386,6 +469,75 @@ class AutoRenderer():
         complete_msg = f"完成渲染集合: {collection_name}"
         print(f"--- {complete_msg} ---\n")
         self.report_info({'INFO'}, complete_msg)
+
+    def generate_keyframes_only(self, collection_name: str):
+        """仅生成关键帧，不进行渲染"""
+        print(f"\n--- 开始为集合生成关键帧: {collection_name} ---")
+        
+        try:
+            # 更新预期的集合参考
+            self.intended_collection = bpy.data.collections[collection_name]
+            print(f"获取集合 '{collection_name}' 成功，包含 {len(self.intended_collection.objects)} 个对象")
+        except KeyError:
+            error_msg = f"找不到集合 '{collection_name}'"
+            print(f"错误: {error_msg}")
+            self.report_info({'ERROR'}, error_msg)
+            raise KeyError(error_msg)
+        
+        # 对集合中的物体按顶级父物体分组
+        print("按顶级父物体分组中...")
+        groups = self.group_objects_by_top_parent(self.intended_collection.objects)
+        print(f"共找到 {len(groups)} 个顶级父物体分组")
+        
+        if not groups:
+            warning_msg = f"集合 '{collection_name}' 中没有可渲染的对象"
+            print(f"警告: {warning_msg}")
+            self.report_info({'WARNING'}, warning_msg)
+            return
+        
+        # 为每个分组生成关键帧
+        frame_counter = 1
+        for top_parent_name, objects in groups.items():
+            print(f"\n处理分组: {top_parent_name}，包含 {len(objects)} 个对象")
+            
+            # 检查是否有可见的物体
+            visible_objects = [obj for obj in objects if obj.hide_render == False]
+            if not visible_objects:
+                print(f"分组 '{top_parent_name}' 中没有可见的物体，跳过")
+                continue
+            
+            # 确定要聚焦的物体列表
+            focus_objects = visible_objects
+            if self.focus_only_faces:
+                focus_objects = [obj for obj in visible_objects if self.has_faces(obj)]
+                if not focus_objects:
+                    print("警告: 没有找到有面的物体用于聚焦，跳过")
+                    continue
+            
+            print(f"为 {len(focus_objects)} 个物体生成关键帧")
+            
+            # 设置当前帧
+            bpy.context.scene.frame_current = frame_counter
+            print(f"设置当前帧为: {frame_counter}")
+            
+            # 聚焦到物体并生成关键帧
+            try:
+                self.focus_object(focus_objects)
+                print(f"✓ 已为分组 '{top_parent_name}' 生成关键帧")
+                frame_counter += 1
+            except Exception as e:
+                error_msg = f"为分组 '{top_parent_name}' 生成关键帧时出错: {str(e)}"
+                print(error_msg)
+                self.report_info({'WARNING'}, error_msg)
+        
+        complete_msg = f"完成为集合 '{collection_name}' 生成关键帧，共 {frame_counter - 1} 帧"
+        print(f"--- {complete_msg} ---\n")
+        self.report_info({'INFO'}, complete_msg)
+        
+        # 设置场景的帧范围
+        bpy.context.scene.frame_start = 1
+        bpy.context.scene.frame_end = frame_counter - 1
+        print(f"已设置场景帧范围: {bpy.context.scene.frame_start} - {bpy.context.scene.frame_end}")
 
     def add_image_border(self, image_path, margin_distance, background_is_transparent):
         """在图像周围添加边框，并根据背景透明度调整边框"""
@@ -743,6 +895,11 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         description="Enable to include compositor effects (glow, color correction, etc.) in the rendered images. This will apply all nodes in the compositor including glow effects.",
         default=True
     ) # type: ignore
+    auto_keyframe: bpy.props.BoolProperty(
+        name="Auto Keyframe Camera",
+        description="Enable to automatically keyframe the camera's position, rotation, and focal length when focusing on objects.",
+        default=False
+    ) # type: ignore
 
 class AUTO_RENDER_OT_Execute(bpy.types.Operator):
     bl_idname = "auto_render.execute"
@@ -764,6 +921,7 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
         print(f"仅聚焦有面的物体: {auto_render_settings.focus_only_faces}")
         print(f"使用合成器: {auto_render_settings.use_compositor}")
         print(f"边框距离: {auto_render_settings.margin_distance}")
+        print(f"自动关键帧: {auto_render_settings.auto_keyframe}")
 
         try:
             # 获取集合名称
@@ -818,13 +976,15 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
             focus_each_object = auto_render_settings.focus_each_object
             focus_only_faces = auto_render_settings.focus_only_faces
             use_compositor = auto_render_settings.use_compositor
+            auto_keyframe = auto_render_settings.auto_keyframe
 
             print("创建AutoRenderer实例...")
             # 传递self.report作为回调函数
             auto_renderer = AutoRenderer([collection_name], camera_name=camera_name,
                                         output_path=output_path, output_name=output_name,
                                         output_format=output_format, focus_each_object=focus_each_object,
-                                        focus_only_faces=focus_only_faces, use_compositor=use_compositor, report_callback=self.report)
+                                        focus_only_faces=focus_only_faces, use_compositor=use_compositor, 
+                                        auto_keyframe=auto_keyframe, report_callback=self.report)
             
             print("开始执行渲染...")
             auto_renderer.auto_render()
@@ -850,17 +1010,129 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
 
         return {'FINISHED'}
 
+# 清除相机关键帧操作器
+class AUTO_RENDER_OT_ClearCameraKeyframes(bpy.types.Operator):
+    """清除当前场景相机的所有关键帧"""
+    bl_idname = "auto_render.clear_camera_keyframes"
+    bl_label = "清除相机关键帧"
+    bl_description = "清除当前场景相机的所有位置、旋转和焦距关键帧"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        scene = context.scene
+        auto_render_settings = scene.auto_render_settings
+        
+        # 获取当前场景的相机
+        camera_name = auto_render_settings.cameras
+        if not camera_name:
+            self.report({'ERROR'}, "请先选择一个相机")
+            return {'CANCELLED'}
+        
+        # 获取相机对象
+        camera = bpy.data.objects.get(camera_name)
+        if not camera or camera.type != 'CAMERA':
+            self.report({'ERROR'}, f"找不到相机对象: {camera_name}")
+            return {'CANCELLED'}
+        
+        try:
+            # 创建临时AutoRenderer实例来调用清除方法
+            temp_renderer = AutoRenderer([], camera_name=camera_name)
+            success = temp_renderer.clear_all_camera_keyframes()
+            
+            if success:
+                self.report({'INFO'}, f"已成功清除相机 '{camera_name}' 的所有关键帧")
+                return {'FINISHED'}
+            else:
+                self.report({'WARNING'}, f"清除相机 '{camera_name}' 关键帧时出现问题")
+                return {'CANCELLED'}
+                
+        except Exception as e:
+            self.report({'ERROR'}, f"清除关键帧时出错: {str(e)}")
+            return {'CANCELLED'}
+
+# 仅生成关键帧操作器
+class AUTO_RENDER_OT_GenerateKeyframesOnly(bpy.types.Operator):
+    """仅生成相机关键帧，不进行渲染"""
+    bl_idname = "auto_render.generate_keyframes_only"
+    bl_label = "仅生成关键帧"
+    bl_description = "为选中的集合生成相机关键帧动画，不进行渲染"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        scene = context.scene
+        auto_render_settings = scene.auto_render_settings
+        
+        # 获取集合名称
+        collection_name = auto_render_settings.collections
+        if not collection_name:
+            self.report({'ERROR'}, "请先选择一个要处理的集合")
+            return {'CANCELLED'}
+        
+        # 获取相机名称
+        camera_name = auto_render_settings.cameras
+        if not camera_name:
+            self.report({'ERROR'}, "请先选择一个相机")
+            return {'CANCELLED'}
+        
+        # 检查相机是否存在
+        cam = bpy.data.objects.get(camera_name)
+        if not cam or cam.type != 'CAMERA':
+            self.report({'ERROR'}, f"相机 '{camera_name}' 不存在或不是相机类型")
+            return {'CANCELLED'}
+        
+        # 检查集合是否存在
+        col = bpy.data.collections.get(collection_name)
+        if not col:
+            self.report({'ERROR'}, f"集合 '{collection_name}' 不存在")
+            return {'CANCELLED'}
+        
+        try:
+            print("=== 开始仅生成关键帧操作 ===")
+            print(f"集合: {collection_name}")
+            print(f"相机: {camera_name}")
+            print(f"聚焦到每个物体: {auto_render_settings.focus_each_object}")
+            print(f"仅聚焦有面的物体: {auto_render_settings.focus_only_faces}")
+            print(f"自动关键帧: {auto_render_settings.auto_keyframe}")
+            
+            # 创建AutoRenderer实例
+            auto_renderer = AutoRenderer([collection_name], camera_name=camera_name,
+                                        focus_each_object=True,  # 强制启用聚焦
+                                        focus_only_faces=auto_render_settings.focus_only_faces,
+                                        auto_keyframe=True,  # 强制启用关键帧
+                                        report_callback=self.report)
+            
+            # 仅生成关键帧
+            auto_renderer.generate_keyframes_only(collection_name)
+            
+            self.report({'INFO'}, f"已成功为集合 '{collection_name}' 生成关键帧动画")
+            print("=== 仅生成关键帧操作完成 ===\n")
+            
+            return {'FINISHED'}
+            
+        except Exception as e:
+            error_msg = f"生成关键帧时出错: {str(e)}"
+            print(f"错误: {error_msg}")
+            self.report({'ERROR'}, error_msg)
+            return {'CANCELLED'}
+
 def register():
-    bpy.utils.register_class(AutoRenderSettings)
-    bpy.types.Scene.auto_render_settings = bpy.props.PointerProperty(type=AutoRenderSettings)
     bpy.utils.register_class(AUTO_RENDER_OT_Execute)
     bpy.utils.register_class(AUTO_RENDER_OneClick)
+    bpy.utils.register_class(AUTO_RENDER_OT_ClearCameraKeyframes)
+    bpy.utils.register_class(AUTO_RENDER_OT_GenerateKeyframesOnly)
+    bpy.utils.register_class(AutoRenderSettings)
+    bpy.types.Scene.auto_render_settings = bpy.props.PointerProperty(type=AutoRenderSettings)
 
 def unregister():
     bpy.utils.unregister_class(AUTO_RENDER_OT_Execute)
-    del bpy.types.Scene.auto_render_settings
-    bpy.utils.unregister_class(AutoRenderSettings)
     bpy.utils.unregister_class(AUTO_RENDER_OneClick)
+    bpy.utils.unregister_class(AUTO_RENDER_OT_ClearCameraKeyframes)
+    bpy.utils.unregister_class(AUTO_RENDER_OT_GenerateKeyframesOnly)
+    bpy.utils.unregister_class(AutoRenderSettings)
+    try:
+        delattr(bpy.types.Scene, "auto_render_settings")
+    except AttributeError:
+        pass
 
 if __name__ == "__main__":
     register()

@@ -623,34 +623,32 @@ class CustomFunctionsPanel(Panel):
             
             # 批量渲染设置
             box_autorender = col_autorender.box()
-            box_autorender.label(text="批量渲染设置:", icon='RENDER_STILL')
-            
+            box_autorender.label(text="批量渲染", icon='RENDER_STILL')
             # 输出设置
-            output_col = box_autorender.column()
-            output_col.label(text="输出设置:", icon='OUTPUT')
-            output_row = output_col.row()
-            output_row.prop(bpy.context.scene.auto_render_settings, "output_path", text="路径", icon='FILE_FOLDER')
+            output_col = box_autorender.column(align=True)
+            output_col.prop(bpy.context.scene.auto_render_settings, "output_path", text="路径", icon='FILE_FOLDER')
+            output_row = output_col.row(align=True)
             output_row.prop(bpy.context.scene.auto_render_settings, "output_name", text="名称", icon='FILE_BLANK')
-            output_col.prop(bpy.context.scene.auto_render_settings, "output_format", text="格式", icon='FILE_IMAGE')
-            
+            output_row.prop(bpy.context.scene.auto_render_settings, "output_format", text="格式", icon='FILE_IMAGE')
             # 渲染对象
             render_col = box_autorender.column()
-            render_col.label(text="渲染对象:", icon='SCENE')
-            render_col.prop(bpy.context.scene.auto_render_settings, "collections", text="集合", icon='OUTLINER_COLLECTION')
-            render_col.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机", icon='CAMERA_DATA')
-            
+            render_row = render_col.row(align=True)
+            render_row.prop(bpy.context.scene.auto_render_settings, "collections", text="集合", icon='OUTLINER_COLLECTION')
+            render_row.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机", icon='CAMERA_DATA')
             # 相机设置
             camera_col = box_autorender.column()
-            camera_col.label(text="相机设置:", icon='VIEW_CAMERA')
-            camera_col.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到每个物体（正交相机）")
-            camera_col.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面的物体")
             camera_col.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
-            
-            # 渲染效果设置
-            render_effects_col = box_autorender.column()
-            render_effects_col.label(text="渲染效果:", icon='NODE_COMPOSITING')
-            render_effects_col.prop(bpy.context.scene.auto_render_settings, "use_compositor", text="包含合成器效果（辉光等）")
-            
+            # 功能选项 - 放在一排
+            options_row = camera_col.row()
+            options_row.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到物体")
+            options_row.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面")
+            options_row.prop(bpy.context.scene.auto_render_settings, "auto_keyframe", text="自动关键帧")
+            options_row.prop(bpy.context.scene.auto_render_settings, "use_compositor", text="合成器效果")
+            # 关键帧管理
+            keyframe_col = box_autorender.column()
+            keyframe_row = keyframe_col.row(align=True)
+            keyframe_row.operator("auto_render.generate_keyframes_only", text="仅生成关键帧", icon='KEY_HLT')
+            keyframe_row.operator("auto_render.clear_camera_keyframes", text="清除关键帧", icon='KEY_DEHLT')
             # 执行按钮
             box_autorender.operator("auto_render.execute", text="执行渲染", icon='RENDER_STILL')
 
