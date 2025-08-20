@@ -47,6 +47,13 @@ class AutoRenderer():
         self.enable_resize = enable_resize
         self.pixel_margin = pixel_margin
         self.report_callback = report_callback
+        
+        # 包围盒缓存，避免重复计算
+        self.bbox_cache = {}
+        
+        # 预计算包围盒标志
+        self.bboxes_precomputed = False
+        
         # 渲染状态标志
         self.is_rendering = False
         self.intended_collection = None
@@ -232,6 +239,9 @@ class AutoRenderer():
         for obj in objects:
             obj.select_set(True)
         
+        # 预计算包围盒，提高后续计算性能
+        self._precompute_bboxes(objects)
+        
         # 在渲染模式下，临时禁用关键帧影响，确保相机位置准确
         original_animation_data = None
         if hasattr(self, 'is_rendering') and self.is_rendering:
@@ -259,45 +269,11 @@ class AutoRenderer():
                         space.region_3d.view_perspective = 'CAMERA'
                         area.spaces.active.region_3d.update()
                         
+                        # 根据相机类型执行不同的聚焦逻辑
                         if is_orthographic:
-                            # 正交相机：使用标准聚焦方法，根据像素边距调整
-                            print("ℹ 使用正交相机聚焦策略")
-                            bpy.ops.view3d.camera_to_view_selected()
-                            
-                            # 如果设置了像素边距，调整正交缩放
-                            if self.pixel_margin > 0:
-                                # 计算物体的边界框
-                                bbox_min, bbox_max = self._calculate_group_bbox(objects)
-                                if bbox_min and bbox_max:
-                                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                                    required_scale = self._calculate_pixel_margin_distance(bbox_size, camera_data)
-                                    if required_scale > 0:
-                                        camera_data.ortho_scale = required_scale
-                                        print(f"ℹ 调整正交缩放到: {required_scale:.2f} (像素边距: {self.pixel_margin}px)")
-                            else:
-                                print("ℹ 正交相机：保持原始参数，边距通过图像处理添加")
+                            self._focus_orthographic_camera(objects, camera_data)
                         else:
-                            # 透视相机：使用标准聚焦方法，根据像素边距调整
-                            print("ℹ 使用标准透视相机聚焦策略")
-                            bpy.ops.view3d.camera_to_view_selected()
-                            
-                            # 如果设置了像素边距，调整相机距离
-                            if self.pixel_margin > 0:
-                                # 计算物体的边界框
-                                bbox_min, bbox_max = self._calculate_group_bbox(objects)
-                                if bbox_min and bbox_max:
-                                    bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
-                                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                                    required_distance = self._calculate_pixel_margin_distance(bbox_size, camera_data)
-                                    if required_distance > 0:
-                                        # 调整相机距离
-                                        bbox_center_vec = mathutils.Vector(bbox_center)
-                                        direction = (self.cam.location - bbox_center_vec).normalized()
-                                        new_position = bbox_center_vec + direction * required_distance
-                                        self.cam.location = new_position
-                                        print(f"ℹ 调整相机距离到: {required_distance:.2f} (像素边距: {self.pixel_margin}px)")
-                            else:
-                                print(f"ℹ 透视相机焦距保持: {camera_data.lens:.2f}mm (不调整)")
+                            self._focus_perspective_camera(objects, camera_data)
                         
                         # 恢复动画数据（如果之前在渲染模式下被禁用）
                         if original_animation_data:
@@ -314,56 +290,143 @@ class AutoRenderer():
                         
                         break
     
-    def _calculate_pixel_margin_distance(self, bbox_size, camera_data):
-        """根据像素边距计算相机需要的距离"""
+    def _calculate_orthographic_scale(self, bbox_size, camera_data):
+        """计算正交相机需要的缩放值（独立方法）"""
         try:
             if self.pixel_margin <= 0:
                 return 0
             
-            print(f"ℹ 计算像素边距: {self.pixel_margin}px")
+            print(f"ℹ 计算正交相机缩放: 像素边距={self.pixel_margin}px")
             
             # 获取渲染分辨率
             render_width = bpy.context.scene.render.resolution_x
             render_height = bpy.context.scene.render.resolution_y
             print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
             
-            if camera_data.type == 'ORTHO':
-                # 正交相机：直接计算正交缩放
-                max_size = max(bbox_size)
-                # 像素边距转换为世界单位
-                pixel_to_world_ratio = max_size / min(render_width, render_height)
-                world_margin = self.pixel_margin * pixel_to_world_ratio
+            # 正交相机：精确的边距计算
+            max_size = max(bbox_size)
+            
+            # 修正的像素到世界单位转换
+            # 正交相机的视野由 ortho_scale 决定
+            # 像素边距应该基于当前的正交缩放来计算
+            current_ortho_scale = camera_data.ortho_scale
+            
+            # 计算像素边距对应的世界边距
+            # 使用更精确的比例：当前缩放 / 渲染分辨率
+            pixel_to_world_ratio = current_ortho_scale / min(render_width, render_height)
+            world_margin = self.pixel_margin * pixel_to_world_ratio
+            
+            # 计算需要的正交缩放
+            required_ortho_scale = max_size + world_margin * 2
+            
+            print(f"ℹ 正交相机缩放计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
+            print(f"ℹ 当前缩放={current_ortho_scale:.2f}, 像素比例={pixel_to_world_ratio:.6f}")
+            print(f"ℹ 世界边距={world_margin:.2f}, 需要缩放={required_ortho_scale:.2f}")
+            
+            return required_ortho_scale
                 
-                required_ortho_scale = max_size + world_margin * 2
-                print(f"ℹ 正交相机边距计算: 物体尺寸={max_size:.2f}, 世界边距={world_margin:.2f}, 需要缩放={required_ortho_scale:.2f}")
+        except Exception as e:
+            print(f"⚠ 计算正交相机缩放时出错: {str(e)}")
+            return 0
+    
+    def _calculate_perspective_distance(self, bbox_size, camera_data):
+        """计算透视相机需要的距离值（独立方法）"""
+        try:
+            if self.pixel_margin <= 0:
+                return 0
+            
+            print(f"ℹ 计算透视相机距离: 像素边距={self.pixel_margin}px")
+            
+            # 获取渲染分辨率
+            render_width = bpy.context.scene.render.resolution_x
+            render_height = bpy.context.scene.render.resolution_y
+            print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
+            
+            # 透视相机：精确的边距计算
+            max_size = max(bbox_size)
+            fov_degrees = 2 * math.degrees(math.atan(16 / camera_data.lens))
+            fov_radians = math.radians(fov_degrees)
+            
+            # 计算基础距离（无边距）
+            base_distance = (max_size / 2) / math.tan(fov_radians / 2)
+            
+            # 修正的像素边距计算
+            # 基于视野角度和基础距离计算
+            fov_half_radians = fov_radians / 2
+            
+            # 像素边距在世界空间中的对应距离
+            # 使用三角函数关系：tan(fov/2) = (size/2) / distance
+            # 因此：pixel_margin_world = pixel_margin * (max_size/2) / (render_width/2) / tan(fov/2)
+            pixel_margin_world = (self.pixel_margin * (max_size / 2)) / (render_width / 2) / math.tan(fov_half_radians)
+            
+            # 计算带边距的距离
+            required_distance = base_distance + pixel_margin_world
+            
+            print(f"ℹ 透视相机距离计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
+            print(f"ℹ 视野角度={fov_degrees:.2f}°, 基础距离={base_distance:.2f}")
+            print(f"ℹ 像素边距世界距离={pixel_margin_world:.2f}, 需要距离={required_distance:.2f}")
+            
+            return required_distance
                 
-                return required_ortho_scale
+        except Exception as e:
+            print(f"⚠ 计算透视相机距离时出错: {str(e)}")
+            return 0
+    
+    def _verify_camera_view_coverage(self, objects, camera_data, is_orthographic):
+        """验证相机视野是否足够覆盖所有物体"""
+        try:
+            print("ℹ 验证相机视野覆盖...")
+            
+            # 计算所有物体的边界框
+            bbox_min, bbox_max = self._calculate_group_bbox(objects)
+            if not bbox_min or not bbox_max:
+                print("⚠ 无法计算边界框，跳过视野验证")
+                return
+            
+            bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+            max_size = max(bbox_size)
+            
+            if is_orthographic:
+                # 验证正交相机视野
+                current_scale = camera_data.ortho_scale
+                coverage_ratio = current_scale / max_size
                 
+                print(f"ℹ 正交相机视野验证: 当前缩放={current_scale:.2f}, 物体尺寸={max_size:.2f}, 覆盖比例={coverage_ratio:.2f}")
+                
+                # 更保守的验证：只在实际不足时才调整
+                if coverage_ratio < 1.05:  # 降低阈值到1.05
+                    safety_scale = max_size * 1.05  # 只增加5%的安全边距
+                    camera_data.ortho_scale = safety_scale
+                    print(f"⚠ 视野不足，增加正交缩放到: {safety_scale:.2f}")
+                else:
+                    print("✓ 正交相机视野充足")
+                    
             else:
-                # 透视相机：计算需要的距离
-                max_size = max(bbox_size)
+                # 验证透视相机视野
+                bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
+                camera_to_center = (self.cam.location - mathutils.Vector(bbox_center)).length
+                
                 fov_degrees = 2 * math.degrees(math.atan(16 / camera_data.lens))
                 fov_radians = math.radians(fov_degrees)
                 
-                # 计算基础距离（无边距）
-                base_distance = (max_size / 2) / math.tan(fov_radians / 2)
+                # 计算当前视野下的物体覆盖情况
+                required_distance = (max_size / 2) / math.tan(fov_radians / 2)
+                coverage_ratio = camera_to_center / required_distance
                 
-                # 计算像素边距对应的世界边距
-                # 使用相机的视野角度和距离来计算
-                pixel_to_world_ratio = (max_size / 2) / (render_width / 2)
-                world_margin = self.pixel_margin * pixel_to_world_ratio
+                print(f"ℹ 透视相机视野验证: 当前距离={camera_to_center:.2f}, 需要距离={required_distance:.2f}, 覆盖比例={coverage_ratio:.2f}")
                 
-                # 计算带边距的距离
-                margin_distance = world_margin / math.tan(fov_radians / 2)
-                required_distance = base_distance + margin_distance
-                
-                print(f"ℹ 透视相机边距计算: 基础距离={base_distance:.2f}, 世界边距={world_margin:.2f}, 需要距离={required_distance:.2f}")
-                
-                return required_distance
-                
+                # 更保守的验证：只在实际不足时才调整
+                if coverage_ratio < 1.05:  # 降低阈值到1.05
+                    safety_distance = required_distance * 1.05  # 只增加5%的安全边距
+                    direction = (self.cam.location - mathutils.Vector(bbox_center)).normalized()
+                    new_position = mathutils.Vector(bbox_center) + direction * safety_distance
+                    self.cam.location = new_position
+                    print(f"⚠ 视野不足，增加相机距离到: {safety_distance:.2f}")
+                else:
+                    print("✓ 透视相机视野充足")
+                    
         except Exception as e:
-            print(f"⚠ 计算像素边距距离时出错: {str(e)}")
-            return 0
+            print(f"⚠ 视野验证时出错: {str(e)}")
     
     # 像素边距控制属性已移动到AutoRenderSettings类中
     
@@ -393,11 +456,15 @@ class AutoRenderer():
                             space.region_3d.view_perspective = 'CAMERA'
                             area.spaces.active.region_3d.update()
                             
-                            # 使用标准聚焦方法聚焦到单个物体
-                            bpy.ops.view3d.camera_to_view_selected()
-                            
-                            # 现在执行真正的相机距离和视野调整
-                            self._adjust_camera_for_object(obj)
+                            # 使用与渲染时相同的聚焦逻辑，确保位置一致
+                            # 根据相机类型执行不同的聚焦策略
+                            camera_data = self.cam.data
+                            if camera_data.type == 'ORTHO':
+                                # 正交相机：调整正交缩放
+                                self._focus_orthographic_camera_for_keyframe(obj, camera_data)
+                            else:
+                                # 透视相机：调整距离，不改变焦距
+                                self._focus_perspective_camera_for_keyframe(obj, camera_data)
                             
                             # 如果启用了自动关键帧，为单个物体添加关键帧
                             if self.auto_keyframe:
@@ -449,47 +516,206 @@ class AutoRenderer():
             traceback.print_exc()
     
     def _calculate_object_bbox(self, obj):
-        """计算物体的世界空间边界框"""
+        """计算物体的世界空间边界框（优化版：使用Blender内置包围盒+缓存）"""
         try:
             if obj.type != 'MESH' or not obj.data:
                 print(f"⚠ 物体 '{obj.name}' 不是网格或没有数据")
                 return None, None
             
+            # 检查缓存
+            cache_key = f"{obj.name}_{obj.matrix_world.hash()}"
+            if cache_key in self.bbox_cache:
+                print(f"ℹ 使用缓存的包围盒: {obj.name}")
+                return self.bbox_cache[cache_key]
+            
+            # 使用Blender内置的包围盒计算，性能更好
+            # 获取物体的本地包围盒
+            local_bbox = obj.bound_box
+            
+            # 转换为世界空间包围盒
             bbox_min = [float('inf')] * 3
             bbox_max = [float('-inf')] * 3
             
-            # 获取物体的世界空间边界框
-            for vertex in obj.data.vertices:
-                world_pos = obj.matrix_world @ vertex.co
+            # 将本地包围盒的8个顶点转换到世界空间
+            for vertex in local_bbox:
+                world_pos = obj.matrix_world @ mathutils.Vector(vertex)
                 for i in range(3):
                     bbox_min[i] = min(bbox_min[i], world_pos[i])
                     bbox_max[i] = max(bbox_max[i], world_pos[i])
             
-            return bbox_min, bbox_max
+            # 缓存结果
+            result = (bbox_min, bbox_max)
+            self.bbox_cache[cache_key] = result
+            
+            return result
             
         except Exception as e:
             print(f"⚠ 计算边界框时出错: {str(e)}")
             return None, None
     
+    def _focus_orthographic_camera(self, objects, camera_data):
+        """正交相机聚焦逻辑（完全独立）"""
+        try:
+            print("ℹ 执行正交相机聚焦策略")
+            
+            # 使用标准聚焦方法
+            bpy.ops.view3d.camera_to_view_selected()
+            
+            # 如果设置了像素边距，调整正交缩放
+            if self.pixel_margin > 0:
+                # 计算物体的边界框
+                bbox_min, bbox_max = self._calculate_group_bbox(objects)
+                if bbox_min and bbox_max:
+                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                    required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
+                    if required_scale > 0:
+                        camera_data.ortho_scale = required_scale
+                        print(f"ℹ 正交相机：调整缩放到 {required_scale:.2f} (像素边距: {self.pixel_margin}px)")
+            else:
+                print("ℹ 正交相机：保持原始参数，边距通过图像处理添加")
+                
+        except Exception as e:
+            print(f"⚠ 正交相机聚焦时出错: {str(e)}")
+    
+    def _focus_perspective_camera(self, objects, camera_data):
+        """透视相机聚焦逻辑（完全独立）"""
+        try:
+            print("ℹ 执行透视相机聚焦策略")
+            
+            # 使用标准聚焦方法
+            bpy.ops.view3d.camera_to_view_selected()
+            
+            # 如果设置了像素边距，调整相机距离
+            if self.pixel_margin > 0:
+                # 计算物体的边界框
+                bbox_min, bbox_max = self._calculate_group_bbox(objects)
+                if bbox_min and bbox_max:
+                    bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
+                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                    required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
+                    if required_distance > 0:
+                        # 调整相机距离
+                        bbox_center_vec = mathutils.Vector(bbox_center)
+                        direction = (self.cam.location - bbox_center_vec).normalized()
+                        new_position = bbox_center_vec + direction * required_distance
+                        self.cam.location = new_position
+                        print(f"ℹ 透视相机：调整距离到 {required_distance:.2f} (像素边距: {self.pixel_margin}px)")
+            else:
+                print(f"ℹ 透视相机：保持原始参数，焦距: {camera_data.lens:.2f}mm")
+                
+        except Exception as e:
+            print(f"⚠ 透视相机聚焦时出错: {str(e)}")
+    
+    def _focus_orthographic_camera_for_keyframe(self, obj, camera_data):
+        """正交相机关键帧聚焦逻辑（独立方法）"""
+        try:
+            print(f"ℹ 正交相机关键帧聚焦: {obj.name}")
+            
+            # 使用标准聚焦方法
+            bpy.ops.view3d.camera_to_view_selected()
+            
+            # 如果设置了像素边距，调整正交缩放
+            if self.pixel_margin > 0:
+                bbox_min, bbox_max = self._calculate_object_bbox(obj)
+                if bbox_min and bbox_max:
+                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                    required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
+                    if required_scale > 0:
+                        camera_data.ortho_scale = required_scale
+                        print(f"ℹ 关键帧生成：调整正交缩放到 {required_scale:.2f} (像素边距: {self.pixel_margin}px)")
+            else:
+                print("ℹ 关键帧生成：保持原始正交缩放")
+                
+        except Exception as e:
+            print(f"⚠ 正交相机关键帧聚焦时出错: {str(e)}")
+    
+    def _focus_perspective_camera_for_keyframe(self, obj, camera_data):
+        """透视相机关键帧聚焦逻辑（独立方法）"""
+        try:
+            print(f"ℹ 透视相机关键帧聚焦: {obj.name}")
+            
+            # 使用标准聚焦方法
+            bpy.ops.view3d.camera_to_view_selected()
+            
+            # 如果设置了像素边距，调整相机距离
+            if self.pixel_margin > 0:
+                bbox_min, bbox_max = self._calculate_object_bbox(obj)
+                if bbox_min and bbox_max:
+                    bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
+                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                    required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
+                    if required_distance > 0:
+                        bbox_center_vec = mathutils.Vector(bbox_center)
+                        direction = (self.cam.location - bbox_center_vec).normalized()
+                        new_position = bbox_center_vec + direction * required_distance
+                        self.cam.location = new_position
+                        print(f"ℹ 关键帧生成：调整相机距离到 {required_distance:.2f} (像素边距: {self.pixel_margin}px)")
+            else:
+                print(f"ℹ 关键帧生成：保持原始参数，焦距: {camera_data.lens:.2f}mm")
+                
+        except Exception as e:
+            print(f"⚠ 透视相机关键帧聚焦时出错: {str(e)}")
+    
+    def _precompute_bboxes(self, objects):
+        """预计算所有物体的包围盒，提高性能"""
+        try:
+            if self.bboxes_precomputed:
+                print("ℹ 包围盒已预计算，跳过")
+                return
+            
+            print("ℹ 开始预计算包围盒...")
+            start_time = time.time()
+            
+            for obj in objects:
+                if obj.type == 'MESH' and obj.data:
+                    # 预计算并缓存包围盒
+                    self._calculate_object_bbox(obj)
+            
+            self.bboxes_precomputed = True
+            end_time = time.time()
+            print(f"✓ 包围盒预计算完成，耗时: {end_time - start_time:.3f}秒")
+            
+        except Exception as e:
+            print(f"⚠ 预计算包围盒时出错: {str(e)}")
+    
     def _calculate_group_bbox(self, objects):
-        """计算整个物体组的世界空间边界框"""
+        """计算整个物体组的世界空间边界框（优化版：使用包围盒+调试）"""
         try:
             bbox_min = [float('inf')] * 3
             bbox_max = [float('-inf')] * 3
             
+            print(f"ℹ 开始计算组边界框，物体数量: {len(objects)}")
+            
             for obj in objects:
                 if obj.type == 'MESH' and obj.data:
-                    # 获取物体的世界空间边界框
-                    for vertex in obj.data.vertices:
-                        world_pos = obj.matrix_world @ vertex.co
+                    print(f"ℹ 处理物体: {obj.name}")
+                    print(f"  - 类型: {obj.type}")
+                    print(f"  - 顶点数: {len(obj.data.vertices)}")
+                    print(f"  - 变换矩阵: {obj.matrix_world}")
+                    
+                    # 使用优化后的单个物体包围盒计算
+                    obj_bbox_min, obj_bbox_max = self._calculate_object_bbox(obj)
+                    if obj_bbox_min and obj_bbox_max:
+                        print(f"  - 物体边界框: 最小={obj_bbox_min}, 最大={obj_bbox_max}")
+                        
+                        # 合并到组边界框
                         for i in range(3):
-                            bbox_min[i] = min(bbox_min[i], world_pos[i])
-                            bbox_max[i] = max(bbox_max[i], world_pos[i])
+                            bbox_min[i] = min(bbox_min[i], obj_bbox_min[i])
+                            bbox_max[i] = max(bbox_max[i], obj_bbox_max[i])
+                    else:
+                        print(f"  ⚠ 物体 '{obj.name}' 边界框计算失败")
+                else:
+                    print(f"ℹ 跳过物体: {obj.name} (类型: {obj.type})")
             
             # 检查是否找到了有效的边界框
             if bbox_min[0] == float('inf'):
                 print("⚠ 未找到有效的网格物体")
                 return None, None
+            
+            print(f"ℹ 组边界框计算结果:")
+            print(f"  - 最小: {bbox_min}")
+            print(f"  - 最大: {bbox_max}")
+            print(f"  - 尺寸: {[bbox_max[i] - bbox_min[i] for i in range(3)]}")
             
             return bbox_min, bbox_max
             
@@ -589,17 +815,17 @@ class AutoRenderer():
             print(f"⚠ 微调视野时出错: {str(e)}")
 
     def auto_keyframe_camera(self):
-        """自动为相机添加关键帧，记录当前位置、旋转和焦距"""
+        """自动为相机添加关键帧，根据相机类型使用不同策略"""
         try:
             current_frame = bpy.context.scene.frame_current
             camera = self.cam
+            camera_data = camera.data
             
             print(f"开始为相机 '{camera.name}' 添加关键帧...")
             print(f"当前帧: {current_frame}")
+            print(f"相机类型: {'正交相机' if camera_data.type == 'ORTHO' else '透视相机'}")
             print(f"相机位置: {camera.location}")
             print(f"相机旋转: {camera.rotation_euler}")
-            if camera.data:
-                print(f"相机焦距: {camera.data.lens}")
             
             # 为相机位置添加关键帧
             camera.keyframe_insert(data_path="location", frame=current_frame)
@@ -609,10 +835,14 @@ class AutoRenderer():
             camera.keyframe_insert(data_path="rotation_euler", frame=current_frame)
             print(f"✓ 旋转关键帧添加成功")
             
-            # 为相机焦距添加关键帧
-            if camera.data:
-                camera.data.keyframe_insert(data_path="lens", frame=current_frame)
-                print(f"✓ 焦距关键帧添加成功")
+            # 根据相机类型添加不同的关键帧
+            if camera_data.type == 'ORTHO':
+                # 正交相机：添加正交缩放关键帧
+                camera_data.keyframe_insert(data_path="ortho_scale", frame=current_frame)
+                print(f"✓ 正交缩放关键帧添加成功: {camera_data.ortho_scale:.2f}")
+            else:
+                # 透视相机：不添加焦距关键帧，保持焦距不变
+                print(f"ℹ 透视相机：保持焦距 {camera_data.lens:.2f}mm 不变，不生成焦距关键帧")
             
             # 验证关键帧是否添加成功
             if camera.animation_data and camera.animation_data.action:
@@ -630,36 +860,66 @@ class AutoRenderer():
             traceback.print_exc()
 
     def clear_all_camera_keyframes(self):
-        """清除相机的所有关键帧"""
+        """清除相机的所有关键帧（完整版）"""
         try:
             camera = self.cam
             if not camera:
                 print("⚠ 未找到相机对象")
                 return False
             
-            # 清除位置关键帧
+            print(f"ℹ 开始清除相机 '{camera.name}' 的关键帧...")
+            
+            # 清除相机对象的关键帧
             if camera.animation_data and camera.animation_data.action:
+                print(f"ℹ 清除相机对象关键帧...")
                 for fcurve in camera.animation_data.action.fcurves:
                     if fcurve.data_path == "location":
                         fcurve.keyframe_points.clear()
-            
-            # 清除旋转关键帧
-            if camera.animation_data and camera.animation_data.action:
-                for fcurve in camera.animation_data.action.fcurves:
-                    if fcurve.data_path == "rotation_euler":
+                        print(f"  ✓ 清除位置关键帧")
+                    elif fcurve.data_path == "rotation_euler":
                         fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除旋转关键帧")
+                    elif fcurve.data_path == "scale":
+                        fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除缩放关键帧")
             
-            # 清除焦距关键帧
+            # 清除相机数据的关键帧
             if camera.data and camera.data.animation_data and camera.data.animation_data.action:
+                print(f"ℹ 清除相机数据关键帧...")
                 for fcurve in camera.data.animation_data.action.fcurves:
                     if fcurve.data_path == "lens":
                         fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除焦距关键帧")
+                    elif fcurve.data_path == "ortho_scale":
+                        fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除正交缩放关键帧")
+                    elif fcurve.data_path == "clip_start":
+                        fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除近裁剪面关键帧")
+                    elif fcurve.data_path == "clip_end":
+                        fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除远裁剪面关键帧")
+                    elif fcurve.data_path == "sensor_width":
+                        fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除传感器宽度关键帧")
+                    elif fcurve.data_path == "sensor_height":
+                        fcurve.keyframe_points.clear()
+                        print(f"  ✓ 清除传感器高度关键帧")
             
-            print(f"✓ 已清除相机 '{camera.name}' 的所有关键帧")
+            # 统计清除的关键帧数量
+            total_cleared = 0
+            if camera.animation_data and camera.animation_data.action:
+                total_cleared += len(camera.animation_data.action.fcurves)
+            if camera.data and camera.data.animation_data and camera.data.animation_data.action:
+                total_cleared += len(camera.data.animation_data.action.fcurves)
+            
+            print(f"✓ 已清除相机 '{camera.name}' 的所有关键帧 (共 {total_cleared} 个曲线)")
             return True
             
         except Exception as e:
             print(f"⚠ 清除关键帧时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
 
     def report_info(self, info_type, message):
