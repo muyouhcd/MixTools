@@ -664,6 +664,11 @@ class CustomFunctionsPanel(Panel):
                 final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
                 final_size_row = final_size_col.row(align=True)
                 final_size_row.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
+            
+            # 像素边距控制（独立功能，始终可见）
+            pixel_margin_row = final_size_col.row(align=True)
+            pixel_margin_row.prop(bpy.context.scene.auto_render_settings, "pixel_margin", text="像素边距")
+            pixel_margin_row.label(text="(相机会自动调整距离产生指定像素边距)")
             # 渲染对象
             render_col = box_autorender.column()
             render_row = render_col.row(align=True)
@@ -677,6 +682,11 @@ class CustomFunctionsPanel(Panel):
             options_row.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面")
             options_row.prop(bpy.context.scene.auto_render_settings, "auto_keyframe", text="自动关键帧")
             options_row.prop(bpy.context.scene.auto_render_settings, "use_compositor", text="合成器效果")
+            
+            # 透视相机增强聚焦选项
+            if bpy.context.scene.auto_render_settings.focus_each_object:
+                perspective_row = camera_col.row()
+                # 增强透视相机聚焦功能已移除
             # 关键帧管理
             keyframe_col = box_autorender.column()
             keyframe_row = keyframe_col.row(align=True)
