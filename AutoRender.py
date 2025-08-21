@@ -243,13 +243,15 @@ class AutoRenderer():
         self._precompute_bboxes(objects)
         
         # 在渲染模式下，临时禁用关键帧影响，确保相机位置准确
+        original_frame = bpy.context.scene.frame_current
         original_animation_data = None
         if hasattr(self, 'is_rendering') and self.is_rendering:
             print("ℹ 渲染模式：临时禁用关键帧影响，确保相机位置准确")
             # 临时禁用相机的动画数据，防止关键帧干扰聚焦
             if self.cam.animation_data:
                 original_animation_data = self.cam.animation_data
-                self.cam.animation_data_clear()
+                # 不删除动画数据，而是临时禁用其影响
+                self.cam.animation_data.is_valid = False
         
         # 自动激活选中的相机
         print(f"ℹ 自动激活相机: {self.cam.name}")
@@ -277,8 +279,8 @@ class AutoRenderer():
                         
                         # 恢复动画数据（如果之前在渲染模式下被禁用）
                         if original_animation_data:
-                            print("ℹ 恢复相机的动画数据")
-                            self.cam.animation_data = original_animation_data
+                            print("ℹ 恢复相机的动画数据影响")
+                            self.cam.animation_data.is_valid = True
                         
                         # 自动关键帧：记录相机位置和旋转
                         print(f"检查是否需要添加关键帧: self.auto_keyframe = {self.auto_keyframe}")
@@ -1277,32 +1279,7 @@ class AutoRenderer():
                 print("继续执行，忽略转换错误")
             
             # 图像尺寸调节（优先处理）
-            try:
-                if self.enable_resize:
-                    final_width = bpy.context.scene.auto_render_settings.final_width
-                    final_height = bpy.context.scene.auto_render_settings.final_height
-                    print(f"开始图像尺寸调节，目标尺寸: {final_width} x {final_height}")
-                    
-                    # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
-                    current_extension = os.path.splitext(filepath)[1].lower()
-                    if current_extension in ['.png', '.tga']:
-                        print(f"ℹ 检测到{current_extension.upper()}格式，支持图像尺寸调节")
-                        if self.resize_image(filepath, final_width, final_height):
-                            print("✓ 图像尺寸调节完成")
-                        else:
-                            print("⚠ 图像尺寸调节失败")
-                    else:
-                        print(f"⚠ 当前文件格式 {current_extension} 不支持图像尺寸调节，跳过")
-                else:
-                    print("ℹ 图像尺寸调节未启用，跳过")
-            except Exception as e:
-                warning_msg = f"图像尺寸调节失败: {str(e)}"
-                print(warning_msg)
-                self.report_info({'WARNING'}, warning_msg)
-                # 尺寸调节失败不影响主要功能，继续执行
-                print("继续执行，忽略尺寸调节错误")
-            
-            # 添加边框并保存图像（在尺寸调节之后）
+            # 添加边框并保存图像（在尺寸调节之前）
             try:
                 margin_distance = bpy.context.scene.auto_render_settings.margin_distance
                 print(f"添加边框，边距: {margin_distance}像素")
@@ -1321,6 +1298,32 @@ class AutoRenderer():
                 self.report_info({'WARNING'}, warning_msg)
                 # 边框添加失败不影响主要功能，继续执行
                 print("继续执行，忽略边框添加错误")
+            
+            # 图像尺寸调节（在边框添加之后，确保最终尺寸包含边框）
+            try:
+                if self.enable_resize:
+                    final_width = bpy.context.scene.auto_render_settings.final_width
+                    final_height = bpy.context.scene.auto_render_settings.final_height
+                    print(f"开始图像尺寸调节，目标最终尺寸: {final_width} x {final_height}（包含边框）")
+                    
+                    # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
+                    current_extension = os.path.splitext(filepath)[1].lower()
+                    if current_extension in ['.png', '.tga']:
+                        print(f"ℹ 检测到{current_extension.upper()}格式，支持图像尺寸调节")
+                        if self.resize_image(filepath, final_width, final_height):
+                            print("✓ 图像尺寸调节完成，最终尺寸包含边框")
+                        else:
+                            print("⚠ 图像尺寸调节失败")
+                    else:
+                        print(f"⚠ 当前文件格式 {current_extension} 不支持图像尺寸调节，跳过")
+                else:
+                    print("ℹ 图像尺寸调节未启用，跳过")
+            except Exception as e:
+                warning_msg = f"图像尺寸调节失败: {str(e)}"
+                print(warning_msg)
+                self.report_info({'WARNING'}, warning_msg)
+                # 尺寸调节失败不影响主要功能，继续执行
+                print("继续执行，忽略尺寸调节错误")
 
             # 恢复集合内其他物体的原始渲染可见性
             print("恢复原始渲染可见性...")
