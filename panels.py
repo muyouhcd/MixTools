@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import StringProperty, FloatProperty, BoolProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, PropertyGroup
-from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness
+from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness, ReplaceMaterialOperator, ReplaceMaterialByKeywordOperator
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 
 # 材质属性组
@@ -289,23 +289,38 @@ class CustomFunctionsPanel(Panel):
             material_replace_box = col_meterialoperation.box()
             material_replace_box.label(text="材质替换:", icon='MATERIAL')
             
+            # 基于关键字的材质替换
+            keyword_replace_box = material_replace_box.box()
+            keyword_replace_box.label(text="按关键字替换:", icon='VIEWZOOM')
+            
+            # 添加关键字和目标材质名称的输入框
+            keyword_replace_box.prop(context.scene, "keyword_search", text="搜索关键字")
+            keyword_replace_box.prop(context.scene, "keyword_target_material", text="目标材质")
+            
+            # 执行替换按钮
+            keyword_replace_box.operator("object.replace_material_by_keyword", text="执行关键字替换", icon='MATERIAL')
+            
+            # 传统材质替换
+            traditional_replace_box = material_replace_box.box()
+            traditional_replace_box.label(text="传统材质替换:", icon='MATERIAL')
+            
             # 添加和清空按钮放在顶部
-            row = material_replace_box.row(align=True)
+            row = traditional_replace_box.row(align=True)
             row.operator("object.add_source_material", text="添加源材质", icon='ADD')
             row.operator("object.clear_source_materials", text="清空列表", icon='TRASH')
             
             # 源材质列表
-            material_replace_box.label(text="源材质列表:")
+            traditional_replace_box.label(text="源材质列表:")
             for i, item in enumerate(context.scene.source_materials):
-                row = material_replace_box.row(align=True)
+                row = traditional_replace_box.row(align=True)
                 row.prop(item, "material", text="")
                 row.operator("object.remove_source_material", text="", icon='X').index = i
             
             # 目标材质选择
-            material_replace_box.prop(context.scene, "target_material", text="目标材质")
+            traditional_replace_box.prop(context.scene, "target_material", text="目标材质")
             
             # 执行替换按钮
-            material_replace_box.operator("object.replace_material", text="执行材质替换", icon='MATERIAL')
+            traditional_replace_box.operator("object.replace_material", text="执行材质替换", icon='MATERIAL')
 
 # 命名操作
         col_renameoperation = layout.column()
@@ -784,47 +799,7 @@ class ClearSourceMaterialsOperator(bpy.types.Operator):
         context.scene.source_materials.clear()
         return {'FINISHED'}
 
-class ReplaceMaterialOperator(bpy.types.Operator):
-    bl_idname = "object.replace_material"
-    bl_label = "执行材质替换"
-    bl_description = "将选中的源材质替换为目标材质"
-    
-    def execute(self, context):
-        # 检查是否有目标材质
-        if not context.scene.target_material:
-            self.report({'ERROR'}, "请选择目标材质")
-            return {'CANCELLED'}
-            
-        # 获取所有非空的源材质
-        source_materials = [item.material for item in context.scene.source_materials if item.material is not None]
-        if not source_materials:
-            self.report({'WARNING'}, "没有有效的源材质")
-            return {'CANCELLED'}
-            
-        # 移除重复的源材质
-        source_materials = list(set(source_materials))
-        
-        # 统计替换结果
-        replaced_count = 0
-        affected_objects = set()
-        
-        # 遍历所有选中的物体
-        for obj in context.selected_objects:
-            if obj.type == 'MESH':
-                # 遍历物体的所有材质槽
-                for slot in obj.material_slots:
-                    if slot.material in source_materials:
-                        slot.material = context.scene.target_material
-                        replaced_count += 1
-                        affected_objects.add(obj.name)
-        
-        # 显示结果
-        if replaced_count > 0:
-            self.report({'INFO'}, f"已替换 {replaced_count} 个材质，影响 {len(affected_objects)} 个物体")
-        else:
-            self.report({'WARNING'}, "没有找到需要替换的材质")
-            
-        return {'FINISHED'}
+
 
 def register():
     bpy.utils.register_class(MaterialPropertyGroup)
@@ -832,13 +807,25 @@ def register():
     bpy.utils.register_class(AddSourceMaterialOperator)
     bpy.utils.register_class(RemoveSourceMaterialOperator)
     bpy.utils.register_class(ClearSourceMaterialsOperator)
-    bpy.utils.register_class(ReplaceMaterialOperator)
     
     # 注册场景属性
     bpy.types.Scene.source_materials = CollectionProperty(type=MaterialPropertyGroup)
     bpy.types.Scene.target_material = PointerProperty(
         type=bpy.types.Material,
         name="目标材质"
+    )
+    
+    # 基于关键字的材质替换属性
+    bpy.types.Scene.keyword_search = bpy.props.StringProperty(
+        name="搜索关键字",
+        description="要搜索的材质名称关键字",
+        default="",
+        maxlen=100
+    )
+    bpy.types.Scene.keyword_target_material = bpy.props.PointerProperty(
+        type=bpy.types.Material,
+        name="目标材质",
+        description="替换后的目标材质"
     )
     
     bpy.types.Scene.tools_expand = bpy.props.BoolProperty(default=False)
@@ -946,7 +933,6 @@ def unregister():
     bpy.utils.unregister_class(AddSourceMaterialOperator)
     bpy.utils.unregister_class(RemoveSourceMaterialOperator)
     bpy.utils.unregister_class(ClearSourceMaterialsOperator)
-    bpy.utils.unregister_class(ReplaceMaterialOperator)
     
     # 注销场景属性
     properties_to_remove = [
@@ -967,6 +953,8 @@ def unregister():
         # 材质相关属性
         "source_materials",
         "target_material",
+        "keyword_search",
+        "keyword_target_material",
         
         # 灯光关联工具参数
         "light_linking_tolerance",

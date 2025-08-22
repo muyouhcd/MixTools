@@ -966,6 +966,46 @@ class ReplaceMaterialOperator(bpy.types.Operator):
             
         return {'FINISHED'}
 
+# 基于关键字搜索的材质替换操作符
+class ReplaceMaterialByKeywordOperator(bpy.types.Operator):
+    bl_idname = "object.replace_material_by_keyword"
+    bl_label = "按关键字替换材质"
+    bl_description = "将包含指定关键字的材质替换为目标材质"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        keyword = context.scene.keyword_search.strip()
+        target_material = context.scene.keyword_target_material
+        
+        if not keyword:
+            self.report({'ERROR'}, "请输入要搜索的关键字")
+            return {'CANCELLED'}
+            
+        if not target_material:
+            self.report({'ERROR'}, "请选择目标材质")
+            return {'CANCELLED'}
+        
+        replaced_count = 0
+        affected_objects = set()
+        
+        # 遍历场景中的所有对象
+        for obj in bpy.data.objects:
+            if obj.type in {'MESH', 'CURVE', 'SURFACE', 'META', 'FONT'}:  # 筛选可应用材质的对象
+                for slot in obj.material_slots:
+                    # 检查材质是否包含关键字
+                    if slot.material and keyword in slot.material.name:
+                        slot.material = target_material
+                        replaced_count += 1
+                        affected_objects.add(obj.name)
+        
+        # 显示结果
+        if replaced_count > 0:
+            self.report({'INFO'}, f"已替换 {replaced_count} 个材质，影响 {len(affected_objects)} 个物体")
+        else:
+            self.report({'WARNING'}, f"没有找到包含关键字 '{keyword}' 的材质")
+            
+        return {'FINISHED'}
+
 # 设置贴图Alpha通道打包模式
 class SetTextureAlphaPacking(bpy.types.Operator):
     bl_idname = "object.set_texture_alpha_packing"
@@ -1014,18 +1054,6 @@ class SetMaterialOpaqueMode(bpy.types.Operator):
         return {'FINISHED'}
 
 def register():
-    # 注册材质替换操作符的属性
-    bpy.types.Scene.source_materials = bpy.props.CollectionProperty(
-        type=bpy.types.PropertyGroup,
-        name="源材质列表",
-        description="要替换的材质列表"
-    )
-    bpy.types.Scene.target_material = bpy.props.PointerProperty(
-        name="目标材质",
-        type=bpy.types.Material,
-        description="替换后的材质"
-    )
-    
     # 注册操作符类
     classes = [
         SetEmissionStrength,
@@ -1049,6 +1077,7 @@ def register():
         SetShadowVisible,
         CleanUnusedMaterials,
         ReplaceMaterialOperator,
+        ReplaceMaterialByKeywordOperator,
         SetTextureAlphaPacking,
         SetMaterialOpaqueMode
     ]
@@ -1063,7 +1092,7 @@ def unregister():
     # 注销操作符类（反向顺序）
     classes = [
         SetMaterialOpaqueMode,
-        SetTextureAlphaPacking,
+        ReplaceMaterialByKeywordOperator,
         ReplaceMaterialOperator,
         CleanUnusedMaterials,
         SetShadowVisible,
@@ -1092,10 +1121,3 @@ def unregister():
             bpy.utils.unregister_class(cls)
         except Exception as e:
             print(f"Error unregistering {cls.__name__}: {str(e)}")
-    
-    # 注销材质替换操作符的属性
-    try:
-        del bpy.types.Scene.source_materials
-        del bpy.types.Scene.target_material
-    except Exception as e:
-        print(f"Error removing properties: {str(e)}")
