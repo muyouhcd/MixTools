@@ -261,55 +261,50 @@ class AddCycleModifierNoOffset(bpy.types.Operator):
 class RemoveAllModifiersFromAnimation(bpy.types.Operator):
     bl_idname = "animation.remove_all_modifiers"
     bl_label = "移除所有修改器"
-    bl_description = "移除当前在图形编辑器中选择的动画曲线的所有修改器"
+    bl_description = "移除所选物体的所有动画曲线的修改器"
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        # 获取所有选中的动画曲线（通过选中的关键帧）
-        selected_curves = set()  # 使用集合避免重复
+        selected_objects = context.selected_objects
         
-        # 遍历所有物体和动画数据
-        for obj in bpy.data.objects:
-            if obj.animation_data and obj.animation_data.action:
-                action = obj.animation_data.action
-                for fc in action.fcurves:
-                    # 检查曲线是否有选中的关键帧
-                    for kf in fc.keyframe_points:
-                        if kf.select_control_point:
-                            selected_curves.add((obj, fc))
-                            break  # 找到选中关键帧就跳出内层循环
-        
-        if not selected_curves:
-            self.report({'WARNING'}, "请在图形编辑器中选择要移除修改器的动画关键帧")
+        if not selected_objects:
+            self.report({'WARNING'}, "请先选择要移除修改器的物体")
             return {'CANCELLED'}
         
         curves_affected = 0
         affected_objects = set()
         total_modifiers_removed = 0
         
-        # 对每个包含选中关键帧的动画曲线移除所有修改器
-        for obj, fc in selected_curves:
-            try:
-                # 计算当前曲线的修改器数量
-                modifiers_count = len(fc.modifiers)
+        # 遍历所选物体
+        for obj in selected_objects:
+            if obj.animation_data and obj.animation_data.action:
+                action = obj.animation_data.action
                 
-                # 移除所有修改器
-                while fc.modifiers:
-                    fc.modifiers.remove(fc.modifiers[0])
+                # 遍历该物体的所有动画曲线
+                for fc in action.fcurves:
+                    try:
+                        # 计算当前曲线的修改器数量
+                        modifiers_count = len(fc.modifiers)
+                        
+                        # 移除所有修改器
+                        while fc.modifiers:
+                            fc.modifiers.remove(fc.modifiers[0])
+                        
+                        if modifiers_count > 0:
+                            curves_affected += 1
+                            total_modifiers_removed += modifiers_count
+                    
+                    except Exception as e:
+                        print(f"对物体 {obj.name} 的曲线 {fc.data_path} 移除修改器时出错: {e}")
+                        continue
                 
-                if modifiers_count > 0:
-                    curves_affected += 1
+                if curves_affected > 0:
                     affected_objects.add(obj.name)
-                    total_modifiers_removed += modifiers_count
-                
-            except Exception as e:
-                print(f"对曲线 {fc.data_path} 移除修改器时出错: {e}")
-                continue
         
         if curves_affected > 0:
             self.report({'INFO'}, f"已从 {len(affected_objects)} 个物体的 {curves_affected} 条动画曲线移除 {total_modifiers_removed} 个修改器")
         else:
-            self.report({'WARNING'}, "没有找到需要移除的修改器")
+            self.report({'WARNING'}, "所选物体没有找到需要移除的修改器")
             
         return {'FINISHED'}
 
