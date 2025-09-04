@@ -13,11 +13,9 @@ from mathutils import Vector
 from collections import defaultdict
 import re
 from mathutils.bvhtree import BVHTree
-import numpy as np
 from bpy.props import PointerProperty
 from bpy.types import Operator, Panel, Collection
 from bpy.props import EnumProperty
-from mathutils.bvhtree import BVHTree
 from bpy_extras.object_utils import world_to_camera_view
 from mathutils import kdtree
 from mathutils import Quaternion

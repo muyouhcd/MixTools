@@ -70,21 +70,6 @@ def find_new_version_directory(base_path, expected_name="MiaoTools"):
         
     raise FileNotFoundError("新版本目录未找到。")
 
-# def backup_current_addon(addon_dir, backup_dir=None):
-#     """
-#     备份当前插件
-#     """
-#     if not backup_dir:
-#         backup_dir = os.path.join(os.path.dirname(addon_dir), "MiaoTools_backup_" + time.strftime("%Y%m%d%H%M%S"))
-    
-#     if os.path.exists(addon_dir):
-#         try:
-#             shutil.copytree(addon_dir, backup_dir)
-#             return backup_dir
-#         except Exception as e:
-#             print(f"备份失败: {e}")
-#     return None
-
 def version_tuple(version_string):
     """
     将字符串格式的版本号转换为整数元组。
