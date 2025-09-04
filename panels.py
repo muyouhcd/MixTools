@@ -32,6 +32,7 @@ class CustomFunctionsPanel(Panel):
             edit_box = layout.box()
             edit_box.operator("object.mian_remove_vertex_group", text="移除顶点组", icon='GROUP_VERTEX')
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
+            edit_box.operator("object.remove_constraints", text="移除约束", icon='CONSTRAINT')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='UNLINKED')
             edit_box.operator("object.mian_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
             
@@ -300,6 +301,12 @@ class CustomFunctionsPanel(Panel):
             # 执行替换按钮
             keyword_replace_box.operator("object.replace_material_by_keyword", text="执行关键字替换", icon='MATERIAL')
             
+            # 材质拆分功能
+            material_split_box = material_replace_box.box()
+            material_split_box.label(text="材质拆分:", icon='MOD_BOOLEAN')
+            material_split_box.prop(context.scene, "split_material", text="拆分材质")
+            material_split_box.operator("object.split_mesh_by_material", text="按材质拆分Mesh", icon='MOD_BOOLEAN')
+            
             # 传统材质替换
             traditional_replace_box = material_replace_box.box()
             traditional_replace_box.label(text="传统材质替换:", icon='MATERIAL')
@@ -505,7 +512,18 @@ class CustomFunctionsPanel(Panel):
             
             # 执行按钮
             bone_params_box.operator("object.copy_bone_parameters", text="复制骨骼参数", icon='ARMATURE_DATA')
+
+# 曲线工具
+        col_curve_tools = layout.column()
+        col_curve_tools.prop(scene, "curve_tools_expand", text="曲线工具", emboss=False,
+                            icon='TRIA_DOWN' if context.scene.curve_tools_expand else 'TRIA_RIGHT')
+        
+        if scene.curve_tools_expand:
+            # 曲线编辑工具
+            curve_tools_box = col_curve_tools.box()
+            curve_tools_box.label(text="曲线编辑工具:", icon='CURVE_DATA')
             
+            curve_tools_box.operator("object.simplify_curve_to_endpoints", text="曲线精简到端点", icon='IPO_LINEAR')
 
 
 # 导入导出操作
@@ -517,8 +535,8 @@ class CustomFunctionsPanel(Panel):
             # 批量导入
             import_box = col_inout.box()
             import_box.label(text="批量导入:", icon='IMPORT')
-            import_box.operator("miao.batch_import_fbx", text="批量导入FBX", icon='FILE_3D')
-            import_box.operator("miao.batch_import_obj", text="批量导入OBJ", icon='FILE_3D')
+            import_box.operator("miao.batch_import_fbx", text="批量导入FBX（原生）", icon='FILE_3D')
+            import_box.operator("miao.batch_import_obj", text="批量导入OBJ（原生）", icon='FILE_3D')
             
             # Better FBX导入
             better_fbx_box = import_box.box()
@@ -528,6 +546,14 @@ class CustomFunctionsPanel(Panel):
             # 添加格式选择
             format_row = better_fbx_box.row(align=True)
             format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
+            
+            # 添加重命名选项
+            rename_row = better_fbx_box.row(align=True)
+            rename_row.prop(context.scene, "rename_imported_objects_to_filename", text="重命名导入物体为文件名", icon='OUTLINER_OB_FONT')
+            
+            # 添加调试信息显示
+            debug_row = better_fbx_box.row(align=True)
+            debug_row.label(text=f"当前状态: {context.scene.rename_imported_objects_to_filename}")
             
             row = better_fbx_box.row(align=True)
             row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
@@ -543,6 +569,17 @@ class CustomFunctionsPanel(Panel):
             name_format_row = name_list_box.row(align=True)
             name_format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
             name_format_row.operator("better_fbx.batch_import_by_name_list", text="按名称列表导入", icon='IMPORT')
+            
+            # 在名称列表导入中也添加重命名选项
+            name_rename_row = name_list_box.row(align=True)
+            name_rename_row.prop(context.scene, "rename_imported_objects_to_filename", text="重命名导入物体为文件名", icon='OUTLINER_OB_FONT')
+            
+            # Better FBX导出
+            better_fbx_export_box = import_box.box()
+            better_fbx_export_box.label(text="Better FBX导出:", icon='EXPORT')
+            better_fbx_export_box.prop(context.scene, "better_fbx_export_directory", text="FBX导出目录", icon='FILE_FOLDER')
+            
+            better_fbx_export_box.operator("better_fbx.batch_export_by_top_level", text="按顶级物体批量导出", icon='EXPORT')
             
             # 批量导出
             export_box = col_inout.box()
@@ -828,6 +865,13 @@ def register():
         description="替换后的目标材质"
     )
     
+    # 材质拆分属性
+    bpy.types.Scene.split_material = bpy.props.PointerProperty(
+        type=bpy.types.Material,
+        name="拆分材质",
+        description="要拆分的材质"
+    )
+    
     bpy.types.Scene.tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.BindOperation_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.meterialoperation_expand = bpy.props.BoolProperty(default=False)
@@ -840,6 +884,7 @@ def register():
     bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.light_tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.animation_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.curve_tools_expand = bpy.props.BoolProperty(default=False)
 
     
     # 灯光关联工具参数
@@ -904,6 +949,14 @@ def register():
         subtype='DIR_PATH',
         default="",
     )
+    
+    # Better FBX导出相关属性
+    bpy.types.Scene.better_fbx_export_directory = bpy.props.StringProperty(
+        name="FBX导出目录",
+        description="批量导出的FBX文件保存目录",
+        subtype='DIR_PATH',
+        default=""
+    )
 
     # 添加工具搜索功能
     bpy.types.Scene.tool_search_text = bpy.props.StringProperty(
@@ -924,6 +977,13 @@ def register():
         description="要创建的顶点组名称",
         default="VertexGroup",
         maxlen=100,
+    )
+    
+    # 批量导入重命名选项
+    bpy.types.Scene.rename_imported_objects_to_filename = bpy.props.BoolProperty(
+        name="重命名导入物体为文件名",
+        description="将导入的顶级物体改名为该文件名称",
+        default=False
     )
 
 
@@ -949,12 +1009,14 @@ def unregister():
         "renderadj_expand",
         "light_tools_expand",
         "animation_tools_expand",
+        "curve_tools_expand",
         
         # 材质相关属性
         "source_materials",
         "target_material",
         "keyword_search",
         "keyword_target_material",
+        "split_material",
         
         # 灯光关联工具参数
         "light_linking_tolerance",
@@ -971,6 +1033,9 @@ def unregister():
         # FBX名称列表批量导入相关属性
         "fbx_name_list_text",
         "fbx_search_directory",
+        
+        # Better FBX导出相关属性
+        "better_fbx_export_directory",
 
         # 添加工具搜索功能
         "tool_search_text",
@@ -978,7 +1043,9 @@ def unregister():
         
         # 批量顶点组工具属性
         "vertex_group_name",
-
+        
+        # 批量导入重命名选项
+        "rename_imported_objects_to_filename",
 
     ]
     

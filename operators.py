@@ -431,6 +431,117 @@ class RemoveModifiers(bpy.types.Operator):
 
         return {'FINISHED'}
 
+#移除所选物体约束
+class RemoveConstraints(bpy.types.Operator):
+    """移除所选物体的约束"""
+    bl_idname = "object.remove_constraints"
+    bl_label = "移除选中物体的约束"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 获取当前的选中物体
+        selected_objects = context.selected_objects
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请选择至少一个物体")
+            return {'CANCELLED'}
+
+        removed_count = 0
+        processed_objects = 0
+
+        # 遍历每个选中的物体
+        for obj in selected_objects:
+            # 检查物体是否有约束
+            if obj.constraints:
+                constraint_count = len(obj.constraints)
+                # 移除所有约束
+                while obj.constraints:
+                    obj.constraints.remove(obj.constraints[0])
+                removed_count += constraint_count
+                processed_objects += 1
+
+        if removed_count > 0:
+            self.report({'INFO'}, f"成功从 {processed_objects} 个物体中移除了 {removed_count} 个约束")
+        else:
+            self.report({'INFO'}, "所选物体没有约束需要移除")
+
+        return {'FINISHED'}
+
+#曲线精简到两个端点
+class SimplifyCurveToEndpoints(bpy.types.Operator):
+    """将所选曲线精简到仅剩两个端点"""
+    bl_idname = "object.simplify_curve_to_endpoints"
+    bl_label = "曲线精简到端点"
+    bl_description = "将所选曲线精简到仅剩两个端点"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 获取当前的选中物体
+        selected_objects = context.selected_objects
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请选择至少一个曲线物体")
+            return {'CANCELLED'}
+
+        processed_count = 0
+        curve_objects = []
+
+        # 筛选出曲线物体
+        for obj in selected_objects:
+            if obj.type == 'CURVE':
+                curve_objects.append(obj)
+
+        if not curve_objects:
+            self.report({'WARNING'}, "所选物体中没有曲线物体")
+            return {'CANCELLED'}
+
+        # 处理每个曲线物体
+        for obj in curve_objects:
+            try:
+                # 进入编辑模式
+                bpy.context.view_layer.objects.active = obj
+                bpy.ops.object.mode_set(mode='EDIT')
+                
+                # 选择所有控制点
+                bpy.ops.curve.select_all(action='SELECT')
+                
+                # 使用精简操作，将曲线精简到最少点数
+                # 这里我们使用一个循环来逐步精简，直到只剩下两个点
+                bpy.ops.curve.decimate(ratio=0.1)
+                
+                # 如果还有超过2个点，继续精简
+                while True:
+                    # 获取当前选中的点数
+                    bpy.ops.curve.select_all(action='SELECT')
+                    selected_count = len([p for p in obj.data.splines[0].points if p.select])
+                    
+                    if selected_count <= 2:
+                        break
+                    
+                    # 进一步精简
+                    bpy.ops.curve.decimate(ratio=0.5)
+                
+                # 返回对象模式
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                processed_count += 1
+                
+            except Exception as e:
+                print(f"处理曲线 {obj.name} 时出错: {e}")
+                # 确保返回对象模式
+                try:
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                except:
+                    pass
+                continue
+
+        if processed_count > 0:
+            self.report({'INFO'}, f"成功精简了 {processed_count} 个曲线物体")
+        else:
+            self.report({'WARNING'}, "没有成功处理任何曲线物体")
+
+        return {'FINISHED'}
+
 #批量清空动画数据
 class ClearAnimationData(bpy.types.Operator):
     bl_idname = "object.clear_animation_data"
@@ -1970,6 +2081,8 @@ classes = [
     VoxelConverter,
     CollectionByAttached,
     RemoveModifiers,
+    RemoveConstraints,
+    SimplifyCurveToEndpoints,
     VoxOperation,
     ResetNormalsAndFlatShadingOperator,
     OBJECT_OT_AlignOperator,

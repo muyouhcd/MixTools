@@ -242,16 +242,17 @@ class AutoRenderer():
         # 预计算包围盒，提高后续计算性能
         self._precompute_bboxes(objects)
         
-        # 在渲染模式下，临时禁用关键帧影响，确保相机位置准确
+        # 在渲染模式下，更安全地处理关键帧影响
         original_frame = bpy.context.scene.frame_current
         original_animation_data = None
         if hasattr(self, 'is_rendering') and self.is_rendering:
-            print("ℹ 渲染模式：临时禁用关键帧影响，确保相机位置准确")
-            # 临时禁用相机的动画数据，防止关键帧干扰聚焦
+            print("ℹ 渲染模式：安全处理关键帧影响，确保相机位置准确")
+            # 保存当前帧的动画数据状态，但不完全禁用
             if self.cam.animation_data:
                 original_animation_data = self.cam.animation_data
-                # 不删除动画数据，而是临时禁用其影响
-                self.cam.animation_data.is_valid = False
+                # 记录当前帧，确保使用正确的关键帧数据
+                current_frame = bpy.context.scene.frame_current
+                print(f"ℹ 当前帧: {current_frame}")
         
         # 自动激活选中的相机
         print(f"ℹ 自动激活相机: {self.cam.name}")
@@ -277,10 +278,15 @@ class AutoRenderer():
                         else:
                             self._focus_perspective_camera(objects, camera_data)
                         
-                        # 恢复动画数据（如果之前在渲染模式下被禁用）
-                        if original_animation_data:
-                            print("ℹ 恢复相机的动画数据影响")
-                            self.cam.animation_data.is_valid = True
+                        # 不再需要恢复动画数据，因为我们没有禁用它们
+                        print(f"ℹ 相机聚焦完成，保持动画数据有效")
+                        
+                        # 验证相机位置是否正确对准物体
+                        print("ℹ 验证相机位置...")
+                        if self.verify_camera_position(objects):
+                            print("✓ 相机位置验证通过")
+                        else:
+                            print("⚠ 相机位置验证失败，可能需要手动调整")
                         
                         # 自动关键帧：记录相机位置和旋转
                         print(f"检查是否需要添加关键帧: self.auto_keyframe = {self.auto_keyframe}")
@@ -871,6 +877,25 @@ class AutoRenderer():
             
             print(f"ℹ 开始清除相机 '{camera.name}' 的关键帧...")
             
+            # 保存相机当前位置和旋转，防止清除关键帧后位置丢失
+            original_location = camera.location.copy()
+            original_rotation = camera.rotation_euler.copy()
+            original_scale = camera.scale.copy()
+            
+            # 保存相机数据的关键参数
+            camera_data = camera.data
+            original_lens = camera_data.lens if hasattr(camera_data, 'lens') else 50.0
+            original_ortho_scale = camera_data.ortho_scale if hasattr(camera_data, 'ortho_scale') else 6.0
+            original_clip_start = camera_data.clip_start if hasattr(camera_data, 'clip_start') else 0.1
+            original_clip_end = camera_data.clip_end if hasattr(camera_data, 'clip_end') else 1000.0
+            
+            print(f"ℹ 保存相机原始参数:")
+            print(f"  - 位置: {original_location}")
+            print(f"  - 旋转: {original_rotation}")
+            print(f"  - 缩放: {original_scale}")
+            print(f"  - 焦距: {original_lens}")
+            print(f"  - 正交缩放: {original_ortho_scale}")
+            
             # 清除相机对象的关键帧
             if camera.animation_data and camera.animation_data.action:
                 print(f"ℹ 清除相机对象关键帧...")
@@ -915,7 +940,23 @@ class AutoRenderer():
             if camera.data and camera.data.animation_data and camera.data.animation_data.action:
                 total_cleared += len(camera.data.animation_data.action.fcurves)
             
+            # 恢复相机位置和参数，确保清除关键帧后相机仍然在正确位置
+            print(f"ℹ 恢复相机原始参数...")
+            camera.location = original_location
+            camera.rotation_euler = original_rotation
+            camera.scale = original_scale
+            
+            if hasattr(camera_data, 'lens'):
+                camera_data.lens = original_lens
+            if hasattr(camera_data, 'ortho_scale'):
+                camera_data.ortho_scale = original_ortho_scale
+            if hasattr(camera_data, 'clip_start'):
+                camera_data.clip_start = original_clip_start
+            if hasattr(camera_data, 'clip_end'):
+                camera_data.clip_end = original_clip_end
+            
             print(f"✓ 已清除相机 '{camera.name}' 的所有关键帧 (共 {total_cleared} 个曲线)")
+            print(f"✓ 相机位置和参数已恢复，确保渲染正常")
             return True
             
         except Exception as e:
@@ -1777,6 +1818,93 @@ class AutoRenderer():
         print(f"  use_compositing: {scene.render.use_compositing}")
         print(f"  use_sequencer: {scene.render.use_sequencer}")
         print("=== 调试信息结束 ===\n")
+
+    def verify_camera_position(self, target_objects):
+        """验证相机位置是否正确对准目标物体"""
+        try:
+            print("\n=== 相机位置验证 ===")
+            
+            if not target_objects:
+                print("⚠ 没有目标物体，无法验证相机位置")
+                return False
+            
+            camera = self.cam
+            camera_data = camera.data
+            
+            print(f"相机信息:")
+            print(f"  - 名称: {camera.name}")
+            print(f"  - 位置: {camera.location}")
+            print(f"  - 旋转: {camera.rotation_euler}")
+            print(f"  - 类型: {'正交相机' if camera_data.type == 'ORTHO' else '透视相机'}")
+            
+            if camera_data.type == 'ORTHO':
+                print(f"  - 正交缩放: {camera_data.ortho_scale}")
+            else:
+                print(f"  - 焦距: {camera_data.lens}mm")
+                print(f"  - 视野角度: {2 * math.degrees(math.atan(16 / camera_data.lens)):.2f}°")
+            
+            # 计算目标物体的边界框
+            bbox_min, bbox_max = self._calculate_group_bbox(target_objects)
+            if not bbox_min or not bbox_max:
+                print("⚠ 无法计算目标物体边界框")
+                return False
+            
+            bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
+            bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+            
+            print(f"\n目标物体信息:")
+            print(f"  - 边界框中心: {bbox_center}")
+            print(f"  - 边界框尺寸: {bbox_size}")
+            print(f"  - 最大尺寸: {max(bbox_size):.2f}")
+            
+            # 计算相机到物体中心的距离
+            camera_to_center = (camera.location - mathutils.Vector(bbox_center)).length
+            print(f"  - 相机到物体中心距离: {camera_to_center:.2f}")
+            
+            # 验证相机是否能看到物体
+            if camera_data.type == 'ORTHO':
+                # 正交相机验证
+                required_scale = max(bbox_size) * 1.1  # 增加10%安全边距
+                if camera_data.ortho_scale >= required_scale:
+                    print(f"✓ 正交相机视野充足: 当前缩放={camera_data.ortho_scale:.2f}, 需要={required_scale:.2f}")
+                else:
+                    print(f"⚠ 正交相机视野不足: 当前缩放={camera_data.ortho_scale:.2f}, 需要={required_scale:.2f}")
+                    return False
+            else:
+                # 透视相机验证
+                fov_radians = math.radians(2 * math.degrees(math.atan(16 / camera_data.lens)))
+                required_distance = (max(bbox_size) / 2) / math.tan(fov_radians / 2)
+                
+                if camera_to_center <= required_distance * 1.5:  # 允许1.5倍的安全距离
+                    print(f"✓ 透视相机距离合适: 当前={camera_to_center:.2f}, 需要={required_distance:.2f}")
+                else:
+                    print(f"⚠ 透视相机距离过远: 当前={camera_to_center:.2f}, 需要={required_distance:.2f}")
+                    return False
+            
+            # 检查相机是否朝向物体
+            direction_to_center = (mathutils.Vector(bbox_center) - camera.location).normalized()
+            camera_forward = camera.matrix_world.to_quaternion() @ mathutils.Vector((0, 0, -1))
+            
+            angle = direction_to_center.angle(camera_forward)
+            angle_degrees = math.degrees(angle)
+            
+            print(f"  - 相机朝向角度: {angle_degrees:.2f}°")
+            
+            if angle_degrees < 45:  # 相机朝向物体（45度以内）
+                print(f"✓ 相机朝向正确，对准物体")
+            else:
+                print(f"⚠ 相机朝向可能不正确，角度过大: {angle_degrees:.2f}°")
+                return False
+            
+            print("✓ 相机位置验证通过")
+            return True
+            
+        except Exception as e:
+            print(f"⚠ 相机位置验证时出错: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+
 
 def get_all_cameras(self, context):
     return [(obj.name, obj.name, obj.name) for obj in bpy.context.scene.objects if obj.type == 'CAMERA']

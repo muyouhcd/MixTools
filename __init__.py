@@ -82,6 +82,7 @@ from . import animationoperater
 from . import RoleReplacer
 from . import Importer
 from . import BetterFbxOperation
+from . import BetterFbxExport
 from . import AutoHideClean
 
 from . import BoneConverter
@@ -116,6 +117,7 @@ def register():
     RoleReplacer.register()
     Importer.register()
     BetterFbxOperation.register()
+    BetterFbxExport.register()
     AutoHideClean.register()
 
     BoneConverter.register()
@@ -153,6 +155,7 @@ def unregister():
     AutoBake.unregister()
     Importer.unregister()
     BetterFbxOperation.unregister()
+    BetterFbxExport.unregister()
     AutoHideClean.unregister()
     BoneConverter.unregister()
     AssetMarker.unregister()
