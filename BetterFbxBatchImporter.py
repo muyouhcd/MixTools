@@ -221,14 +221,13 @@ def read_better_fbx_data(context, output_path, my_leaf_bone, my_import_normal, m
         print(f"读取BetterFBX数据时出错: {e}")
         return {'CANCELLED'}
 
-def batch_import_fbx_files_with_better_fbx(file_paths, import_settings=None, rename_objects=False):
+def batch_import_fbx_files_with_better_fbx(file_paths, import_settings=None):
     """
     使用BetterFBX插件批量导入FBX文件
     
     参数:
     file_paths: FBX文件路径列表
     import_settings: 导入设置字典
-    rename_objects: 是否将导入的顶级物体重命名为文件名
     
     返回:
     (success, message)
@@ -255,15 +254,10 @@ def batch_import_fbx_files_with_better_fbx(file_paths, import_settings=None, ren
                 print(f"✓ 成功导入: {os.path.basename(file_path)} - {message}")
                 success_count += 1
                 
-                # 根据参数决定是否重命名
+                # 重命名骨架（如果需要）
                 if imported_objects:
                     file_name = os.path.splitext(os.path.basename(file_path))[0]
-                    if rename_objects:
-                        # 重命名所有顶级物体为文件名
-                        rename_top_level_objects_to_filename(file_name, imported_objects)
-                    else:
-                        # 只重命名骨架（保持原有行为）
-                        rename_armature_to_filename(file_name, imported_objects)
+                    rename_armature_to_filename(file_name, imported_objects)
             else:
                 print(f"✗ 导入失败: {os.path.basename(file_path)} - {message}")
                 error_count += 1
@@ -288,72 +282,6 @@ def rename_armature_to_filename(file_name, imported_objects):
         if obj.type == 'ARMATURE':
             obj.name = file_name
             print(f"重命名骨架: {obj.name}")
-
-def get_unique_name(base_name):
-    """
-    获取一个唯一的名称，避免与现有对象重名
-    
-    参数:
-    base_name: 基础名称
-    返回:
-    唯一的名称
-    """
-    # 检查基础名称是否已存在
-    if base_name not in bpy.data.objects:
-        return base_name
-    
-    # 如果存在，添加数字后缀直到找到唯一名称
-    counter = 1
-    while f"{base_name}.{counter:03d}" in bpy.data.objects:
-        counter += 1
-    
-    return f"{base_name}.{counter:03d}"
-
-def rename_top_level_objects_to_filename(file_name, imported_objects):
-    """
-    将导入的顶级物体重命名为FBX文件名
-    
-    参数:
-    file_name: FBX文件名（不包含扩展名）
-    imported_objects: 当前导入的对象列表
-    """
-    print(f"\n=== 开始重命名顶级物体 ===")
-    print(f"当前导入的对象数量: {len(imported_objects)}")
-    
-    # 找到所有顶级物体（没有父级的物体）
-    top_level_objects = []
-    for obj in imported_objects:
-        if obj.parent is None:  # 没有父级的物体就是顶级物体
-            top_level_objects.append(obj)
-    
-    print(f"找到 {len(top_level_objects)} 个顶级物体")
-    
-    renamed_count = 0
-    for i, obj in enumerate(top_level_objects):
-        print(f"\n重命名顶级物体:")
-        print(f"- 原始名称: {obj.name}")
-        print(f"- 物体类型: {obj.type}")
-        
-        # 为每个顶级物体生成不同的名称
-        if len(top_level_objects) == 1:
-            # 如果只有一个顶级物体，直接使用文件名
-            unique_name = get_unique_name(file_name)
-        else:
-            # 如果有多个顶级物体，为每个添加序号
-            base_name = f"{file_name}_{i+1:02d}"
-            unique_name = get_unique_name(base_name)
-        
-        # 重命名物体
-        obj.name = unique_name
-        # 如果物体有数据，也重命名数据
-        if obj.data:
-            obj.data.name = unique_name
-        
-        print(f"物体已重命名为: {unique_name}")
-        renamed_count += 1
-    
-    print(f"\n成功重命名了 {renamed_count} 个顶级物体")
-    return renamed_count > 0
 
 # 操作器类
 class BETTER_FBX_OT_BatchImportWithBetterFBX(Operator):
@@ -459,8 +387,7 @@ class BETTER_FBX_OT_BatchImportWithBetterFBX(Operator):
         }
         
         # 执行批量导入
-        rename_objects = context.scene.rename_imported_objects_to_filename
-        success, message = batch_import_fbx_files_with_better_fbx(fbx_files, import_settings, rename_objects)
+        success, message = batch_import_fbx_files_with_better_fbx(fbx_files, import_settings)
         
         if success:
             self.report({'INFO'}, message)
@@ -559,8 +486,7 @@ class BETTER_FBX_OT_BatchImportFilesWithBetterFBX(Operator, ImportHelper):
         }
         
         # 执行批量导入
-        rename_objects = context.scene.rename_imported_objects_to_filename
-        success, message = batch_import_fbx_files_with_better_fbx(file_paths, import_settings, rename_objects)
+        success, message = batch_import_fbx_files_with_better_fbx(file_paths, import_settings)
         
         if success:
             self.report({'INFO'}, message)

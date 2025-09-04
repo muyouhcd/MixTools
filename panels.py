@@ -547,14 +547,6 @@ class CustomFunctionsPanel(Panel):
             format_row = better_fbx_box.row(align=True)
             format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
             
-            # 添加重命名选项
-            rename_row = better_fbx_box.row(align=True)
-            rename_row.prop(context.scene, "rename_imported_objects_to_filename", text="重命名导入物体为文件名", icon='OUTLINER_OB_FONT')
-            
-            # 添加调试信息显示
-            debug_row = better_fbx_box.row(align=True)
-            debug_row.label(text=f"当前状态: {context.scene.rename_imported_objects_to_filename}")
-            
             row = better_fbx_box.row(align=True)
             row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
             row.operator("better_fbx.batch_import_files", text="选择多个文件", icon='DOCUMENTS')
@@ -569,10 +561,6 @@ class CustomFunctionsPanel(Panel):
             name_format_row = name_list_box.row(align=True)
             name_format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
             name_format_row.operator("better_fbx.batch_import_by_name_list", text="按名称列表导入", icon='IMPORT')
-            
-            # 在名称列表导入中也添加重命名选项
-            name_rename_row = name_list_box.row(align=True)
-            name_rename_row.prop(context.scene, "rename_imported_objects_to_filename", text="重命名导入物体为文件名", icon='OUTLINER_OB_FONT')
             
             # Better FBX导出
             better_fbx_export_box = import_box.box()
@@ -978,13 +966,6 @@ def register():
         default="VertexGroup",
         maxlen=100,
     )
-    
-    # 批量导入重命名选项
-    bpy.types.Scene.rename_imported_objects_to_filename = bpy.props.BoolProperty(
-        name="重命名导入物体为文件名",
-        description="将导入的顶级物体改名为该文件名称",
-        default=False
-    )
 
 
 def unregister():
@@ -1043,9 +1024,7 @@ def unregister():
         
         # 批量顶点组工具属性
         "vertex_group_name",
-        
-        # 批量导入重命名选项
-        "rename_imported_objects_to_filename",
+
 
     ]
     

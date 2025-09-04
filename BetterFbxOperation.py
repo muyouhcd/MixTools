@@ -348,61 +348,12 @@ def rename_armature_to_filename(file_name, imported_objects):
     
     return armature_found
 
-def rename_top_level_objects_to_filename(file_name, imported_objects):
-    """
-    将导入的顶级物体重命名为FBX文件名
-    
-    参数:
-    file_name: FBX文件名（不包含扩展名）
-    imported_objects: 当前导入的对象列表
-    """
-    print(f"\n=== 开始重命名顶级物体 ===")
-    print(f"文件名: {file_name}")
-    print(f"当前导入的对象数量: {len(imported_objects)}")
-    
-    # 找到所有顶级物体（没有父级的物体）
-    top_level_objects = []
-    for obj in imported_objects:
-        print(f"检查对象: {obj.name}, 父级: {obj.parent}, 类型: {obj.type}")
-        if obj.parent is None:  # 没有父级的物体就是顶级物体
-            top_level_objects.append(obj)
-    
-    print(f"找到 {len(top_level_objects)} 个顶级物体")
-    
-    renamed_count = 0
-    for i, obj in enumerate(top_level_objects):
-        print(f"\n重命名顶级物体:")
-        print(f"- 原始名称: {obj.name}")
-        print(f"- 物体类型: {obj.type}")
-        
-        # 为每个顶级物体生成不同的名称
-        if len(top_level_objects) == 1:
-            # 如果只有一个顶级物体，直接使用文件名
-            unique_name = get_unique_name(file_name)
-        else:
-            # 如果有多个顶级物体，为每个添加序号
-            base_name = f"{file_name}_{i+1:02d}"
-            unique_name = get_unique_name(base_name)
-        
-        # 重命名物体
-        obj.name = unique_name
-        # 如果物体有数据，也重命名数据
-        if obj.data:
-            obj.data.name = unique_name
-        
-        print(f"物体已重命名为: {unique_name}")
-        renamed_count += 1
-    
-    print(f"\n成功重命名了 {renamed_count} 个顶级物体")
-    return renamed_count > 0
-
-def batch_import_fbx_files(file_paths, rename_objects=False):
+def batch_import_fbx_files(file_paths):
     """
     批量导入指定的FBX文件列表
     
     参数:
     file_paths: FBX文件路径列表
-    rename_objects: 是否将导入的顶级物体重命名为文件名
     """
     if not file_paths:
         return False, "没有选择任何文件"
@@ -465,16 +416,8 @@ def batch_import_fbx_files(file_paths, rename_objects=False):
             print(f"成功导入: {os.path.basename(file_path)}")
             success_count += 1
             
-            # 根据参数决定是否重命名
-            print(f"重命名选项状态: {rename_objects}")
-            if rename_objects:
-                print(f"开始重命名顶级物体为文件名: {file_name}")
-                # 重命名所有顶级物体为文件名
-                rename_top_level_objects_to_filename(file_name, imported_objects)
-            else:
-                print(f"只重命名骨架为文件名: {file_name}")
-                # 只重命名骨架（保持原有行为）
-                rename_armature_to_filename(file_name, imported_objects)
+            # 重命名骨架
+            rename_armature_to_filename(file_name, imported_objects)
             
         except Exception as e:
             error_msg = f"导入 {os.path.basename(file_path)} 时出错: {str(e)}"
@@ -489,7 +432,7 @@ def batch_import_fbx_files(file_paths, rename_objects=False):
     
     return success_count > 0, result_message
 
-def batch_import_fbx(directory_path, file_extension=".fbx", recursive=True, rename_objects=False):
+def batch_import_fbx(directory_path, file_extension=".fbx", recursive=True):
     """
     批量导入指定目录下的所有FBX文件
     
@@ -497,7 +440,6 @@ def batch_import_fbx(directory_path, file_extension=".fbx", recursive=True, rena
     directory_path: 要导入的文件所在目录
     file_extension: 要导入的文件扩展名，默认为.fbx
     recursive: 是否递归搜索子目录，默认为True
-    rename_objects: 是否将导入的顶级物体重命名为文件名
     """
     print(f"=== 批量导入FBX文件 ===")
     print(f"目录路径: {directory_path}")
@@ -555,7 +497,7 @@ def batch_import_fbx(directory_path, file_extension=".fbx", recursive=True, rena
         file_paths = [str(f) for f in files]
         
         # 使用新的文件列表导入函数
-        return batch_import_fbx_files(file_paths, rename_objects)
+        return batch_import_fbx_files(file_paths)
         
     except Exception as e:
         error_msg = f"处理目录时出错: {str(e)}"
@@ -564,7 +506,7 @@ def batch_import_fbx(directory_path, file_extension=".fbx", recursive=True, rena
         print(f"错误堆栈: {traceback.format_exc()}")
         return False, error_msg
 
-def batch_import_fbx_directories(directory_paths, file_extension=".fbx", recursive=True, rename_objects=False):
+def batch_import_fbx_directories(directory_paths, file_extension=".fbx", recursive=True):
     """
     批量导入多个目录下的所有FBX文件
     
@@ -572,7 +514,6 @@ def batch_import_fbx_directories(directory_paths, file_extension=".fbx", recursi
     directory_paths: 要导入的文件所在目录列表
     file_extension: 要导入的文件扩展名，默认为.fbx
     recursive: 是否递归搜索子目录，默认为True
-    rename_objects: 是否将导入的顶级物体重命名为文件名
     """
     print(f"=== 批量导入多个目录的FBX文件 ===")
     print(f"目录数量: {len(directory_paths)}")
@@ -623,7 +564,7 @@ def batch_import_fbx_directories(directory_paths, file_extension=".fbx", recursi
     print(f"\n总共找到 {len(all_file_paths)} 个{file_extension}文件")
     
     # 使用新的文件列表导入函数
-    return batch_import_fbx_files(all_file_paths, rename_objects)
+    return batch_import_fbx_files(all_file_paths)
 
 
 
@@ -682,24 +623,9 @@ class BETTER_FBX_OT_BatchImport(Operator):
             self.report({'ERROR'}, f"路径验证失败: {str(e)}")
             return {'CANCELLED'}
         
-        # 执行批量导入，传入选择的格式和重命名选项
+        # 执行批量导入，传入选择的格式
         file_extension = get_file_extension_from_format(file_format)
-        rename_objects = context.scene.rename_imported_objects_to_filename
-        
-        # 添加详细的调试信息
-        print(f"=== 调试信息 ===")
-        print(f"场景属性存在: {hasattr(context.scene, 'rename_imported_objects_to_filename')}")
-        print(f"场景属性值: {getattr(context.scene, 'rename_imported_objects_to_filename', 'NOT_FOUND')}")
-        print(f"重命名对象参数: {rename_objects}")
-        print(f"==================")
-        
-        # 强制设置重命名选项为True进行测试
-        if hasattr(context.scene, 'rename_imported_objects_to_filename'):
-            print(f"强制设置重命名选项为True")
-            context.scene.rename_imported_objects_to_filename = True
-            rename_objects = True
-        
-        success, message = batch_import_fbx(directory_path, file_extension, rename_objects)
+        success, message = batch_import_fbx(directory_path, file_extension)
         
         if success:
             self.report({'INFO'}, message)
@@ -757,22 +683,7 @@ class BETTER_FBX_OT_BatchImportFiles(Operator, ImportHelper):
         print(f"选择的文件数量: {len(file_paths)}")
         
         # 执行批量导入
-        rename_objects = context.scene.rename_imported_objects_to_filename
-        
-        # 添加详细的调试信息
-        print(f"=== 调试信息 (BatchImportFiles) ===")
-        print(f"场景属性存在: {hasattr(context.scene, 'rename_imported_objects_to_filename')}")
-        print(f"场景属性值: {getattr(context.scene, 'rename_imported_objects_to_filename', 'NOT_FOUND')}")
-        print(f"重命名对象参数: {rename_objects}")
-        print(f"=====================================")
-        
-        # 强制设置重命名选项为True进行测试
-        if hasattr(context.scene, 'rename_imported_objects_to_filename'):
-            print(f"强制设置重命名选项为True")
-            context.scene.rename_imported_objects_to_filename = True
-            rename_objects = True
-        
-        success, message = batch_import_fbx_files(file_paths, rename_objects)
+        success, message = batch_import_fbx_files(file_paths)
         
         if success:
             self.report({'INFO'}, message)
@@ -962,22 +873,7 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
         self.report({'INFO'}, f"开始导入 {len(found_files)} 个文件...")
         
         # 使用改进的批量导入函数
-        rename_objects = context.scene.rename_imported_objects_to_filename
-        
-        # 添加详细的调试信息
-        print(f"=== 调试信息 (BatchImportByNameList) ===")
-        print(f"场景属性存在: {hasattr(context.scene, 'rename_imported_objects_to_filename')}")
-        print(f"场景属性值: {getattr(context.scene, 'rename_imported_objects_to_filename', 'NOT_FOUND')}")
-        print(f"重命名对象参数: {rename_objects}")
-        print(f"=========================================")
-        
-        # 强制设置重命名选项为True进行测试
-        if hasattr(context.scene, 'rename_imported_objects_to_filename'):
-            print(f"强制设置重命名选项为True")
-            context.scene.rename_imported_objects_to_filename = True
-            rename_objects = True
-        
-        success, message = self.batch_import_with_progress(found_files, rename_objects)
+        success, message = self.batch_import_with_progress(found_files)
         
         if success:
             self.report({'INFO'}, f"成功导入 {len(found_files)} 个文件: {message}")
@@ -986,7 +882,7 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
             self.report({'ERROR'}, message)
             return {'CANCELLED'}
     
-    def batch_import_with_progress(self, file_paths, rename_objects=False):
+    def batch_import_with_progress(self, file_paths):
         """带进度反馈的批量导入"""
         if not file_paths:
             return False, "没有选择任何文件"
@@ -1032,16 +928,8 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
                         print(f"成功导入: {os.path.basename(file_path)}")
                         success_count += 1
                         
-                        # 根据参数决定是否重命名
-                        print(f"重命名选项状态: {rename_objects}")
-                        if rename_objects:
-                            print(f"开始重命名顶级物体为文件名: {file_name}")
-                            # 重命名所有顶级物体为文件名
-                            rename_top_level_objects_to_filename(file_name, imported_objects)
-                        else:
-                            print(f"只重命名骨架为文件名: {file_name}")
-                            # 只重命名骨架（保持原有行为）
-                            rename_armature_to_filename(file_name, imported_objects)
+                        # 重命名骨架
+                        rename_armature_to_filename(file_name, imported_objects)
                     else:
                         print(f"导入失败: {os.path.basename(file_path)} - 没有检测到新对象")
                         error_count += 1
@@ -1132,13 +1020,12 @@ def import_fbx_with_better_fbx_direct(file_path, import_settings=None):
     except Exception as e:
         return False, f"导入过程出错: {str(e)}", []
 
-def batch_import_fbx_files_with_better_fbx_direct(file_paths, rename_objects=False):
+def batch_import_fbx_files_with_better_fbx_direct(file_paths):
     """
     使用BetterFBX直接批量导入FBX文件列表
     
     参数:
     file_paths: FBX文件路径列表
-    rename_objects: 是否将导入的顶级物体重命名为文件名
     
     返回:
     (success, message)
@@ -1165,14 +1052,9 @@ def batch_import_fbx_files_with_better_fbx_direct(file_paths, rename_objects=Fal
             print(f"✓ 成功导入: {os.path.basename(file_path)}")
             success_count += 1
             
-            # 根据参数决定是否重命名
+            # 重命名骨架
             if imported_objects:
-                if rename_objects:
-                    # 重命名所有顶级物体为文件名
-                    rename_top_level_objects_to_filename(file_name, imported_objects)
-                else:
-                    # 只重命名骨架（保持原有行为）
-                    rename_armature_to_filename(file_name, imported_objects)
+                rename_armature_to_filename(file_name, imported_objects)
         else:
             print(f"✗ 导入失败: {os.path.basename(file_path)} - {message}")
             error_count += 1
@@ -1234,8 +1116,7 @@ class BETTER_FBX_OT_DirectBatchImport(Operator):
             return {'CANCELLED'}
         
         # 执行BetterFBX直接导入
-        rename_objects = context.scene.rename_imported_objects_to_filename
-        success, message = batch_import_fbx_files_with_better_fbx_direct(file_paths, rename_objects)
+        success, message = batch_import_fbx_files_with_better_fbx_direct(file_paths)
         
         if success:
             self.report({'INFO'}, message)
@@ -1277,8 +1158,7 @@ class BETTER_FBX_OT_DirectBatchImportFiles(Operator, ImportHelper):
         print(f"选择的FBX文件数量: {len(file_paths)}")
         
         # 执行BetterFBX直接导入
-        rename_objects = context.scene.rename_imported_objects_to_filename
-        success, message = batch_import_fbx_files_with_better_fbx_direct(file_paths, rename_objects)
+        success, message = batch_import_fbx_files_with_better_fbx_direct(file_paths)
         
         if success:
             self.report({'INFO'}, message)
@@ -1698,13 +1578,6 @@ def register():
         default="",
         maxlen=1024,
     )
-    
-    # 添加重命名选项属性
-    bpy.types.Scene.rename_imported_objects_to_filename = bpy.props.BoolProperty(
-        name="重命名导入物体为文件名",
-        description="将导入的顶级物体改名为该文件名称",
-        default=False
-    )
     bpy.types.Scene.fbx_search_directory = bpy.props.StringProperty(
         name="搜索目录",
         description="要搜索3D文件的目录路径",
@@ -1727,6 +1600,5 @@ def unregister():
         delattr(bpy.types.Scene, "batch_import_file_format")
         delattr(bpy.types.Scene, "fbx_name_list_text")
         delattr(bpy.types.Scene, "fbx_search_directory")
-        delattr(bpy.types.Scene, "rename_imported_objects_to_filename")
     except AttributeError:
         pass 
