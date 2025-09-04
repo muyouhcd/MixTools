@@ -4,6 +4,7 @@ import math
 from bpy import context as C
 import os
 import traceback
+import time
 
 from bpy.props import BoolProperty, EnumProperty, CollectionProperty# type: ignore
 
@@ -974,6 +975,16 @@ class AutoRenderer():
     def render_collection(self, collection_name: str):
         print(f"\n--- 开始渲染集合: {collection_name} ---")
         
+        # 在开始渲染前清理相机关键帧，避免所有图像都是同一张图的问题
+        print("ℹ 开始渲染前清理相机关键帧...")
+        try:
+            if self.clear_all_camera_keyframes():
+                print("✓ 相机关键帧清理完成")
+            else:
+                print("⚠ 相机关键帧清理失败，但继续渲染")
+        except Exception as e:
+            print(f"⚠ 清理关键帧时出错: {str(e)}，但继续渲染")
+        
         # 设置渲染状态标志
         self.is_rendering = True
         
@@ -1558,6 +1569,16 @@ class AutoRenderer():
         print("\n=== 自动渲染开始 ===")
         print(f"要渲染的集合列表: {self.collections}")
         self.report_info({'INFO'}, "开始渲染流程")
+        
+        # 在开始自动渲染前清理相机关键帧，确保每次渲染都是独立的
+        print("ℹ 开始自动渲染前清理相机关键帧...")
+        try:
+            if self.clear_all_camera_keyframes():
+                print("✓ 相机关键帧清理完成，确保渲染独立性")
+            else:
+                print("⚠ 相机关键帧清理失败，但继续渲染")
+        except Exception as e:
+            print(f"⚠ 清理关键帧时出错: {str(e)}，但继续渲染")
         
         if not self.collections:
             warning_msg = "没有指定要渲染的集合"
