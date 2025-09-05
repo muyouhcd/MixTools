@@ -1078,30 +1078,102 @@ def batch_import_fbx_files_with_better_fbx_direct(file_paths):
 def clean_filename_for_naming(filename):
     """清理文件名，移除自动生成的编号后缀"""
     import re
-    # 移除 .001, .002 等编号后缀
-    cleaned_name = re.sub(r'\.\d{3}$', '', filename)
+    # 移除各种格式的编号后缀：
+    # .001, .002, .003 等（3位数字）
+    # .01, .02, .03 等（2位数字）
+    # .1, .2, .3 等（1位数字）
+    # 但保留正常的文件名中的数字
+    cleaned_name = re.sub(r'\.\d{1,3}$', '', filename)
+    
+    # 如果清理后名称为空，使用原始名称
+    if not cleaned_name.strip():
+        cleaned_name = filename
+    
+    print(f"名称清理: {filename} -> {cleaned_name}")
     return cleaned_name
+
+def get_unique_object_name(base_name):
+    """获取唯一的对象名称，避免Blender自动添加编号"""
+    # 检查基础名称是否可用
+    if base_name not in bpy.data.objects:
+        return base_name
+    
+    # 如果基础名称已存在，尝试添加后缀
+    counter = 1
+    while True:
+        test_name = f"{base_name}_{counter:03d}"
+        if test_name not in bpy.data.objects:
+            return test_name
+        counter += 1
+        # 防止无限循环
+        if counter > 999:
+            return f"{base_name}_unique"
+
+def rename_conflicting_objects(target_name, keep_object):
+    """重命名与目标名称冲突的其他对象，保持指定对象名称不变"""
+    # 找到所有与目标名称冲突的对象（除了要保留的对象）
+    conflicting_objects = []
+    for obj in bpy.data.objects:
+        if obj.name == target_name and obj != keep_object:
+            conflicting_objects.append(obj)
+    
+    if not conflicting_objects:
+        return
+    
+    print(f"发现 {len(conflicting_objects)} 个与 '{target_name}' 重名的对象，开始重命名...")
+    
+    # 重命名冲突的对象
+    counter = 1
+    for obj in conflicting_objects:
+        old_name = obj.name
+        # 尝试不同的后缀直到找到唯一名称
+        while True:
+            new_name = f"{target_name}_sub_{counter:03d}"
+            if new_name not in bpy.data.objects:
+                obj.name = new_name
+                print(f"重命名冲突对象: {old_name} -> {new_name}")
+                break
+            counter += 1
+            if counter > 999:  # 防止无限循环
+                obj.name = f"{target_name}_sub_unique_{id(obj)}"
+                print(f"重命名冲突对象: {old_name} -> {obj.name}")
+                break
+        counter += 1
 
 def rename_armature_to_filename(file_name, imported_objects):
     """重命名导入的骨架为文件名"""
+    # 清理文件名，移除自动生成的编号
+    cleaned_name = clean_filename_for_naming(file_name)
+    
     for obj in imported_objects:
         if obj.type == 'ARMATURE':
-            obj.name = file_name
-            print(f"重命名骨架: {obj.name}")
+            old_name = obj.name
+            # 使用唯一名称避免Blender自动添加编号
+            unique_name = get_unique_object_name(cleaned_name)
+            obj.name = unique_name
+            print(f"重命名骨架: {old_name} -> {unique_name}")
             break
 
 def rename_top_level_to_filename(file_name, imported_objects):
     """重命名顶级父级为文件名"""
+    # 清理文件名，移除自动生成的编号
+    cleaned_name = clean_filename_for_naming(file_name)
+    
     # 找到没有父级的对象（顶级父级）
     top_level_objects = [obj for obj in imported_objects if obj.parent is None]
     
     if len(top_level_objects) == 1:
-        # 如果只有一个顶级对象，直接重命名
-        top_level_objects[0].name = file_name
-        print(f"重命名顶级父级: {top_level_objects[0].name} -> {file_name}")
+        # 如果只有一个顶级对象，直接重命名（强制使用指定名称）
+        old_name = top_level_objects[0].name
+        top_level_objects[0].name = cleaned_name
+        print(f"重命名顶级父级: {old_name} -> {cleaned_name}")
+        
+        # 如果重名，重命名其他同名对象
+        rename_conflicting_objects(cleaned_name, top_level_objects[0])
+        
     elif len(top_level_objects) > 1:
         # 如果有多个顶级对象，创建一个空物体作为父级
-        empty_obj = bpy.data.objects.new(file_name, None)
+        empty_obj = bpy.data.objects.new(cleaned_name, None)
         bpy.context.scene.collection.objects.link(empty_obj)
         
         # 将所有顶级对象设为空物体的子级
@@ -1109,7 +1181,11 @@ def rename_top_level_to_filename(file_name, imported_objects):
             obj.parent = empty_obj
             obj.parent_type = 'OBJECT'
         
-        print(f"创建顶级父级: {file_name}，包含 {len(top_level_objects)} 个子对象")
+        print(f"创建顶级父级: {cleaned_name}，包含 {len(top_level_objects)} 个子对象")
+        
+        # 如果重名，重命名其他同名对象
+        rename_conflicting_objects(cleaned_name, empty_obj)
+        
     else:
         print(f"未找到顶级对象，跳过重命名")
 
@@ -1640,43 +1716,75 @@ def register():
         description="将导入的顶级父级重命名为FBX文件名称",
         default=True,
     )
+    
 
 # ==================== 多行文本编辑功能 ====================
 
 def edit_fbx_names_list_in_text_editor(scene):
     """在外部文本编辑器中编辑FBX名称列表"""
-    # 创建一个临时文件来存储当前名称列表
-    temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w+', suffix='.txt', encoding='utf-8')
-    temp_file.write(scene.fbx_name_list_text)
-    temp_file.close()
-    
-    # 使用操作系统的默认文本编辑器打开文件
-    bpy.ops.wm.path_open(filepath=temp_file.name)
-    
-    # 存储临时文件路径以便稍后读取
-    scene.fbx_temp_names_file_path = temp_file.name
+    try:
+        # 创建临时文件
+        temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w+', suffix='.txt', encoding='utf-8')
+        temp_file.write(scene.fbx_name_list_text)
+        temp_file.close()
+        
+        temp_file_path = temp_file.name
+        print(f"创建临时文件: {temp_file_path}")
+        
+        # 使用操作系统的默认文本编辑器打开文件
+        bpy.ops.wm.path_open(filepath=temp_file_path)
+        
+        # 存储临时文件路径以便稍后读取
+        scene.fbx_temp_names_file_path = temp_file_path
+        
+        print("请在外部编辑器中编辑文件，然后点击'加载'按钮")
+        
+    except Exception as e:
+        print(f"创建临时文件失败: {e}")
+        return {'CANCELLED'}
     
     return {'FINISHED'}
 
+
 def read_fbx_names_from_temp_file(scene):
     """从临时文件读取FBX名称列表"""
-    if scene.fbx_temp_names_file_path and os.path.exists(scene.fbx_temp_names_file_path):
+    if not scene.fbx_temp_names_file_path:
+        print("没有临时文件路径")
+        return {'FINISHED'}
+    
+    if not os.path.exists(scene.fbx_temp_names_file_path):
+        print(f"临时文件不存在: {scene.fbx_temp_names_file_path}")
+        scene.fbx_temp_names_file_path = ""
+        return {'FINISHED'}
+    
+    try:
+        with open(scene.fbx_temp_names_file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            scene.fbx_name_list_text = content
+            print(f"成功加载内容，共 {len(content)} 个字符")
+        
+        # 清理临时文件
+        os.unlink(scene.fbx_temp_names_file_path)
+        scene.fbx_temp_names_file_path = ""
+        print("临时文件已清理")
+        
+    except Exception as e:
+        print(f"读取临时文件失败: {e}")
+        # 即使读取失败也要清理临时文件
         try:
-            with open(scene.fbx_temp_names_file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-                scene.fbx_name_list_text = content
-            # 清理临时文件
-            os.unlink(scene.fbx_temp_names_file_path)
-            scene.fbx_temp_names_file_path = ""
-        except Exception as e:
-            print(f"读取临时文件失败: {e}")
+            if os.path.exists(scene.fbx_temp_names_file_path):
+                os.unlink(scene.fbx_temp_names_file_path)
+        except:
+            pass
+        scene.fbx_temp_names_file_path = ""
+    
     return {'FINISHED'}
 
 class BETTER_FBX_OT_EditNamesList(Operator):
     """编辑FBX名称列表"""
     bl_idname = "better_fbx.edit_names_list"
     bl_label = "编辑名称列表"
-    bl_description = "在外部文本编辑器中编辑名称列表"
+    bl_description = "在外部文本编辑器中编辑名称列表\n\n使用说明:\n• 直接在输入框中输入（空格/逗号分隔）\n• 或点击'编辑'在外部编辑器中编辑多行文本\n• 编辑后保存文件，然后点击'加载'按钮\n• 支持每行一个名称的格式"
     
     def execute(self, context):
         edit_fbx_names_list_in_text_editor(context.scene)

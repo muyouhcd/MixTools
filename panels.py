@@ -558,31 +558,25 @@ class CustomFunctionsPanel(Panel):
             # 名称列表输入区域
             text_box = name_list_box.box()
             text_box.label(text="名称列表 (用空格或逗号分隔):", icon='TEXT')
-            text_box.prop(context.scene, "fbx_name_list_text", text="", icon='TEXT')
             
-            # 添加编辑按钮
-            edit_row = text_box.row(align=True)
-            edit_row.operator("better_fbx.edit_names_list", text="在外部编辑器中编辑列表", icon='TEXT')
+            # 输入框和编辑按钮在同一行
+            input_row = text_box.row(align=True)
+            input_row.prop(context.scene, "fbx_name_list_text", text="", icon='TEXT')
+            input_row.operator("better_fbx.edit_names_list", text="编辑", icon='TEXT')
             if scene.fbx_temp_names_file_path:
-                edit_row.operator("better_fbx.read_names_from_temp_file", text="加载已编辑的列表", icon='IMPORT')
+                input_row.operator("better_fbx.read_names_from_temp_file", text="加载", icon='IMPORT')
             
-            # 添加使用说明
-            help_box = text_box.box()
-            help_box.label(text="使用说明:", icon='INFO')
-            help_box.label(text="• 直接在输入框中输入（空格/逗号分隔）")
-            help_box.label(text="• 或点击'编辑列表'在外部编辑器中编辑多行文本")
-            help_box.label(text="• 编辑后保存文件，然后点击'加载已编辑的列表'")
             
             name_list_box.prop(context.scene, "fbx_search_directory", text="搜索目录", icon='FILE_FOLDER')
+            
+            # 添加重命名选项（放在导入按钮前）
+            rename_row = name_list_box.row()
+            rename_row.prop(context.scene, "fbx_rename_top_level", text="重命名顶级父级为文件名称", icon='OUTLINER_OB_EMPTY')
             
             # 在名称列表导入中也添加格式选择
             name_format_row = name_list_box.row(align=True)
             name_format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
             name_format_row.operator("better_fbx.batch_import_by_name_list", text="按名称列表导入", icon='IMPORT')
-            
-            # 添加重命名选项
-            rename_row = name_list_box.row()
-            rename_row.prop(context.scene, "fbx_rename_top_level", text="重命名顶级父级为文件名称", icon='OUTLINER_OB_EMPTY')
             
             # Better FBX导出
             better_fbx_export_box = import_box.box()
