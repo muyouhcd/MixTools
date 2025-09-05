@@ -580,6 +580,10 @@ class CustomFunctionsPanel(Panel):
             name_format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
             name_format_row.operator("better_fbx.batch_import_by_name_list", text="按名称列表导入", icon='IMPORT')
             
+            # 添加重命名选项
+            rename_row = name_list_box.row()
+            rename_row.prop(context.scene, "fbx_rename_top_level", text="重命名顶级父级为文件名称", icon='OUTLINER_OB_EMPTY')
+            
             # Better FBX导出
             better_fbx_export_box = import_box.box()
             better_fbx_export_box.label(text="Better FBX导出:", icon='EXPORT')

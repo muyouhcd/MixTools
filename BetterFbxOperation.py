@@ -877,7 +877,7 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
         self.report({'INFO'}, f"开始导入 {len(found_files)} 个文件...")
         
         # 使用改进的批量导入函数
-        success, message = self.batch_import_with_progress(found_files)
+        success, message = self.batch_import_with_progress(found_files, context)
         
         if success:
             self.report({'INFO'}, f"成功导入 {len(found_files)} 个文件: {message}")
@@ -886,7 +886,7 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
             self.report({'ERROR'}, message)
             return {'CANCELLED'}
     
-    def batch_import_with_progress(self, file_paths):
+    def batch_import_with_progress(self, file_paths, context):
         """带进度反馈的批量导入"""
         if not file_paths:
             return False, "没有选择任何文件"
@@ -934,6 +934,10 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
                         
                         # 重命名骨架
                         rename_armature_to_filename(file_name, imported_objects)
+                        
+                        # 根据用户设置决定是否重命名顶级父级
+                        if context.scene.fbx_rename_top_level:
+                            rename_top_level_to_filename(file_name, imported_objects)
                     else:
                         print(f"导入失败: {os.path.basename(file_path)} - 没有检测到新对象")
                         error_count += 1
@@ -1071,12 +1075,43 @@ def batch_import_fbx_files_with_better_fbx_direct(file_paths):
     
     return success_count > 0, result_message
 
+def clean_filename_for_naming(filename):
+    """清理文件名，移除自动生成的编号后缀"""
+    import re
+    # 移除 .001, .002 等编号后缀
+    cleaned_name = re.sub(r'\.\d{3}$', '', filename)
+    return cleaned_name
+
 def rename_armature_to_filename(file_name, imported_objects):
     """重命名导入的骨架为文件名"""
     for obj in imported_objects:
         if obj.type == 'ARMATURE':
             obj.name = file_name
             print(f"重命名骨架: {obj.name}")
+            break
+
+def rename_top_level_to_filename(file_name, imported_objects):
+    """重命名顶级父级为文件名"""
+    # 找到没有父级的对象（顶级父级）
+    top_level_objects = [obj for obj in imported_objects if obj.parent is None]
+    
+    if len(top_level_objects) == 1:
+        # 如果只有一个顶级对象，直接重命名
+        top_level_objects[0].name = file_name
+        print(f"重命名顶级父级: {top_level_objects[0].name} -> {file_name}")
+    elif len(top_level_objects) > 1:
+        # 如果有多个顶级对象，创建一个空物体作为父级
+        empty_obj = bpy.data.objects.new(file_name, None)
+        bpy.context.scene.collection.objects.link(empty_obj)
+        
+        # 将所有顶级对象设为空物体的子级
+        for obj in top_level_objects:
+            obj.parent = empty_obj
+            obj.parent_type = 'OBJECT'
+        
+        print(f"创建顶级父级: {file_name}，包含 {len(top_level_objects)} 个子对象")
+    else:
+        print(f"未找到顶级对象，跳过重命名")
 
 # BetterFBX直接导入操作器
 class BETTER_FBX_OT_DirectBatchImport(Operator):
@@ -1598,6 +1633,13 @@ def register():
         description="临时文件路径",
         default="",
     )
+    
+    # 添加重命名顶级父级选项
+    bpy.types.Scene.fbx_rename_top_level = bpy.props.BoolProperty(
+        name="重命名顶级父级",
+        description="将导入的顶级父级重命名为FBX文件名称",
+        default=True,
+    )
 
 # ==================== 多行文本编辑功能 ====================
 
@@ -1670,5 +1712,6 @@ def unregister():
         delattr(bpy.types.Scene, "fbx_name_list_text")
         delattr(bpy.types.Scene, "fbx_search_directory")
         delattr(bpy.types.Scene, "fbx_temp_names_file_path")
+        delattr(bpy.types.Scene, "fbx_rename_top_level")
     except AttributeError:
         pass 
