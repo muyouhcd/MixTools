@@ -554,7 +554,25 @@ class CustomFunctionsPanel(Panel):
             # 按名称列表批量导入
             name_list_box = better_fbx_box.box()
             name_list_box.label(text="按名称列表批量导入:", icon='TEXT')
-            name_list_box.prop(context.scene, "fbx_name_list_text", text="名称列表", icon='TEXT')
+            
+            # 名称列表输入区域
+            text_box = name_list_box.box()
+            text_box.label(text="名称列表 (用空格或逗号分隔):", icon='TEXT')
+            text_box.prop(context.scene, "fbx_name_list_text", text="", icon='TEXT')
+            
+            # 添加编辑按钮
+            edit_row = text_box.row(align=True)
+            edit_row.operator("better_fbx.edit_names_list", text="在外部编辑器中编辑列表", icon='TEXT')
+            if scene.fbx_temp_names_file_path:
+                edit_row.operator("better_fbx.read_names_from_temp_file", text="加载已编辑的列表", icon='IMPORT')
+            
+            # 添加使用说明
+            help_box = text_box.box()
+            help_box.label(text="使用说明:", icon='INFO')
+            help_box.label(text="• 直接在输入框中输入（空格/逗号分隔）")
+            help_box.label(text="• 或点击'编辑列表'在外部编辑器中编辑多行文本")
+            help_box.label(text="• 编辑后保存文件，然后点击'加载已编辑的列表'")
+            
             name_list_box.prop(context.scene, "fbx_search_directory", text="搜索目录", icon='FILE_FOLDER')
             
             # 在名称列表导入中也添加格式选择
@@ -927,14 +945,20 @@ def register():
     # FBX名称列表批量导入相关属性
     bpy.types.Scene.fbx_name_list_text = bpy.props.StringProperty(
         name="FBX名称列表",
-        description="要查找的FBX文件名称列表，每行一个名称。例如：\nmy_model\nmy_character",
+        description="要查找的FBX文件名称列表，用空格或逗号分隔多个名称。例如：my_model my_character 或 my_model,my_character",
         default="",
-        maxlen=1024,
     )
     bpy.types.Scene.fbx_search_directory = bpy.props.StringProperty(
         name="搜索目录",
         description="要搜索FBX文件的目录路径",
         subtype='DIR_PATH',
+        default="",
+    )
+    
+    # 添加临时文件路径属性
+    bpy.types.Scene.fbx_temp_names_file_path = bpy.props.StringProperty(
+        name="临时文件路径",
+        description="临时文件路径",
         default="",
     )
     

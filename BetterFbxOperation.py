@@ -1,5 +1,6 @@
 import bpy
 import os
+import tempfile
 from pathlib import Path
 from bpy.props import StringProperty, EnumProperty
 from bpy_extras.io_utils import ImportHelper
@@ -760,11 +761,14 @@ class BETTER_FBX_OT_BatchImportByNameList(Operator):
         lines = name_list_text.split('\n')
         for line in lines:
             if line.strip():
-                # 再按空格分割每行
-                names_in_line = line.split()
-                for name in names_in_line:
-                    if name.strip():
-                        name_list.append(name.strip())
+                # 按逗号分割，然后按空格分割
+                comma_parts = line.split(',')
+                for part in comma_parts:
+                    # 再按空格分割每个逗号分隔的部分
+                    space_parts = part.split()
+                    for name in space_parts:
+                        if name.strip():
+                            name_list.append(name.strip())
         
         print(f"解析后的名称列表: {name_list}")
         
@@ -1556,6 +1560,10 @@ def register():
     bpy.utils.register_class(BETTER_FBX_OT_DirectBatchImport)
     bpy.utils.register_class(BETTER_FBX_OT_DirectBatchImportFiles)
     
+    # 注册多行文本编辑操作器
+    bpy.utils.register_class(BETTER_FBX_OT_EditNamesList)
+    bpy.utils.register_class(BETTER_FBX_OT_ReadNamesFromTempFile)
+    
     # 注册场景属性
     bpy.types.Scene.better_fbx_import_directory = bpy.props.StringProperty(
         name="3D文件导入目录",
@@ -1574,9 +1582,8 @@ def register():
     
     bpy.types.Scene.fbx_name_list_text = bpy.props.StringProperty(
         name="3D文件名称列表",
-        description="要查找的3D文件名称列表，每行一个名称。例如：\nmy_model\nmy_character",
+        description="要查找的3D文件名称列表，用空格或逗号分隔多个名称。例如：my_model my_character 或 my_model,my_character",
         default="",
-        maxlen=1024,
     )
     bpy.types.Scene.fbx_search_directory = bpy.props.StringProperty(
         name="搜索目录",
@@ -1584,6 +1591,64 @@ def register():
         subtype='DIR_PATH',
         default="",
     )
+    
+    # 添加临时文件路径属性
+    bpy.types.Scene.fbx_temp_names_file_path = bpy.props.StringProperty(
+        name="临时文件路径",
+        description="临时文件路径",
+        default="",
+    )
+
+# ==================== 多行文本编辑功能 ====================
+
+def edit_fbx_names_list_in_text_editor(scene):
+    """在外部文本编辑器中编辑FBX名称列表"""
+    # 创建一个临时文件来存储当前名称列表
+    temp_file = tempfile.NamedTemporaryFile(delete=False, mode='w+', suffix='.txt', encoding='utf-8')
+    temp_file.write(scene.fbx_name_list_text)
+    temp_file.close()
+    
+    # 使用操作系统的默认文本编辑器打开文件
+    bpy.ops.wm.path_open(filepath=temp_file.name)
+    
+    # 存储临时文件路径以便稍后读取
+    scene.fbx_temp_names_file_path = temp_file.name
+    
+    return {'FINISHED'}
+
+def read_fbx_names_from_temp_file(scene):
+    """从临时文件读取FBX名称列表"""
+    if scene.fbx_temp_names_file_path and os.path.exists(scene.fbx_temp_names_file_path):
+        try:
+            with open(scene.fbx_temp_names_file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+                scene.fbx_name_list_text = content
+            # 清理临时文件
+            os.unlink(scene.fbx_temp_names_file_path)
+            scene.fbx_temp_names_file_path = ""
+        except Exception as e:
+            print(f"读取临时文件失败: {e}")
+    return {'FINISHED'}
+
+class BETTER_FBX_OT_EditNamesList(Operator):
+    """编辑FBX名称列表"""
+    bl_idname = "better_fbx.edit_names_list"
+    bl_label = "编辑名称列表"
+    bl_description = "在外部文本编辑器中编辑名称列表"
+    
+    def execute(self, context):
+        edit_fbx_names_list_in_text_editor(context.scene)
+        return {'FINISHED'}
+
+class BETTER_FBX_OT_ReadNamesFromTempFile(Operator):
+    """从临时文件读取名称列表"""
+    bl_idname = "better_fbx.read_names_from_temp_file"
+    bl_label = "加载已编辑的列表"
+    bl_description = "从外部编辑器加载已编辑的名称列表"
+    
+    def execute(self, context):
+        read_fbx_names_from_temp_file(context.scene)
+        return {'FINISHED'}
 
 def unregister():
     bpy.utils.unregister_class(BETTER_FBX_OT_BatchImport)
@@ -1594,11 +1659,16 @@ def unregister():
     bpy.utils.unregister_class(BETTER_FBX_OT_DirectBatchImport)
     bpy.utils.unregister_class(BETTER_FBX_OT_DirectBatchImportFiles)
     
+    # 注销多行文本编辑操作器
+    bpy.utils.unregister_class(BETTER_FBX_OT_EditNamesList)
+    bpy.utils.unregister_class(BETTER_FBX_OT_ReadNamesFromTempFile)
+    
     # 注销场景属性
     try:
         delattr(bpy.types.Scene, "better_fbx_import_directory")
         delattr(bpy.types.Scene, "batch_import_file_format")
         delattr(bpy.types.Scene, "fbx_name_list_text")
         delattr(bpy.types.Scene, "fbx_search_directory")
+        delattr(bpy.types.Scene, "fbx_temp_names_file_path")
     except AttributeError:
         pass 
