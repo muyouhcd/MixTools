@@ -8,9 +8,13 @@ class CreateAssemblyAsset(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        self.report({'INFO'}, "开始执行资产标记功能")
+        
         if not hasattr(bpy.ops, 'machin3'):
             self.report({'ERROR'}, "请先安装并启用 Machin3tools 插件")
             return {'CANCELLED'}
+        
+        self.report({'INFO'}, "Machin3tools 插件检查通过")
 
         def get_top_level_name(obj):
             """获取物体的顶级父级名称，如果没有父级则返回物体自身名称"""
@@ -73,46 +77,12 @@ class CreateAssemblyAsset(bpy.types.Operator):
             except Exception as e:
                 print(f"恢复场景状态时出错: {str(e)}")
 
-        def setup_view_for_preview(obj):
+        def calculate_object_bbox(obj):
+            """计算物体的世界空间边界框（参考AutoRender.py的实现）"""
             try:
-                # 收集所有mesh物体（包括主物体和子物体）
-                mesh_objects = []
-                
-                # 添加主物体（如果是mesh类型）
-                if obj.type == 'MESH':
-                    mesh_objects.append(obj)
-                
-                # 添加所有子物体中的mesh物体
-                for child in obj.children_recursive:
-                    if child.type == 'MESH':
-                        mesh_objects.append(child)
-                
-                if not mesh_objects:
-                    # 如果没有mesh物体，使用原始方法
-                    bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-                    min_corner = Vector((min(c.x for c in bbox_corners),
-                                       min(c.y for c in bbox_corners),
-                                       min(c.z for c in bbox_corners)))
-                    max_corner = Vector((max(c.x for c in bbox_corners),
-                                       max(c.y for c in bbox_corners),
-                                       max(c.z for c in bbox_corners)))
-                else:
-                    # 计算所有mesh物体的边界框
-                    all_corners = []
-                    for mesh_obj in mesh_objects:
-                        if hasattr(mesh_obj, 'bound_box') and mesh_obj.bound_box:
-                            corners = [mesh_obj.matrix_world @ Vector(corner) for corner in mesh_obj.bound_box]
-                            all_corners.extend(corners)
-                    
-                    if all_corners:
-                        min_corner = Vector((min(c.x for c in all_corners),
-                                           min(c.y for c in all_corners),
-                                           min(c.z for c in all_corners)))
-                        max_corner = Vector((max(c.x for c in all_corners),
-                                           max(c.y for c in all_corners),
-                                           max(c.z for c in all_corners)))
-                    else:
-                        # 如果无法获取边界框，使用原始方法
+                if obj.type != 'MESH' or not obj.data:
+                    # 对于非mesh物体，使用bound_box
+                    if hasattr(obj, 'bound_box') and obj.bound_box:
                         bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
                         min_corner = Vector((min(c.x for c in bbox_corners),
                                            min(c.y for c in bbox_corners),
@@ -120,22 +90,130 @@ class CreateAssemblyAsset(bpy.types.Operator):
                         max_corner = Vector((max(c.x for c in bbox_corners),
                                            max(c.y for c in bbox_corners),
                                            max(c.z for c in bbox_corners)))
+                        return min_corner, max_corner
+                    return None, None
                 
-                center = (min_corner + max_corner) / 2
-                size = max_corner - min_corner
+                # 使用Blender内置的包围盒计算，性能更好
+                local_bbox = obj.bound_box
+                
+                # 转换为世界空间包围盒
+                bbox_min = [float('inf')] * 3
+                bbox_max = [float('-inf')] * 3
+                
+                # 将本地包围盒的8个顶点转换到世界空间
+                for vertex in local_bbox:
+                    world_pos = obj.matrix_world @ Vector(vertex)
+                    for i in range(3):
+                        bbox_min[i] = min(bbox_min[i], world_pos[i])
+                        bbox_max[i] = max(bbox_max[i], world_pos[i])
+                
+                return Vector(bbox_min), Vector(bbox_max)
+                
+            except Exception as e:
+                print(f"计算物体边界框时出错: {str(e)}")
+                return None, None
+
+        def calculate_group_bbox(objects):
+            """计算整个物体组的世界空间边界框"""
+            try:
+                bbox_min = [float('inf')] * 3
+                bbox_max = [float('-inf')] * 3
+                
+                for obj in objects:
+                    if obj.type in ['MESH', 'EMPTY', 'CURVE', 'SURFACE', 'META', 'FONT', 'ARMATURE', 'LATTICE']:
+                        obj_bbox_min, obj_bbox_max = calculate_object_bbox(obj)
+                        if obj_bbox_min and obj_bbox_max:
+                            # 合并到组边界框
+                            for i in range(3):
+                                bbox_min[i] = min(bbox_min[i], obj_bbox_min[i])
+                                bbox_max[i] = max(bbox_max[i], obj_bbox_max[i])
+                
+                # 检查是否找到了有效的边界框
+                if bbox_min[0] == float('inf'):
+                    return None, None
+                
+                return Vector(bbox_min), Vector(bbox_max)
+                
+            except Exception as e:
+                print(f"计算组边界框时出错: {str(e)}")
+                return None, None
+
+        def setup_view_for_preview(obj):
+            """改进的视图设置，使用精确的包围盒计算"""
+            try:
+                # 收集所有相关物体（包括主物体和子物体）
+                all_objects = [obj]
+                all_objects.extend(obj.children_recursive)
+                
+                # 计算整个组的边界框
+                bbox_min, bbox_max = calculate_group_bbox(all_objects)
+                
+                if not bbox_min or not bbox_max:
+                    print(f"无法计算物体 {obj.name} 的边界框，使用默认视图设置")
+                    return
+                
+                # 计算边界框的中心和尺寸
+                center = (bbox_min + bbox_max) / 2
+                size = bbox_max - bbox_min
                 max_dim = max(size.x, size.y, size.z)
                 
+                # 保存当前视图设置
                 current_view = context.space_data.region_3d.view_rotation.copy()
-                current_distance = context.space_data.region_3d.view_distance
                 current_perspective = context.space_data.region_3d.view_perspective
                 
-                context.space_data.region_3d.view_distance = max_dim * 2
+                # 设置视图距离为最大尺寸的2.5倍，确保物体完全可见
+                context.space_data.region_3d.view_distance = max_dim * 2.5
                 context.space_data.region_3d.view_rotation = current_view
                 context.space_data.region_3d.view_perspective = current_perspective
                 context.space_data.region_3d.update()
                 
+                print(f"视图设置完成: 中心={center}, 尺寸={size}, 最大尺寸={max_dim:.2f}, 距离={max_dim * 2.5:.2f}")
+                
             except Exception as e:
                 print(f"设置预览视图时出错: {str(e)}")
+
+        def focus_object_improved(obj, override):
+            """改进的物体聚焦方法，参考AutoRender.py的实现"""
+            try:
+                # 收集所有相关物体（包括主物体和子物体）
+                all_objects = [obj]
+                all_objects.extend(obj.children_recursive)
+                
+                # 计算整个组的边界框
+                bbox_min, bbox_max = calculate_group_bbox(all_objects)
+                
+                if not bbox_min or not bbox_max:
+                    print(f"无法计算物体 {obj.name} 的边界框，使用默认聚焦")
+                    bpy.ops.view3d.view_selected(override)
+                    return
+                
+                # 计算边界框的中心和尺寸
+                center = (bbox_min + bbox_max) / 2
+                size = bbox_max - bbox_min
+                max_dim = max(size.x, size.y, size.z)
+                
+                # 先使用Blender内置的聚焦方法
+                bpy.ops.view3d.view_selected(override)
+                
+                # 然后调整视图距离，确保物体完全可见
+                current_view = bpy.context.space_data.region_3d.view_rotation.copy()
+                current_perspective = bpy.context.space_data.region_3d.view_perspective
+                
+                # 设置视图距离为最大尺寸的2.5倍，确保物体完全可见
+                bpy.context.space_data.region_3d.view_distance = max_dim * 2.5
+                bpy.context.space_data.region_3d.view_rotation = current_view
+                bpy.context.space_data.region_3d.view_perspective = current_perspective
+                bpy.context.space_data.region_3d.update()
+                
+                print(f"改进聚焦完成: 中心={center}, 尺寸={size}, 最大尺寸={max_dim:.2f}, 距离={max_dim * 2.5:.2f}")
+                
+            except Exception as e:
+                print(f"改进聚焦时出错: {str(e)}")
+                # 如果改进聚焦失败，回退到默认方法
+                try:
+                    bpy.ops.view3d.view_selected(override)
+                except:
+                    pass
 
         def prepare_object_for_asset(obj):
             try:
@@ -204,16 +282,19 @@ class CreateAssemblyAsset(bpy.types.Operator):
         def process_single_object(obj, viewport_area, viewport_region, create_top_level_parent):
             # 只处理顶级物体（没有父级的物体）
             if obj.parent is not None:
+                self.report({'INFO'}, f"跳过有父级的物体: {obj.name} (父级: {obj.parent.name})")
                 return 0
 
             try:
                 if obj.name not in bpy.data.objects:
-                    print(f"对象 {obj.name} 已不存在于场景中")
+                    self.report({'WARNING'}, f"对象 {obj.name} 已不存在于场景中")
                     return 0
 
                 if not obj or obj.type not in ['MESH', 'EMPTY', 'CURVE', 'SURFACE', 'META', 'FONT', 'ARMATURE', 'LATTICE']:
-                    print(f"跳过无效对象: {obj.name}")
+                    self.report({'INFO'}, f"跳过无效对象: {obj.name} (类型: {obj.type})")
                     return 0
+                
+                self.report({'INFO'}, f"开始处理物体: {obj.name} (类型: {obj.type})")
 
                 scene_state = save_scene_state()
                 original_parent = obj.parent
@@ -224,7 +305,8 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 override['area'] = viewport_area
                 override['region'] = viewport_region
 
-                bpy.ops.view3d.view_selected(override)
+                # 使用改进的聚焦方法
+                focus_object_improved(obj, override)
                 bpy.context.view_layer.update()
                 time.sleep(0.3)  # 减少等待时间
 
@@ -255,7 +337,13 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 # 记录创建资产前的物体列表
                 objects_before = set(bpy.data.objects.keys())
                 
-                bpy.ops.machin3.create_assembly_asset(override)
+                self.report({'INFO'}, f"调用 Machin3tools 创建资产: {obj.name}")
+                try:
+                    bpy.ops.machin3.create_assembly_asset(override)
+                    self.report({'INFO'}, f"Machin3tools 资产创建命令执行成功")
+                except Exception as e:
+                    self.report({'ERROR'}, f"Machin3tools 资产创建失败: {str(e)}")
+                    return 0
                 
                 # 等待一下让 Machin3tools 完成资产创建
                 time.sleep(0.8)  # 减少等待时间
@@ -375,12 +463,20 @@ class CreateAssemblyAsset(bpy.types.Operator):
             except Exception as e:
                 self.report({'WARNING'}, f"批次间清理时出错: {str(e)}")
 
-        collection_name = context.scene.asset_collection.name
-        collection = bpy.data.collections.get(collection_name)
-
-        if not collection:
-            self.report({'ERROR'}, "没有选择任何集合")
+        # 检查集合选择
+        if not hasattr(context.scene, 'asset_collection') or not context.scene.asset_collection:
+            self.report({'ERROR'}, "没有选择任何集合，请在UI面板中选择一个集合")
             return {'CANCELLED'}
+        
+        collection_name = context.scene.asset_collection.name
+        self.report({'INFO'}, f"选择的集合名称: {collection_name}")
+        
+        collection = bpy.data.collections.get(collection_name)
+        if not collection:
+            self.report({'ERROR'}, f"找不到集合: {collection_name}")
+            return {'CANCELLED'}
+        
+        self.report({'INFO'}, f"成功找到集合: {collection.name}")
 
         viewport_area, viewport_region = get_3d_view_region()
         if not viewport_area:
@@ -407,9 +503,16 @@ class CreateAssemblyAsset(bpy.types.Operator):
         try:
             # 递归获取所有物体
             all_objects = get_all_objects_recursive(collection)
+            self.report({'INFO'}, f"集合 '{collection.name}' 中找到 {len(all_objects)} 个物体")
             
             # 过滤出顶级物体（没有父级的物体）
             top_level_objects = [obj for obj in all_objects if obj.parent is None]
+            self.report({'INFO'}, f"其中顶级物体（无父级）有 {len(top_level_objects)} 个")
+            
+            # 显示所有物体的详细信息
+            for i, obj in enumerate(all_objects):
+                parent_info = f"父级: {obj.parent.name}" if obj.parent else "无父级"
+                self.report({'INFO'}, f"物体 {i+1}: {obj.name} (类型: {obj.type}, {parent_info})")
             
             if not top_level_objects:
                 self.report({'WARNING'}, "集合及其子集合中没有顶级物体")
