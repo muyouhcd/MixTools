@@ -130,8 +130,92 @@ class LinkSimilarLights(bpy.types.Operator):
             
         return {'FINISHED'}
 
+class AdjustLightIntensity(bpy.types.Operator):
+    bl_idname = "object.adjust_light_intensity"
+    bl_label = "调整灯光强度"
+    bl_description = "将所选灯光的强度乘以指定数值"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    intensity_multiplier: bpy.props.FloatProperty(
+        name="强度倍数",
+        description="灯光强度的倍数",
+        default=1.0,
+        min=0.001,
+        max=1000.0,
+        soft_min=0.1,
+        soft_max=10.0,
+        precision=3
+    ) # type: ignore
+    
+    def execute(self, context):
+        # 获取选中的灯光对象
+        selected_lights = [obj for obj in context.selected_objects if obj.type == 'LIGHT']
+        
+        if not selected_lights:
+            self.report({'WARNING'}, "请先选择至少一个灯光对象")
+            return {'CANCELLED'}
+        
+        # 调整每个选中灯光的强度
+        adjusted_count = 0
+        for light_obj in selected_lights:
+            light_data = light_obj.data
+            # 直接设置为倍数，而不是乘以倍数，避免重复应用导致的天文数字
+            light_data.energy = self.intensity_multiplier
+            adjusted_count += 1
+        
+        self.report({'INFO'}, f"已调整 {adjusted_count} 个灯光的强度为: {self.intensity_multiplier}")
+        return {'FINISHED'}
+
+class MultiplyLightIntensity(bpy.types.Operator):
+    bl_idname = "object.multiply_light_intensity"
+    bl_label = "乘以强度倍数"
+    bl_description = "将所选灯光的强度乘以指定数值（相对调整）"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    intensity_multiplier: bpy.props.FloatProperty(
+        name="强度倍数",
+        description="灯光强度的倍数",
+        default=1.0,
+        min=0.001,
+        max=1000.0,
+        soft_min=0.1,
+        soft_max=10.0,
+        precision=3
+    ) # type: ignore
+    
+    def execute(self, context):
+        # 获取选中的灯光对象
+        selected_lights_objects = [obj for obj in context.selected_objects if obj.type == 'LIGHT']
+        
+        if not selected_lights_objects:
+            self.report({'WARNING'}, "请先选择至少一个灯光对象")
+            return {'CANCELLED'}
+        
+        # Collect unique light data blocks to avoid exponential multiplication on linked data
+        unique_light_data_blocks = set()
+        for light_obj in selected_lights_objects:
+            unique_light_data_blocks.add(light_obj.data)
+
+        adjusted_count = 0
+        for light_data in unique_light_data_blocks:
+            # 确保倍数在合理范围内
+            if self.intensity_multiplier > 1000 or self.intensity_multiplier < 0.001:
+                self.report({'ERROR'}, f"倍数 {self.intensity_multiplier} 超出安全范围 (0.001-1000)")
+                return {'CANCELLED'}
+            
+            new_energy = light_data.energy * self.intensity_multiplier
+            light_data.energy = new_energy
+            adjusted_count += 1
+        
+        self.report({'INFO'}, f"已将 {adjusted_count} 个唯一灯光数据块的强度乘以: {self.intensity_multiplier}")
+        return {'FINISHED'}
+
 def register():
     bpy.utils.register_class(LinkSimilarLights)
+    bpy.utils.register_class(AdjustLightIntensity)
+    bpy.utils.register_class(MultiplyLightIntensity)
 
 def unregister():
-    bpy.utils.unregister_class(LinkSimilarLights) 
+    bpy.utils.unregister_class(LinkSimilarLights)
+    bpy.utils.unregister_class(AdjustLightIntensity)
+    bpy.utils.unregister_class(MultiplyLightIntensity) 

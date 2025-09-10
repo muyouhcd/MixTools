@@ -452,6 +452,23 @@ class CustomFunctionsPanel(Panel):
             # 关联灯光按钮
             op = light_tools_box.operator("object.link_similar_lights", text="关联相似灯光", icon='LINKED')
             op.tolerance = context.scene.light_linking_tolerance
+            
+            # 灯光强度调整工具
+            intensity_box = col_light_tools.box()
+            intensity_box.label(text="灯光强度调整:", icon='LIGHT')
+            
+            # 强度倍数设置
+            intensity_row = intensity_box.row(align=True)
+            intensity_row.prop(context.scene, "light_intensity_multiplier", text="强度倍数", slider=True)
+            
+            # 两个操作按钮
+            button_row = intensity_box.row(align=True)
+            op1 = button_row.operator("object.adjust_light_intensity", text="设置为", icon='CHECKMARK')
+            op1.intensity_multiplier = context.scene.light_intensity_multiplier
+            
+            op2 = button_row.operator("object.multiply_light_intensity", text="乘以", icon='MODIFIER')
+            op2.intensity_multiplier = context.scene.light_intensity_multiplier
+            
 
 # 动画处理工具
         col_animation = layout.column()
@@ -902,6 +919,18 @@ def register():
         soft_max=0.1,
         precision=3
     )
+    
+    # 灯光强度调整参数
+    bpy.types.Scene.light_intensity_multiplier = bpy.props.FloatProperty(
+        name="强度倍数",
+        description="灯光强度的倍数",
+        default=1.0,
+        min=0.001,
+        max=1000.0,
+        soft_min=0.1,
+        soft_max=10.0,
+        precision=3
+    )
 
     # 源骨架属性
     bpy.types.Scene.source_armature = bpy.props.PointerProperty(
@@ -1023,6 +1052,7 @@ def unregister():
         
         # 灯光关联工具参数
         "light_linking_tolerance",
+        "light_intensity_multiplier",
         
         # 骨架相关属性
         "source_armature",
