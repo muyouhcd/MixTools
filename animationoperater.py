@@ -317,6 +317,80 @@ def register():
     bpy.utils.register_class(AddCycleModifierNoOffset)
     bpy.utils.register_class(RemoveAllModifiersFromAnimation)
 
+# 为选中物体添加跟随曲线约束
+class AddFollowPathConstraint(bpy.types.Operator):
+    bl_idname = "animation.add_follow_path_constraint"
+    bl_label = "添加跟随曲线约束"
+    bl_description = "为选中的物体添加跟随曲线约束，每个物体对应一条新生成的曲线"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请选择至少一个物体")
+            return {'CANCELLED'}
+        
+        processed_count = 0
+        
+        for obj in selected_objects:
+            try:
+                # 为每个物体创建一条新的曲线
+                curve_data = bpy.data.curves.new(name=f"{obj.name}_path", type='CURVE')
+                curve_data.dimensions = '3D'
+                curve_data.resolution_u = 2
+                
+                # 创建样条线
+                spline = curve_data.splines.new('NURBS')
+                spline.points.add(3)  # 添加4个点（默认有1个，再添加3个）
+                
+                # 设置控制点位置，创建一个简单的直线路径
+                # 基于物体当前位置创建路径
+                obj_location = obj.location
+                
+                # 创建一条简单的直线路径，总长度约5米
+                spline.points[0].co = (obj_location.x - 2.5, obj_location.y, obj_location.z, 1)
+                spline.points[1].co = (obj_location.x - 1.25, obj_location.y, obj_location.z, 1)
+                spline.points[2].co = (obj_location.x + 1.25, obj_location.y, obj_location.z, 1)
+                spline.points[3].co = (obj_location.x + 2.5, obj_location.y, obj_location.z, 1)
+                
+                # 根据用户设置决定是否创建闭合曲线
+                spline.use_cyclic_u = context.scene.curve_closed_option
+                
+                # 创建曲线物体
+                curve_obj = bpy.data.objects.new(f"{obj.name}_path", curve_data)
+                context.collection.objects.link(curve_obj)
+                
+                # 为物体添加跟随路径约束
+                constraint = obj.constraints.new(type='FOLLOW_PATH')
+                constraint.target = curve_obj
+                constraint.use_curve_follow = True  # 启用跟随曲线选项
+                constraint.forward_axis = 'FORWARD_X'  # 设置前进轴向
+                constraint.up_axis = 'UP_Z'  # 设置上方向轴向
+                
+                processed_count += 1
+                
+            except Exception as e:
+                print(f"为物体 {obj.name} 添加跟随曲线约束时出错: {e}")
+                continue
+        
+        if processed_count > 0:
+            self.report({'INFO'}, f"成功为 {processed_count} 个物体添加了跟随曲线约束")
+        else:
+            self.report({'WARNING'}, "没有成功为任何物体添加约束")
+        
+        return {'FINISHED'}
+
+def register():
+    bpy.utils.register_class(ClearScaleAnimation)
+    bpy.utils.register_class(ClearAllAnimation)
+    bpy.utils.register_class(ClearLocationAnimation)
+    bpy.utils.register_class(ClearRotationAnimation)
+    bpy.utils.register_class(AddCycleModifierToAnimation)
+    bpy.utils.register_class(AddCycleModifierNoOffset)
+    bpy.utils.register_class(RemoveAllModifiersFromAnimation)
+    bpy.utils.register_class(AddFollowPathConstraint)
+
 def unregister():
     bpy.utils.unregister_class(ClearScaleAnimation)
     bpy.utils.unregister_class(ClearAllAnimation)
@@ -325,4 +399,5 @@ def unregister():
     bpy.utils.unregister_class(AddCycleModifierToAnimation)
     bpy.utils.unregister_class(AddCycleModifierNoOffset)
     bpy.utils.unregister_class(RemoveAllModifiersFromAnimation)
+    bpy.utils.unregister_class(AddFollowPathConstraint)
 

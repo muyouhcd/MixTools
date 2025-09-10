@@ -472,7 +472,7 @@ class CustomFunctionsPanel(Panel):
 
 # 动画处理工具
         col_animation = layout.column()
-        col_animation.prop(scene, "animation_tools_expand", text="动画处理工具", emboss=False,
+        col_animation.prop(scene, "animation_tools_expand", text="动画工具", emboss=False,
                           icon='TRIA_DOWN' if context.scene.animation_tools_expand else 'TRIA_RIGHT')
         
         if scene.animation_tools_expand:
@@ -502,6 +502,19 @@ class CustomFunctionsPanel(Panel):
             
             row2 = animation_modifier_box.row(align=True)
             row2.operator("animation.remove_all_modifiers", text="移除所有修改器", icon='X')
+            
+            # 约束工具
+            constraint_tools_box = col_animation.box()
+            constraint_tools_box.label(text="约束工具:", icon='CONSTRAINT')
+            
+            # 添加跟随曲线约束工具
+            follow_path_box = constraint_tools_box.box()
+            follow_path_box.label(text="跟随曲线约束:", icon='CURVE_DATA')
+            
+            # 添加曲线闭合选项
+            follow_path_box.prop(context.scene, "curve_closed_option", text="创建闭合曲线", icon='CURVE_DATA')
+            
+            follow_path_box.operator("animation.add_follow_path_constraint", text="添加跟随曲线约束", icon='CONSTRAINT')
             
             # 骨架操作工具
             armature_tools_box = col_animation.box()
@@ -1017,6 +1030,13 @@ def register():
         default="VertexGroup",
         maxlen=100,
     )
+    
+    # 曲线闭合选项属性
+    bpy.types.Scene.curve_closed_option = bpy.props.BoolProperty(
+        name="创建闭合曲线",
+        description="是否创建闭合的曲线路径",
+        default=True
+    )
 
 
 def unregister():
@@ -1076,7 +1096,9 @@ def unregister():
         
         # 批量顶点组工具属性
         "vertex_group_name",
-
+        
+        # 曲线闭合选项属性
+        "curve_closed_option",
 
     ]
     
