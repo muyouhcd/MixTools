@@ -36,6 +36,7 @@ def rename_texture():
 class RenameTextureOrign(bpy.types.Operator):
     bl_idname = "object.rename_texture_orign"
     bl_label = "rename texture name to orign"
+    bl_description = "将贴图名称改为原始文件名（去除扩展名）"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -47,6 +48,7 @@ class RenameTextureOrign(bpy.types.Operator):
 class RemoveNameSuffix(bpy.types.Operator):
     bl_idname = "object.mian_remove_name_suffix"
     bl_label = "移除名称后缀"
+    bl_description = "移除所选物体名称中的后缀（如_001、-01、.001等）"
 
     def execute(self, context):
         selected_objects = bpy.context.selected_objects
@@ -71,6 +73,7 @@ class RemoveNameSuffix(bpy.types.Operator):
 class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
     bl_idname = "object.remove_suffix_and_resolve"
     bl_label = "移除后缀数字，保持顶级无后缀"
+    bl_description = "移除顶级物体的数字后缀，如有重名则交换名称"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -102,7 +105,8 @@ class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
 class RenameMeshesOperator(bpy.types.Operator):
     """Rename Meshes to their object names"""      
     bl_idname = "object.rename_meshes"  
-    bl_label = "重命名Meshes为物体名称"         
+    bl_label = "重命名Meshes为物体名称"
+    bl_description = "将所选物体的Mesh数据块名称改为物体名称"
     bl_options = {'REGISTER', 'UNDO'}  
     
     def execute(self, context):       
@@ -120,6 +124,7 @@ class RenameObjectsOperator(bpy.types.Operator):
     """Rename Objects to their mesh names"""
     bl_idname = "object.rename_objects"
     bl_label = "重命名物体为Mesh名称"
+    bl_description = "将所选物体的名称改为其Mesh数据块的名称"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -156,7 +161,7 @@ def rename_collections(self, context):
 class OBJECT_OT_RenameButton(bpy.types.Operator):
     bl_idname = "object.mian_rename_collections"
     bl_label = "Rename Collections"
-    bl_description = "Rename collections based on closest object in target collection"
+    bl_description = "根据空间位置关系自动重命名集合：将目标集合中的子集合重命名为参考集合中位置最接近的物体名称。需要先选择参考集合(collectionA)和目标集合(collectionB)。"
 
     def execute(self, context):
         rename_collections(self, context)
@@ -166,6 +171,7 @@ class OBJECT_OT_RenameButton(bpy.types.Operator):
 class RenameByLocation(bpy.types.Operator):
     bl_idname = "object.mian_rename_location"
     bl_label = "按轴空间顺序重命名"
+    bl_description = "根据所选物体在指定轴向上的空间位置顺序进行重命名"
 
     def execute(self, context):
 
@@ -194,6 +200,7 @@ class RenameByLocation(bpy.types.Operator):
 class RenameSelectedObjects(bpy.types.Operator):
     bl_idname = "object.rename_to_collection"
     bl_label = "所选物体命名为其所在集合名称"
+    bl_description = "将所选物体的名称改为其所在集合的名称"
 
     def execute(self, context):
         # 获取当前选中的物体
@@ -329,6 +336,7 @@ def move_digits_to_end(name):
 class AutoRenameCar(bpy.types.Operator):
     bl_idname = "object.mian_auto_rename_car"
     bl_label = "自动重命名汽车For Unity(-y朝前)"
+    bl_description = "自动重命名汽车模型，适用于Unity引擎，包括车身、车轮等部件的智能命名"
     
     def execute(self, context):
         def flatten_hierarchy():
@@ -511,6 +519,7 @@ class AutoRenameCar(bpy.types.Operator):
 class AutoRenameCarForRigCar(bpy.types.Operator):
     bl_idname = "object.mian_auto_rename_car_for_rigcar"
     bl_label = "自动重命名汽车For Rig-car(-y朝前)"
+    bl_description = "自动重命名汽车模型，适用于Rig-car系统，包括层级结构和命名规范"
 
     def execute(self, context):
         def set_remaining_objects_as_children_of_body():

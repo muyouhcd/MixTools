@@ -24,6 +24,7 @@ from mathutils import Quaternion
 class ObjectInstancer(bpy.types.Operator):
     bl_idname = "object.object_instance"
     bl_label = "Object Instance"
+    bl_description = "将所选物体转换为实例化对象：使用第一个物体作为源，其余物体替换为其实例，保持原有位置和变换"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -290,6 +291,7 @@ class RemoveInstanceDuplicatesOperator(bpy.types.Operator):
 class OBJECT_OT_reset_z_axis(Operator):
     bl_idname = "object.reset_z_axis"
     bl_label = "重置选择对象的Z轴位置"
+    bl_description = "将所选物体的Z轴位置重置为0，保持X和Y轴位置不变"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -304,6 +306,7 @@ class OBJECT_OT_reset_z_axis(Operator):
 class OBJECT_OT_make_single_user(bpy.types.Operator):
     bl_idname = "object.make_single_user_operator"
     bl_label = "批量独立化"
+    bl_description = "将所选物体的数据块独立化，使每个物体拥有独立的数据副本"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -330,6 +333,7 @@ class OBJECT_OT_make_single_user(bpy.types.Operator):
 class OBJECT_OT_convex_hull_creator(bpy.types.Operator):
     bl_idname = "object.convex_hull_creator"
     bl_label = "生成凸包"
+    bl_description = "为所选物体生成凸包网格，创建包围所有顶点的凸多面体"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -412,6 +416,7 @@ class RemoveModifiers(bpy.types.Operator):
     """移除所选物体的修改器"""
     bl_idname = "object.remove_modifiers"
     bl_label = "移除选中物体的修改器"
+    bl_description = "移除所选物体的所有修改器，包括子物体"
 
     def execute(self, context):
         # 获取当前的选中物体
@@ -434,6 +439,7 @@ class RemoveConstraints(bpy.types.Operator):
     """移除所选物体的约束"""
     bl_idname = "object.remove_constraints"
     bl_label = "移除选中物体的约束"
+    bl_description = "移除所选物体的所有约束，包括子物体"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -544,6 +550,7 @@ class SimplifyCurveToEndpoints(bpy.types.Operator):
 class ClearAnimationData(bpy.types.Operator):
     bl_idname = "object.clear_animation_data"
     bl_label = "清除动画数据"
+    bl_description = "清除所选物体的所有动画数据，包括关键帧和动画曲线"
 
     def clear_animation_data_for_selected(self):
         selected_objects = bpy.context.selected_objects
@@ -563,6 +570,7 @@ class ClearAnimationData(bpy.types.Operator):
 class RandomPlacement(bpy.types.Operator):
     bl_idname = "object.mian_random_placement"
     bl_label = "随机放置"
+    bl_description = "在指定范围内随机分布所选物体的位置"
 
     def execute(self, context):
 
@@ -608,6 +616,7 @@ bpy.types.Scene.random_scale_extent_z = bpy.props.FloatVectorProperty(
 class RandomScale(bpy.types.Operator):
     bl_idname = "object.mian_random_scale"
     bl_label = "随机缩放"
+    bl_description = "在指定范围内随机缩放所选物体，可分别设置X、Y、Z轴的缩放范围"
 
     def execute(self, context):
         # 获取自定义属性的值
@@ -653,6 +662,7 @@ bpy.types.Scene.queue_up_axis = bpy.props.EnumProperty(
 class QueueUp(bpy.types.Operator):
     bl_idname = "object.mian_queue_up"
     bl_label = "列队"
+    bl_description = "将所选物体按指定轴向和间距进行排列，形成整齐的队列"
 
     def execute(self, context):
         distance = bpy.context.scene.queue_up_distance
@@ -735,6 +745,7 @@ def link_empty(obj_collection, empty_name, location):
 class CreateEmptyAtObjectBottom(bpy.types.Operator):
     bl_idname = "object.mian_create_empty_at_bottom"
     bl_label = "在选中物体底部创建父级空物体"
+    bl_description = "在所选物体的底部位置创建空物体作为父级，用于组织物体层级"
 
     def execute(self, context):
         multiple_object_binding = context.scene.multiple_object_binding
@@ -833,6 +844,7 @@ class CollectionByDistance(bpy.types.Operator):
 class CollectionByAttached(bpy.types.Operator):
     bl_idname = "object.collection_by_attached"
     bl_label = "接触合并"
+    bl_description = "检测接触的物体并将它们合并到同一个集合中"
 
     def execute(self, context):
         def create_bounding_box_vectors(obj):
@@ -920,6 +932,7 @@ class CollectionByAttached(bpy.types.Operator):
 class CollectionByBoundingbox(bpy.types.Operator):
     bl_idname = "object.mian_collection_byboundingbox"
     bl_label = "检测碰撞归为一个集合（无法撤回请及时保存）"
+    bl_description = "检测包围盒碰撞的物体并将它们归入同一个集合中"
 
     def execute(self, context):
 
@@ -1016,6 +1029,7 @@ class CollectionByBoundingbox(bpy.types.Operator):
 class VoxOperation(bpy.types.Operator):
     bl_idname = "object.vox_operation"
     bl_label = "vox角色处理"
+    bl_description = "导入VOX文件并进行一键处理，包括材质设置和优化"
 
     def execute(self, context):
 
@@ -1029,6 +1043,7 @@ class VoxOperation(bpy.types.Operator):
 class ParentByBoundingbox(bpy.types.Operator):
     bl_idname = "object.mian_parent_byboundingbox"
     bl_label = "检测碰撞归为一个子集"
+    bl_description = "检测包围盒碰撞的物体并创建父级关系，将碰撞的物体设为子物体"
 
     def execute(self, context):
         def create_bounding_box_vectors(obj):
@@ -1164,6 +1179,7 @@ def clean_collection(collection):
 class CleanCollection(bpy.types.Operator):
     bl_idname = "object.mian_clean_collection"
     bl_label = "清空空集合"
+    bl_description = "删除场景中所有空的集合（不包含任何物体的集合）"
 
     def execute(self, context):
         scene = bpy.context.scene
@@ -1176,6 +1192,7 @@ class CleanCollection(bpy.types.Operator):
 class BoundboxGen(bpy.types.Operator):
     bl_idname = "object.mian_boundbox_gen"
     bl_label = "生成包围盒"
+    bl_description = "为所选物体生成包围盒，创建立方体网格包围所选物体"
 
     def execute(self, context):
         def get_local_bounding_box(obj):
@@ -1401,6 +1418,7 @@ class FixSizeOperator(bpy.types.Operator):
 class RenameByParent(bpy.types.Operator):
     bl_idname = "object.mian_rename_by_parent"
     bl_label = "更改所选物体为其顶级名称"
+    bl_description = "将所选子物体的名称更改为其顶级父物体的名称"
 
     def execute(self, context):
 
@@ -1479,7 +1497,7 @@ def set_nearest_parent_for_collection(self, context):
 class OBJECT_OT_SetParentButton(bpy.types.Operator):
     bl_idname = "object.mian_set_parent_collections"
     bl_label = "Set Parent Collections"
-    bl_description = "Set parent of collections based on closest object in target collection"
+    bl_description = "根据目标集合中最接近的物体设置集合的父级关系"
 
     def execute(self, context):
         set_nearest_parent_for_collection(self, context)
@@ -1489,6 +1507,7 @@ class OBJECT_OT_SetParentButton(bpy.types.Operator):
 class OBJECT_OT_AlignOperator(bpy.types.Operator):
     bl_idname = "object.align_operator"
     bl_label = "集合父级批量对齐"
+    bl_description = "将目标集合中的顶级父物体与参考集合中最近的物体对齐"
     
     def execute(self, context):
         def get_all_top_level_objects(collection):
@@ -1546,6 +1565,7 @@ def uv_sets_equal(set_a, set_b):
 class UVObjectMatcherOperator(bpy.types.Operator):
     bl_idname = "object.match_uv"
     bl_label = "选取同uv物体"
+    bl_description = "选择与当前活动物体具有相同UV坐标的物体"
 
     def execute(self, context):
         selected_object = context.active_object
@@ -1636,6 +1656,7 @@ class ResetNormalsAndFlatShadingOperator(bpy.types.Operator):
 class MergeTopLevel(bpy.types.Operator):
   bl_idname = "object.mian_merge_top_level"
   bl_label = "合并顶级层级"
+  bl_description = "将所选物体的顶级层级进行合并，简化物体结构"
 
   def execute(self, context):
 
@@ -1693,6 +1714,7 @@ class MergeTopLevel(bpy.types.Operator):
 class ApplyAndSeparate(bpy.types.Operator):
     bl_idname = "object.mian_apply_and_separate"
     bl_label = "独立化、应用所有变换"
+    bl_description = "将所选物体独立化并应用所有变换，确保物体数据独立"
 
     def execute(self, context):
         # 获取当前所选物体和具有负缩放的物体列表
@@ -1769,6 +1791,7 @@ class ApplyAndSeparate(bpy.types.Operator):
 class CleanEmpty(bpy.types.Operator):
     bl_idname = "object.mian_clean_empty"
     bl_label = "清理所选空物体"
+    bl_description = "删除所选的空物体（没有几何数据的物体）"
 
     def execute(self, context):
         # 遍历所选的物体
@@ -1958,6 +1981,7 @@ class SCENE_OT_add_sorted_scenes_to_sequencer(bpy.types.Operator):
 class OBJECT_OT_move_to_surface(bpy.types.Operator):
     bl_idname = "object.move_to_surface"
     bl_label = "下落至表面"
+    bl_description = "将所选物体沿指定方向移动，直到与场景中的其他物体表面接触"
     bl_options = {'REGISTER', 'UNDO'}
 
     def create_tree_from_object(self, obj):

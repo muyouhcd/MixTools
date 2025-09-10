@@ -7,6 +7,7 @@ class mian_OT_batch_import_fbx(Operator):
     """批量导入FBX文件"""
     bl_idname = "miao.batch_import_fbx"
     bl_label = "批量导入FBX"
+    bl_description = "批量导入指定目录中的所有FBX文件"
     bl_options = {'REGISTER', 'UNDO'}
 
     directory: StringProperty(
@@ -41,6 +42,7 @@ class mian_OT_batch_import_obj(Operator):
     """批量导入OBJ文件"""
     bl_idname = "miao.batch_import_obj"
     bl_label = "批量导入OBJ"
+    bl_description = "批量导入指定目录中的所有OBJ文件"
     bl_options = {'REGISTER', 'UNDO'}
 
     directory: StringProperty(

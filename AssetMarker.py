@@ -5,6 +5,7 @@ from mathutils import Vector
 class CreateAssemblyAsset(bpy.types.Operator):
     bl_idname = "object.mian_create_assembly_asset"
     bl_label = "批量标记资产（需要m3插件）"
+    bl_description = "批量创建装配资产，需要安装Machin3tools插件支持"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
