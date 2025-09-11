@@ -8,6 +8,21 @@ import time
 
 from bpy.props import BoolProperty, EnumProperty, CollectionProperty# type: ignore
 
+# 检查Blender版本兼容性
+def is_blender_4_3_or_later():
+    """检查是否为Blender 4.3或更高版本"""
+    version = bpy.app.version
+    return version >= (4, 3, 0)
+
+def has_use_zbuffer_attribute():
+    """检查ImageFormatSettings是否有use_zbuffer属性"""
+    try:
+        # 尝试访问use_zbuffer属性
+        bpy.context.scene.render.image_settings.use_zbuffer
+        return True
+    except AttributeError:
+        return False
+
 # 尝试导入PIL库，如果不存在则记录警告
 PIL_AVAILABLE = False
 try:
@@ -29,6 +44,13 @@ class AutoRenderer():
         集合：字符串列表，每个字符串都是一个集合的名称
         report_callback: 可选的回调函数，用于向Blender信息窗口报告信息
         """
+        # 显示Blender版本兼容性信息
+        version = bpy.app.version
+        print(f"ℹ Blender版本: {version[0]}.{version[1]}.{version[2]}")
+        if is_blender_4_3_or_later():
+            print("ℹ 检测到Blender 4.3+，已适配use_zbuffer属性移除的变更")
+        if not has_use_zbuffer_attribute():
+            print("ℹ use_zbuffer属性不可用，将跳过Z缓冲相关设置")
         self.collections = collections
         self.cam = bpy.data.objects.get(camera_name)  # 通过参数传递的 camera_name 获取相机对象
         if not self.cam:
@@ -1147,7 +1169,11 @@ class AutoRenderer():
                     # 设置EXR格式的渲染设置
                     bpy.context.scene.render.image_settings.file_format = 'OPEN_EXR'
                     bpy.context.scene.render.image_settings.exr_codec = 'ZIP'  # 使用ZIP压缩
-                    bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
+                    # 检查是否有use_zbuffer属性（Blender 4.3+移除了此属性）
+                    if has_use_zbuffer_attribute():
+                        bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
+                    else:
+                        print("ℹ Blender 4.3+: use_zbuffer属性已移除，跳过Z缓冲设置")
                     bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
                     print("✓ EXR格式设置完成")
                     
@@ -1156,7 +1182,11 @@ class AutoRenderer():
                     # 设置TIFF格式的渲染设置
                     bpy.context.scene.render.image_settings.file_format = 'TIFF'
                     bpy.context.scene.render.image_settings.tiff_codec = 'DEFLATE'  # 使用DEFLATE压缩
-                    bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
+                    # 检查是否有use_zbuffer属性（Blender 4.3+移除了此属性）
+                    if has_use_zbuffer_attribute():
+                        bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
+                    else:
+                        print("ℹ Blender 4.3+: use_zbuffer属性已移除，跳过Z缓冲设置")
                     bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
                     print("✓ TIFF格式设置完成")
                     
@@ -1164,7 +1194,11 @@ class AutoRenderer():
                     print("ℹ 检测到PNG格式，应用PNG设置...")
                     # 设置PNG格式的渲染设置
                     bpy.context.scene.render.image_settings.file_format = 'PNG'
-                    bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
+                    # 检查是否有use_zbuffer属性（Blender 4.3+移除了此属性）
+                    if has_use_zbuffer_attribute():
+                        bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
+                    else:
+                        print("ℹ Blender 4.3+: use_zbuffer属性已移除，跳过Z缓冲设置")
                     bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
                     print("✓ PNG格式设置完成")
                     
@@ -1716,9 +1750,12 @@ class AutoRenderer():
             'exr_codec': scene.render.image_settings.exr_codec,
             'tiff_codec': scene.render.image_settings.tiff_codec,
             'quality': scene.render.image_settings.quality,
-            'use_zbuffer': scene.render.image_settings.use_zbuffer,
             'use_preview': scene.render.image_settings.use_preview
         }
+        
+        # 检查是否有use_zbuffer属性（Blender 4.3+移除了此属性）
+        if has_use_zbuffer_attribute():
+            original_settings['use_zbuffer'] = scene.render.image_settings.use_zbuffer
         
         print("保存原始渲染设置:")
         for key, value in original_settings.items():
@@ -1732,8 +1769,11 @@ class AutoRenderer():
         
         print("恢复原始渲染设置:")
         for key, value in original_settings.items():
-            if key in ['file_format', 'exr_codec', 'tiff_codec', 'quality', 'use_zbuffer', 'use_preview']:
+            if key in ['file_format', 'exr_codec', 'tiff_codec', 'quality', 'use_preview']:
                 # 恢复图像设置
+                setattr(scene.render.image_settings, key, value)
+            elif key == 'use_zbuffer' and has_use_zbuffer_attribute():
+                # 恢复use_zbuffer设置（仅在支持时）
                 setattr(scene.render.image_settings, key, value)
             elif key.startswith('use_') and key != 'use_nodes':
                 # 恢复渲染设置
