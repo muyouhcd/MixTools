@@ -8,8 +8,31 @@ import numpy as np
 from bpy.props import PointerProperty
 from PIL import Image
 
+# 检查Blender版本兼容性
+def is_blender_4_3_or_later():
+    """检查是否为Blender 4.3或更高版本"""
+    version = bpy.app.version
+    return version >= (4, 3, 0)
+
+def get_image_filepath(image):
+    """获取图片文件路径，兼容不同Blender版本"""
+    if is_blender_4_3_or_later():
+        # Blender 4.3+ 使用 filepath
+        return image.filepath
+    else:
+        # Blender 3.6 使用 filepath_raw
+        return image.filepath_raw
+
 
 def rename_texture():
+        # 显示Blender版本兼容性信息
+        version = bpy.app.version
+        print(f"ℹ Blender版本: {version[0]}.{version[1]}.{version[2]}")
+        if is_blender_4_3_or_later():
+            print("ℹ 检测到Blender 4.3+，使用兼容模式")
+        else:
+            print("ℹ 使用Blender 3.6兼容模式")
+            
         # 遍历场景中的所有物体
         for obj in bpy.data.objects:
             # 只处理有材质的对象
@@ -21,8 +44,8 @@ def rename_texture():
                             # 关注Image Texture节点
                             if node.type == 'TEX_IMAGE':
                                 if node.image:
-                                    # 获取图片的文件路径和名称
-                                    image_filepath = node.image.filepath_raw
+                                    # 获取图片的文件路径和名称（兼容不同Blender版本）
+                                    image_filepath = get_image_filepath(node.image)
                                     image_filename = os.path.basename(image_filepath)
                                     image_name, _ = os.path.splitext(image_filename)
 
@@ -40,8 +63,14 @@ class RenameTextureOrign(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        rename_texture()
-        print("重命名完成")
+        try:
+            rename_texture()
+            print("重命名完成")
+            self.report({'INFO'}, "贴图重命名完成")
+        except Exception as e:
+            error_msg = f"重命名过程中出现错误: {str(e)}"
+            print(error_msg)
+            self.report({'ERROR'}, error_msg)
         return {'FINISHED'}
     
 #去除名称后缀
@@ -51,23 +80,34 @@ class RemoveNameSuffix(bpy.types.Operator):
     bl_description = "移除所选物体名称中的后缀（如_001、-01、.001等）"
 
     def execute(self, context):
-        selected_objects = bpy.context.selected_objects
-        name_dict = {}
+        try:
+            selected_objects = bpy.context.selected_objects
+            if not selected_objects:
+                self.report({'WARNING'}, "请先选择要处理的物体")
+                return {'CANCELLED'}
+                
+            name_dict = {}
 
-        # 移除后缀，并储存重名的物体
-        for obj in selected_objects:
-            obj.name = re.sub("(_.*|-.*|\.\d{3}$)", "", obj.name)
-            if obj.name in name_dict:
-                name_dict[obj.name].append(obj)
-            else:
-                name_dict[obj.name] = []
+            # 移除后缀，并储存重名的物体
+            for obj in selected_objects:
+                obj.name = re.sub("(_.*|-.*|\.\d{3}$)", "", obj.name)
+                if obj.name in name_dict:
+                    name_dict[obj.name].append(obj)
+                else:
+                    name_dict[obj.name] = []
 
-        # 根据需要添加后缀
-        for obj_name, duplicate_objs in name_dict.items():
-            for i, obj in enumerate(duplicate_objs):
-                obj.name = obj_name + '.' + str(i + 1).zfill(3)
+            # 根据需要添加后缀
+            for obj_name, duplicate_objs in name_dict.items():
+                for i, obj in enumerate(duplicate_objs):
+                    obj.name = obj_name + '.' + str(i + 1).zfill(3)
 
-        return {"FINISHED"}
+            self.report({'INFO'}, f"已处理 {len(selected_objects)} 个物体的名称后缀")
+            return {"FINISHED"}
+        except Exception as e:
+            error_msg = f"移除后缀过程中出现错误: {str(e)}"
+            print(error_msg)
+            self.report({'ERROR'}, error_msg)
+            return {'CANCELLED'}
 
 #移除顶级物体名称后缀，重名则交换
 class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
@@ -273,7 +313,7 @@ def sample_texture_on_object(obj):
             if slot.material and slot.material.use_nodes:
                 for node in slot.material.node_tree.nodes:
                     if node.type == 'TEX_IMAGE':
-                        img_path = bpy.path.abspath(node.image.filepath)
+                        img_path = bpy.path.abspath(get_image_filepath(node.image))
                         break
                         
         if os.path.exists(img_path):
@@ -339,6 +379,20 @@ class AutoRenameCar(bpy.types.Operator):
     bl_description = "自动重命名汽车模型，适用于Unity引擎，包括车身、车轮等部件的智能命名"
     
     def execute(self, context):
+        try:
+            # 显示Blender版本兼容性信息
+            version = bpy.app.version
+            print(f"ℹ Blender版本: {version[0]}.{version[1]}.{version[2]}")
+            if is_blender_4_3_or_later():
+                print("ℹ 检测到Blender 4.3+，使用兼容模式")
+            else:
+                print("ℹ 使用Blender 3.6兼容模式")
+                
+            selected_objects = bpy.context.selected_objects
+            if not selected_objects:
+                self.report({'WARNING'}, "请先选择要处理的汽车模型")
+                return {'CANCELLED'}
+                
         def flatten_hierarchy():
             def is_root_obj(obj):
                 return obj.parent is None
@@ -475,46 +529,50 @@ class AutoRenameCar(bpy.types.Operator):
                     left_object.name = f"{get_original_name_without_suffix(left_object.name)}_Wheel_{position_suffix}_L"
                     right_object.name = f"{get_original_name_without_suffix(right_object.name)}_Wheel_{position_suffix}_R"
 
-        # 在您的操作中调用此函数，并传递所选对象列表
-        selected_objects = bpy.context.selected_objects
-        
-
-        flatten_hierarchy()
-        # change_name_based_on_geometry()
-        rename_four_lowest_z_vertex_objects_with_position_suffixes(selected_objects)
-        # rename_largest_objects_to_body()
-        rename_object_based_on_color(bpy.context.selected_objects, "#6699cc", '_glass')
-        
-        #重新对名称格式化
-        # Move digits to the end for selected objects
-        for obj in bpy.context.selected_objects:
-            obj.name = move_digits_to_end(obj.name)
-
-        # Create a dictionary to store the counter for each object base name
-        name_counters = defaultdict(int)
-
-        # Create a list of all selected objects, with their depth level
-        objects_with_depth = [(obj, calculate_depth(obj)) for obj in bpy.context.selected_objects if re.search('\.\d+$', obj.name)]
-
-        # Sort the list by depth level, from high to low
-        objects_with_depth.sort(key=lambda x: -x[1])
-
-        # Iterate through all selected objects
-        for obj, depth in objects_with_depth:
-            # Extract base name (name without the trailing number)
-            base_name = re.sub("\.\d+$", '', obj.name)
-            # Set the object name to the base name plus the count for that base name
-            obj.name = base_name + '_' + str(name_counters[base_name]).zfill(3)
-            # Increment the counter for that base name
-            name_counters[base_name] += 1
+            # 在您的操作中调用此函数，并传递所选对象列表
+            flatten_hierarchy()
+            # change_name_based_on_geometry()
+            rename_four_lowest_z_vertex_objects_with_position_suffixes(selected_objects)
+            # rename_largest_objects_to_body()
+            rename_object_based_on_color(bpy.context.selected_objects, "#6699cc", '_glass')
             
-        # Visit all objects in the selected objects
-        for obj in bpy.context.selected_objects:
-            # Check whether the object is of type mesh
-            if obj.type == 'MESH':
-                # Change the name of the mesh data block to the name of the object
-                obj.data.name = obj.name
-        return {"FINISHED"}
+            #重新对名称格式化
+            # Move digits to the end for selected objects
+            for obj in bpy.context.selected_objects:
+                obj.name = move_digits_to_end(obj.name)
+
+            # Create a dictionary to store the counter for each object base name
+            name_counters = defaultdict(int)
+
+            # Create a list of all selected objects, with their depth level
+            objects_with_depth = [(obj, calculate_depth(obj)) for obj in bpy.context.selected_objects if re.search('\.\d+$', obj.name)]
+
+            # Sort the list by depth level, from high to low
+            objects_with_depth.sort(key=lambda x: -x[1])
+
+            # Iterate through all selected objects
+            for obj, depth in objects_with_depth:
+                # Extract base name (name without the trailing number)
+                base_name = re.sub("\.\d+$", '', obj.name)
+                # Set the object name to the base name plus the count for that base name
+                obj.name = base_name + '_' + str(name_counters[base_name]).zfill(3)
+                # Increment the counter for that base name
+                name_counters[base_name] += 1
+                
+            # Visit all objects in the selected objects
+            for obj in bpy.context.selected_objects:
+                # Check whether the object is of type mesh
+                if obj.type == 'MESH':
+                    # Change the name of the mesh data block to the name of the object
+                    obj.data.name = obj.name
+                    
+            self.report({'INFO'}, f"汽车重命名完成，处理了 {len(selected_objects)} 个物体")
+            return {"FINISHED"}
+        except Exception as e:
+            error_msg = f"汽车重命名过程中出现错误: {str(e)}"
+            print(error_msg)
+            self.report({'ERROR'}, error_msg)
+            return {'CANCELLED'}
     
 class AutoRenameCarForRigCar(bpy.types.Operator):
     bl_idname = "object.mian_auto_rename_car_for_rigcar"
@@ -522,6 +580,20 @@ class AutoRenameCarForRigCar(bpy.types.Operator):
     bl_description = "自动重命名汽车模型，适用于Rig-car系统，包括层级结构和命名规范"
 
     def execute(self, context):
+        try:
+            # 显示Blender版本兼容性信息
+            version = bpy.app.version
+            print(f"ℹ Blender版本: {version[0]}.{version[1]}.{version[2]}")
+            if is_blender_4_3_or_later():
+                print("ℹ 检测到Blender 4.3+，使用兼容模式")
+            else:
+                print("ℹ 使用Blender 3.6兼容模式")
+                
+            selected_objects = bpy.context.selected_objects
+            if not selected_objects:
+                self.report({'WARNING'}, "请先选择要处理的汽车模型")
+                return {'CANCELLED'}
+                
         def set_remaining_objects_as_children_of_body():
             selected_objects = bpy.context.selected_objects
 
@@ -549,7 +621,11 @@ class AutoRenameCarForRigCar(bpy.types.Operator):
                             continue
                         bpy.ops.object.select_all(action='DESELECT')
                         
-                        obj.select_set(True)
+                        # 兼容不同Blender版本的选择API
+                        if is_blender_4_3_or_later():
+                            obj.select_set(True)
+                        else:
+                            obj.select = True
                         #body_object.select_set(True)
                         bpy.context.view_layer.objects.active = body_object
                         
@@ -625,12 +701,17 @@ class AutoRenameCarForRigCar(bpy.types.Operator):
             pass
 
 
-        rename_four_lowest_z_vertex_objects_with_position_suffixes()
-        rename_largest_remaining_object_to_body()
-        set_remaining_objects_as_children_of_body()
+            rename_four_lowest_z_vertex_objects_with_position_suffixes()
+            rename_largest_remaining_object_to_body()
+            set_remaining_objects_as_children_of_body()
 
-
-        return {"FINISHED"} 
+            self.report({'INFO'}, f"RigCar重命名完成，处理了 {len(selected_objects)} 个物体")
+            return {"FINISHED"}
+        except Exception as e:
+            error_msg = f"RigCar重命名过程中出现错误: {str(e)}"
+            print(error_msg)
+            self.report({'ERROR'}, error_msg)
+            return {'CANCELLED'} 
 
 
 def register():     
