@@ -1317,11 +1317,7 @@ class AutoRenderer():
                         
                         # 使用合成器渲染，包含所有节点效果
                         # 注意：write_still=True 会自动保存到指定路径，不需要再次保存
-                        # 检查use_viewport参数是否可用
-                        if is_blender_4_3_or_later():
-                            bpy.ops.render.render(write_still=True)
-                        else:
-                            bpy.ops.render.render(write_still=True, use_viewport=False)
+                        bpy.ops.render.render(write_still=True, use_viewport=False)
                         print("✓ 合成器渲染完成，包含辉光等效果")
                         
                         # 验证渲染结果
@@ -1348,11 +1344,7 @@ class AutoRenderer():
                             
                             if is_valid:
                                 print("✓ 强制启用成功，使用合成器渲染")
-                                # 检查use_viewport参数是否可用
-                        if is_blender_4_3_or_later():
-                            bpy.ops.render.render(write_still=True)
-                        else:
-                            bpy.ops.render.render(write_still=True, use_viewport=False)
+                                bpy.ops.render.render(write_still=True, use_viewport=False)
                                 print("✓ 合成器渲染完成，包含辉光等效果")
                                 
                                 # 验证渲染结果
@@ -2081,43 +2073,13 @@ class AUTO_RENDER_OneClick(bpy.types.Operator):
     bl_description = "一键处理导入模型"
 
     def execute(self, context):
-        try:
-            bpy.ops.object.select_all(action='SELECT')
-            
-            # 检查Blender版本并使用兼容的操作符
-            if is_blender_4_3_or_later():
-                # Blender 4.3+ 兼容模式
-                try:
-                    bpy.ops.object.set_roughness(roughness=10)
-                except AttributeError:
-                    print("ℹ set_roughness操作符不可用，跳过")
-                
-                try:
-                    bpy.ops.object.set_emission_strength(strength=0)
-                except AttributeError:
-                    print("ℹ set_emission_strength操作符不可用，跳过")
-                
-                try:
-                    bpy.ops.object.set_texture_interpolation()
-                except AttributeError:
-                    print("ℹ set_texture_interpolation操作符不可用，跳过")
-            else:
-                # Blender 3.6 兼容模式
-                bpy.ops.object.set_roughness(roughness=10)
-                bpy.ops.object.set_emission_strength(strength=0)
-                bpy.ops.object.set_texture_interpolation()
-            
-            # 自定义操作符（如果存在）
-            try:
-                bpy.ops.object.mian_queue_up()
-            except AttributeError:
-                print("ℹ mian_queue_up操作符不可用，跳过")
-            
-            bpy.ops.object.select_all(action='DESELECT')
-            
-        except Exception as e:
-            print(f"⚠ 一键处理过程中出现错误: {str(e)}")
-            self.report({'WARNING'}, f"一键处理部分失败: {str(e)}")
+
+        bpy.ops.object.select_all(action='SELECT')
+        bpy.ops.object.set_roughness(roughness=10)
+        bpy.ops.object.set_emission_strength(strength=0)
+        bpy.ops.object.set_texture_interpolation()
+        bpy.ops.object.mian_queue_up()
+        bpy.ops.object.select_all(action='DESELECT')
 
         return {'FINISHED'}
 
