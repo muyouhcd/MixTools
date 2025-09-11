@@ -577,6 +577,10 @@ class CustomFunctionsPanel(Panel):
             format_row = better_fbx_box.row(align=True)
             format_row.prop(context.scene, "batch_import_file_format", text="文件格式", icon='FILE_3D')
             
+            # 添加重命名选项
+            rename_row = better_fbx_box.row(align=True)
+            rename_row.prop(context.scene, "fbx_rename_top_level", text="重命名顶级父级为文件名称", icon='OUTLINER_OB_EMPTY')
+            
             row = better_fbx_box.row(align=True)
             row.operator("better_fbx.batch_import", text="批量导入", icon='IMPORT')
             row.operator("better_fbx.batch_import_files", text="选择多个文件", icon='DOCUMENTS')
@@ -1021,6 +1025,13 @@ def register():
         default='FBX'
     )
     
+    # FBX重命名选项
+    bpy.types.Scene.fbx_rename_top_level = bpy.props.BoolProperty(
+        name="重命名顶级父级为文件名称",
+        description="导入后将顶级父级重命名为FBX文件名",
+        default=False
+    )
+    
     # Better FBX导出相关属性
     bpy.types.Scene.better_fbx_export_directory = bpy.props.StringProperty(
         name="FBX导出目录",
@@ -1109,6 +1120,7 @@ def unregister():
         # Better FBX导入相关属性
         "better_fbx_import_directory",
         "batch_import_file_format",
+        "fbx_rename_top_level",
         
         # Better FBX导出相关属性
         "better_fbx_export_directory",

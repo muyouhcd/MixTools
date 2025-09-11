@@ -16,12 +16,13 @@ def check_better_fbx_available():
     except:
         return False
 
-def batch_import_with_better_fbx(file_paths):
+def batch_import_with_better_fbx(file_paths, rename_top_level=False):
     """
     使用BetterFBX插件批量导入FBX文件列表 - 简单逐个导入
     
     参数:
     file_paths: FBX文件路径列表
+    rename_top_level: 是否重命名顶级父级为文件名
     
     返回:
     (success, message)
@@ -48,11 +49,183 @@ def batch_import_with_better_fbx(file_paths):
         print(f"=== 开始导入文件: {os.path.basename(file_path)} ===")
         
         try:
+            # 记录导入前的对象数量
+            objects_before = len(bpy.context.scene.objects)
+            
             # 直接调用BetterFBX导入器，使用默认设置
             result = bpy.ops.better_import.fbx(filepath=file_path)
             
             if result == {'FINISHED'}:
                 print(f"✓ 成功导入: {os.path.basename(file_path)}")
+                
+                # 等待导入完全完成
+                bpy.context.view_layer.update()
+                
+                # 如果需要重命名顶级父级
+                if rename_top_level:
+                    print(f"  → 开始重命名处理...")
+                    # 获取导入后新增的对象
+                    objects_after = len(bpy.context.scene.objects)
+                    print(f"  → 导入前对象数量: {objects_before}, 导入后对象数量: {objects_after}")
+                    
+                    if objects_after > objects_before:
+                        # 找到新导入的对象
+                        new_objects = bpy.context.scene.objects[objects_before:]
+                        print(f"  → 新导入的对象数量: {len(new_objects)}")
+                        
+                        # 获取文件名（不含扩展名）
+                        file_name = os.path.splitext(os.path.basename(file_path))[0]
+                        print(f"  → 目标文件名: {file_name}")
+                        
+                        # 打印所有新对象的名称和父级信息
+                        for i, obj in enumerate(new_objects):
+                            parent_name = obj.parent.name if obj.parent else "None"
+                            print(f"  → 新对象 {i}: '{obj.name}', 父级: {parent_name}")
+                        
+                        # 查找顶级父级对象（没有父级的对象）
+                        top_level_objects = [obj for obj in new_objects if obj.parent is None]
+                        print(f"  → 新导入的顶级父级对象数量: {len(top_level_objects)}")
+                        
+                        # 如果新导入的对象中没有顶级父级，通过分析父级关系找到真正的顶级父级
+                        if not top_level_objects:
+                            print(f"  → 新导入对象中没有顶级父级，通过分析父级关系找到真正的顶级父级...")
+                            
+                            # 收集所有新导入对象的父级链
+                            all_parents = set()
+                            for obj in new_objects:
+                                current_obj = obj
+                                while current_obj.parent is not None:
+                                    all_parents.add(current_obj.parent)
+                                    current_obj = current_obj.parent
+                            
+                            # 打印所有父级对象
+                            print(f"  → 所有父级对象:")
+                            for i, parent in enumerate(all_parents):
+                                print(f"    {i}: '{parent.name}' (类型: {parent.type}, 父级: {parent.parent.name if parent.parent else 'None'})")
+                            
+                            print(f"  → 找到 {len(all_parents)} 个父级对象")
+                            
+                            # 从父级对象中找到真正的顶级父级（没有父级的父级）
+                            top_parents = [parent for parent in all_parents if parent.parent is None]
+                            print(f"  → 找到 {len(top_parents)} 个顶级父级对象")
+                            
+                            # 打印所有顶级父级对象
+                            for i, parent in enumerate(top_parents):
+                                print(f"  → 顶级父级 {i}: '{parent.name}' (类型: {parent.type})")
+                            
+                            # 选择目标对象
+                            target_obj = None
+                            
+                            # 1. 优先选择名称包含Root的顶级父级
+                            for parent in top_parents:
+                                if 'root' in parent.name.lower():
+                                    target_obj = parent
+                                    print(f"  → 找到Root顶级父级: '{parent.name}' (类型: {parent.type})")
+                                    break
+                            
+                            # 2. 如果没找到Root，优先选择空物体
+                            if target_obj is None:
+                                for parent in top_parents:
+                                    if parent.type == 'EMPTY':
+                                        target_obj = parent
+                                        print(f"  → 选择空物体作为顶级父级: '{parent.name}' (类型: {parent.type})")
+                                        break
+                            
+                            # 3. 如果还没找到，选择第一个顶级父级
+                            if target_obj is None and top_parents:
+                                target_obj = top_parents[0]
+                                print(f"  → 选择第一个顶级父级: '{target_obj.name}' (类型: {target_obj.type})")
+                            
+                            if target_obj is None:
+                                print(f"  → 警告: 没有找到合适的顶级父级进行重命名")
+                        else:
+                            # 新导入的对象中有顶级父级，但需要检查是否还有更高级的父级
+                            print(f"  → 新导入对象中有顶级父级，检查是否还有更高级的父级...")
+                            
+                            # 打印新导入的顶级对象及其类型
+                            for i, obj in enumerate(top_level_objects):
+                                obj_type = obj.type
+                                print(f"  → 新导入顶级对象 {i}: '{obj.name}' (类型: {obj_type})")
+                            
+                            # 检查新导入的顶级对象是否还有父级
+                            all_parents = set()
+                            for obj in top_level_objects:
+                                current_obj = obj
+                                while current_obj.parent is not None:
+                                    all_parents.add(current_obj.parent)
+                                    current_obj = current_obj.parent
+                            
+                            # 同时检查所有新导入对象的父级链
+                            for obj in new_objects:
+                                current_obj = obj
+                                while current_obj.parent is not None:
+                                    all_parents.add(current_obj.parent)
+                                    current_obj = current_obj.parent
+                            
+                            # 从父级对象中找到真正的顶级父级（没有父级的父级）
+                            top_parents = [parent for parent in all_parents if parent.parent is None]
+                            
+                            target_obj = None
+                            
+                            if top_parents:
+                                print(f"  → 找到 {len(top_parents)} 个更高级的顶级父级对象")
+                                
+                                # 打印所有更高级的顶级父级对象
+                                for i, parent in enumerate(top_parents):
+                                    print(f"  → 更高级顶级父级 {i}: '{parent.name}' (类型: {parent.type})")
+                                
+                                # 1. 优先选择名称包含Root的顶级父级
+                                for parent in top_parents:
+                                    if 'root' in parent.name.lower():
+                                        target_obj = parent
+                                        print(f"  → 找到Root顶级父级: '{parent.name}' (类型: {parent.type})")
+                                        break
+                                
+                                # 2. 如果没找到Root，优先选择空物体
+                                if target_obj is None:
+                                    for parent in top_parents:
+                                        if parent.type == 'EMPTY':
+                                            target_obj = parent
+                                            print(f"  → 选择空物体作为顶级父级: '{parent.name}' (类型: {parent.type})")
+                                            break
+                                
+                                # 3. 如果还没找到，选择第一个更高级的顶级父级
+                                if target_obj is None:
+                                    target_obj = top_parents[0]
+                                    print(f"  → 选择第一个更高级的顶级父级: '{target_obj.name}' (类型: {target_obj.type})")
+                            else:
+                                # 没有更高级的父级，从新导入的顶级对象中选择
+                                print(f"  → 没有更高级的父级，从新导入的顶级对象中选择...")
+                                
+                                # 1. 首先尝试找到名称包含文件名的顶级对象
+                                for obj in top_level_objects:
+                                    if file_name in obj.name:
+                                        target_obj = obj
+                                        print(f"  → 找到包含文件名的顶级对象: '{obj.name}' (类型: {obj.type})")
+                                        break
+                                
+                                # 2. 如果没找到，优先选择空物体
+                                if target_obj is None:
+                                    for obj in top_level_objects:
+                                        if obj.type == 'EMPTY':
+                                            target_obj = obj
+                                            print(f"  → 选择空物体作为顶级父级: '{obj.name}' (类型: {obj.type})")
+                                            break
+                                
+                                # 3. 如果还没找到，选择第一个顶级对象
+                                if target_obj is None and top_level_objects:
+                                    target_obj = top_level_objects[0]
+                                    print(f"  → 选择第一个新导入的顶级对象: '{target_obj.name}' (类型: {target_obj.type})")
+                        
+                        if target_obj:
+                            old_name = target_obj.name
+                            target_obj.name = file_name
+                            print(f"  → 重命名对象 '{old_name}' 为: '{file_name}'")
+                        else:
+                            print(f"  → 警告: 没有找到可重命名的对象")
+                    else:
+                        print(f"  → 警告: 导入后对象数量没有增加")
+                
                 success_count += 1
             else:
                 print(f"✗ 导入失败: {os.path.basename(file_path)} - Better FBX导入器返回: {result}")
@@ -122,8 +295,11 @@ class BetterFbxBatchImportOperator(Operator):
             self.report({'WARNING'}, f"在目录 {directory} 中没有找到 {extension} 文件")
             return {'CANCELLED'}
         
+        # 获取重命名选项
+        rename_top_level = getattr(scene, 'fbx_rename_top_level', False)
+        
         # 执行批量导入
-        success, message = batch_import_with_better_fbx(file_paths)
+        success, message = batch_import_with_better_fbx(file_paths, rename_top_level)
         
         if success:
             self.report({'INFO'}, message)
@@ -161,8 +337,12 @@ class BetterFbxBatchImportFilesOperator(Operator, ImportHelper):
             file_path = os.path.join(os.path.dirname(self.filepath), file.name)
             file_paths.append(file_path)
         
+        # 获取重命名选项
+        scene = context.scene
+        rename_top_level = getattr(scene, 'fbx_rename_top_level', False)
+        
         # 执行批量导入
-        success, message = batch_import_with_better_fbx(file_paths)
+        success, message = batch_import_with_better_fbx(file_paths, rename_top_level)
         
         if success:
             self.report({'INFO'}, message)
@@ -236,8 +416,11 @@ class BetterFbxBatchImportByNameListOperator(Operator):
             self.report({'WARNING'}, f"在目录 {search_directory} 中没有找到匹配的文件")
             return {'CANCELLED'}
         
+        # 获取重命名选项
+        rename_top_level = getattr(scene, 'fbx_rename_top_level', False)
+        
         # 执行批量导入
-        success, message = batch_import_with_better_fbx(file_paths)
+        success, message = batch_import_with_better_fbx(file_paths, rename_top_level)
         
         if success:
             self.report({'INFO'}, message)
