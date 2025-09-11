@@ -1002,6 +1002,25 @@ def register():
         default="",
     )
     
+    # Better FBX导入相关属性
+    bpy.types.Scene.better_fbx_import_directory = bpy.props.StringProperty(
+        name="3D文件目录",
+        description="批量导入的3D文件目录",
+        subtype='DIR_PATH',
+        default=""
+    )
+    
+    # 批量导入文件格式选择
+    bpy.types.Scene.batch_import_file_format = bpy.props.EnumProperty(
+        name="文件格式",
+        description="选择要导入的文件格式",
+        items=[
+            ('FBX', 'FBX', '导入FBX文件'),
+            ('OBJ', 'OBJ', '导入OBJ文件'),
+        ],
+        default='FBX'
+    )
+    
     # Better FBX导出相关属性
     bpy.types.Scene.better_fbx_export_directory = bpy.props.StringProperty(
         name="FBX导出目录",
@@ -1086,6 +1105,10 @@ def unregister():
         # FBX名称列表批量导入相关属性
         "fbx_name_list_text",
         "fbx_search_directory",
+        
+        # Better FBX导入相关属性
+        "better_fbx_import_directory",
+        "batch_import_file_format",
         
         # Better FBX导出相关属性
         "better_fbx_export_directory",
