@@ -39,7 +39,8 @@ class AutoRenderer():
                     output_path="./", output_name="", output_format="PNG",
                                          naming_mode='AUTO', focus_each_object=False,
                      focus_only_faces=False, use_compositor=True, auto_keyframe=False, 
-                     enable_resize=False, pixel_margin=0, report_callback=None) -> None:
+                     enable_resize=False, pixel_margin=0, render_each_object_individually=False,
+                     report_callback=None) -> None:
         """
         集合：字符串列表，每个字符串都是一个集合的名称
         report_callback: 可选的回调函数，用于向Blender信息窗口报告信息
@@ -69,6 +70,7 @@ class AutoRenderer():
         self.auto_keyframe = auto_keyframe
         self.enable_resize = enable_resize
         self.pixel_margin = pixel_margin
+        self.render_each_object_individually = render_each_object_individually
         self.report_callback = report_callback
         
         # 包围盒缓存，避免重复计算
@@ -243,8 +245,21 @@ class AutoRenderer():
             # 获取该顶级父物体的所有相关子物体
             all_related_objects = self.get_all_related_objects(top_parent_name)
             
-            # 过滤出可见的物体
-            visible_objects = [obj for obj in all_related_objects if obj.hide_render == False]
+            # 临时保存原始可见性状态
+            original_visibility = {}
+            for obj in all_related_objects:
+                original_visibility[obj] = obj.hide_render
+            
+            # 临时设置所有相关物体为可见，以便正确识别
+            for obj in all_related_objects:
+                obj.hide_render = False
+            
+            # 过滤出可见的物体（现在应该都能看到）
+            visible_objects = [obj for obj in all_related_objects if not obj.hide_render]
+            
+            # 恢复原始可见性状态
+            for obj, visibility in original_visibility.items():
+                obj.hide_render = visibility
             
             if visible_objects:
                 expanded_groups[top_parent_name] = visible_objects
@@ -554,7 +569,9 @@ class AutoRenderer():
                 return None, None
             
             # 检查缓存
-            cache_key = f"{obj.name}_{obj.matrix_world.hash()}"
+            # 使用矩阵的字符串表示作为缓存键，因为matrix_world没有hash方法
+            matrix_str = str(obj.matrix_world)
+            cache_key = f"{obj.name}_{hash(matrix_str)}"
             if cache_key in self.bbox_cache:
                 print(f"ℹ 使用缓存的包围盒: {obj.name}")
                 return self.bbox_cache[cache_key]
@@ -1031,7 +1048,38 @@ class AutoRenderer():
         
         # 对集合中的物体按顶级父物体分组
         print("按顶级父物体分组中...")
-        groups = self.group_objects_by_top_parent(self.intended_collection.objects)
+        
+        # 在Blender 4.3中，需要确保集合对象列表是最新的
+        # 强制刷新集合对象列表（仅在4.3+版本中可用）
+        if is_blender_4_3_or_later():
+            try:
+                self.intended_collection.objects.update()
+                print("ℹ 已刷新集合对象列表（Blender 4.3+）")
+            except AttributeError:
+                print("ℹ 集合对象列表刷新不可用，使用默认行为")
+        else:
+            print("ℹ 使用Blender 3.6兼容模式")
+        
+        # 获取集合中的所有对象，包括嵌套集合中的对象
+        all_objects = []
+        for obj in self.intended_collection.objects:
+            all_objects.append(obj)
+        
+        # 递归获取嵌套集合中的对象
+        def get_nested_objects(collection):
+            nested_objects = []
+            for obj in collection.objects:
+                nested_objects.append(obj)
+            for child_collection in collection.children:
+                nested_objects.extend(get_nested_objects(child_collection))
+            return nested_objects
+        
+        nested_objects = get_nested_objects(self.intended_collection)
+        all_objects.extend(nested_objects)
+        
+        print(f"集合 '{collection_name}' 包含 {len(all_objects)} 个对象（包括嵌套集合）")
+        
+        groups = self.group_objects_by_top_parent(all_objects)
         print(f"共找到 {len(groups)} 个顶级父物体分组")
         
         # 打印分组详情
@@ -1047,9 +1095,13 @@ class AutoRenderer():
             return
 
         # 渲染每个分组的物体
+        total_groups = len(groups)
+        current_group = 0
         for top_parent_name, objects in groups.items():
-            print(f"\n渲染顶级父物体分组: {top_parent_name}，包含 {len(objects)} 个对象")
-            self.report_info({'INFO'}, f"正在渲染: {top_parent_name}")
+            current_group += 1
+            print(f"\n=== 渲染第 {current_group}/{total_groups} 个顶级父物体分组 ===")
+            print(f"分组名称: {top_parent_name}，包含 {len(objects)} 个对象")
+            self.report_info({'INFO'}, f"正在渲染第 {current_group}/{total_groups} 个分组: {top_parent_name}")
             
             # 打印详细的物体信息用于调试
             print(f"该组包含的物体:")
@@ -1336,10 +1388,14 @@ class AutoRenderer():
                 self.restore_render_settings(original_render_settings)
                 
             except Exception as e:
-                error_msg = f"渲染操作失败: {str(e)}"
+                error_msg = f"渲染分组 '{top_parent_name}' 失败: {str(e)}"
                 print(error_msg)
                 self.report_info({'ERROR'}, error_msg)
-                raise
+                print(f"跳过分组 '{top_parent_name}'，继续渲染其他分组...")
+                # 恢复原始渲染可见性
+                for other_obj, visibility in original_hide_render.items():
+                    other_obj.hide_render = visibility
+                continue  # 继续渲染下一个分组，而不是中断整个渲染过程
             
             # 注意：渲染结果已经通过 write_still=True 自动保存到指定路径
             # 不需要再次保存，避免覆盖合成器效果
@@ -1449,7 +1505,38 @@ class AutoRenderer():
         
         # 对集合中的物体按顶级父物体分组
         print("按顶级父物体分组中...")
-        groups = self.group_objects_by_top_parent(self.intended_collection.objects)
+        
+        # 在Blender 4.3中，需要确保集合对象列表是最新的
+        # 强制刷新集合对象列表（仅在4.3+版本中可用）
+        if is_blender_4_3_or_later():
+            try:
+                self.intended_collection.objects.update()
+                print("ℹ 已刷新集合对象列表（Blender 4.3+）")
+            except AttributeError:
+                print("ℹ 集合对象列表刷新不可用，使用默认行为")
+        else:
+            print("ℹ 使用Blender 3.6兼容模式")
+        
+        # 获取集合中的所有对象，包括嵌套集合中的对象
+        all_objects = []
+        for obj in self.intended_collection.objects:
+            all_objects.append(obj)
+        
+        # 递归获取嵌套集合中的对象
+        def get_nested_objects(collection):
+            nested_objects = []
+            for obj in collection.objects:
+                nested_objects.append(obj)
+            for child_collection in collection.children:
+                nested_objects.extend(get_nested_objects(child_collection))
+            return nested_objects
+        
+        nested_objects = get_nested_objects(self.intended_collection)
+        all_objects.extend(nested_objects)
+        
+        print(f"集合 '{collection_name}' 包含 {len(all_objects)} 个对象（包括嵌套集合）")
+        
+        groups = self.group_objects_by_top_parent(all_objects)
         print(f"共找到 {len(groups)} 个顶级父物体分组")
         
         if not groups:
@@ -1678,6 +1765,13 @@ class AutoRenderer():
             return children
         
         related_objects = collect_children(top_parent)
+        
+        # 如果顶级父物体是空物体且没有找到任何子物体，尝试包含顶级父物体本身
+        if top_parent.type == 'EMPTY' and not related_objects:
+            # 检查顶级父物体本身是否可见
+            if not top_parent.hide_render:
+                related_objects.append(top_parent)
+                print(f"ℹ 顶级父物体 '{top_parent_name}' 是空物体且没有子物体，包含其本身")
         
         # 如果启用了只聚焦有面的物体，但顶级父物体是空物体且没有找到有面的子物体
         # 则至少包含顶级父物体本身，确保分组不被完全跳过
