@@ -2127,6 +2127,22 @@ class AlignObjectOriginOperator(bpy.types.Operator):
         secondary_names = [obj.name for obj in secondary_objects]
         secondary_mesh_names = [obj.data.name for obj in secondary_objects]
         
+        # 记录副选物体的集合位置和父级关系
+        secondary_collections = []
+        secondary_parents = []
+        secondary_world_matrices = []
+        
+        for obj in secondary_objects:
+            # 记录集合位置
+            obj_collections = [col for col in bpy.data.collections if obj in col.objects.values()]
+            secondary_collections.append(obj_collections)
+            
+            # 记录父级关系
+            secondary_parents.append(obj.parent)
+            
+            # 记录世界空间变换矩阵
+            secondary_world_matrices.append(obj.matrix_world.copy())
+        
         # 记录原始活动物体
         original_active_object = context.active_object
         
@@ -2181,11 +2197,28 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                     split_obj = split_objects[0]  # 取第一个拆分出的物体
                     original_name = secondary_names[i]
                     original_mesh_name = secondary_mesh_names[i]
+                    original_collections = secondary_collections[i]
+                    original_parent = secondary_parents[i]
+                    original_world_matrix = secondary_world_matrices[i]
                     
                     # 恢复物体名称
                     split_obj.name = original_name
                     # 恢复mesh名称
                     split_obj.data.name = original_mesh_name
+                    
+                    # 恢复集合位置
+                    for col in original_collections:
+                        if split_obj not in col.objects.values():
+                            col.objects.link(split_obj)
+                    
+                    # 恢复父级关系
+                    if original_parent:
+                        split_obj.parent = original_parent
+                        # 保持世界空间变换不变
+                        split_obj.matrix_world = original_world_matrix
+                    else:
+                        # 如果没有父级，直接设置世界空间变换
+                        split_obj.matrix_world = original_world_matrix
                     
                     # 删除临时Merge顶点组
                     # 删除主选物体中的Merge顶点组
