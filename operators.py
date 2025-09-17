@@ -2123,8 +2123,9 @@ class AlignObjectOriginOperator(bpy.types.Operator):
             self.report({'WARNING'}, "请选择至少一个次选物体")
             return {'CANCELLED'}
         
-        # 记录副选物体名称
+        # 记录副选物体名称和mesh名称
         secondary_names = [obj.name for obj in secondary_objects]
+        secondary_mesh_names = [obj.data.name for obj in secondary_objects]
         
         # 记录原始活动物体
         original_active_object = context.active_object
@@ -2179,7 +2180,12 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                 if split_objects:
                     split_obj = split_objects[0]  # 取第一个拆分出的物体
                     original_name = secondary_names[i]
+                    original_mesh_name = secondary_mesh_names[i]
+                    
+                    # 恢复物体名称
                     split_obj.name = original_name
+                    # 恢复mesh名称
+                    split_obj.data.name = original_mesh_name
                     
                     # 删除临时Merge顶点组
                     # 删除主选物体中的Merge顶点组
