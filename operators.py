@@ -2095,6 +2095,125 @@ class BatchCreateVertexGroup(bpy.types.Operator):
         
         return {'FINISHED'}
 
+# 对齐物体原点操作符
+class AlignObjectOriginOperator(bpy.types.Operator):
+    bl_idname = "object.align_object_origin"
+    bl_label = "对齐物体原点"
+    bl_description = "将次选物体的原点对齐到主选物体上，同时保证mesh位置不变"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        """通过顶点组合并拆分方法对齐原点"""
+        
+        # 获取选中的物体
+        selected_objects = context.selected_objects
+        
+        if len(selected_objects) < 2:
+            self.report({'WARNING'}, "请至少选择两个物体：一个作为主选物体，其余作为次选物体")
+            return {'CANCELLED'}
+        
+        main_object = context.active_object
+        secondary_objects = [obj for obj in selected_objects if obj != main_object]
+        
+        if not main_object:
+            self.report({'WARNING'}, "请选择一个主选物体")
+            return {'CANCELLED'}
+        
+        if not secondary_objects:
+            self.report({'WARNING'}, "请选择至少一个次选物体")
+            return {'CANCELLED'}
+        
+        # 记录副选物体名称
+        secondary_names = [obj.name for obj in secondary_objects]
+        
+        # 记录原始活动物体
+        original_active_object = context.active_object
+        
+        try:
+            # 逐个处理每个副选物体
+            for i, secondary_obj in enumerate(secondary_objects):
+                # 为当前副选物体的所有顶点创建一个临时顶点组，全部加入，名称为Merge
+                bpy.context.view_layer.objects.active = secondary_obj
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                
+                # 创建顶点组
+                vertex_group = secondary_obj.vertex_groups.new(name="Merge")
+                bpy.ops.object.vertex_group_assign()
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # 将当前副选物体合并至主选物体
+                bpy.ops.object.select_all(action='DESELECT')
+                secondary_obj.select_set(True)
+                main_object.select_set(True)
+                bpy.context.view_layer.objects.active = main_object
+                
+                bpy.ops.object.join()
+                merged_object = bpy.context.active_object
+                
+                # 主选物体进入编辑模式先取消所有选择，之后选取Merge顶点组的顶点
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='DESELECT')
+                
+                # 找到Merge顶点组并选择
+                merge_vertex_group = None
+                for vg in merged_object.vertex_groups:
+                    if vg.name == "Merge":
+                        merge_vertex_group = vg
+                        break
+                
+                if merge_vertex_group:
+                    merged_object.vertex_groups.active_index = merge_vertex_group.index
+                    bpy.ops.object.vertex_group_select()
+                else:
+                    continue
+                
+                # 拆分选取部分
+                bpy.ops.mesh.separate(type='SELECTED')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # 重命名拆分出的物体
+                all_objects = bpy.context.selected_objects
+                split_objects = [obj for obj in all_objects if obj != merged_object]
+                
+                if split_objects:
+                    split_obj = split_objects[0]  # 取第一个拆分出的物体
+                    original_name = secondary_names[i]
+                    split_obj.name = original_name
+                    
+                    # 删除临时Merge顶点组
+                    # 删除主选物体中的Merge顶点组
+                    merge_vertex_group = None
+                    for vg in merged_object.vertex_groups:
+                        if vg.name == "Merge":
+                            merge_vertex_group = vg
+                            break
+                    
+                    if merge_vertex_group:
+                        merged_object.vertex_groups.remove(merge_vertex_group)
+                    
+                    # 删除拆分出物体中的Merge顶点组
+                    merge_vertex_group = None
+                    for vg in split_obj.vertex_groups:
+                        if vg.name == "Merge":
+                            merge_vertex_group = vg
+                            break
+                    
+                    if merge_vertex_group:
+                        split_obj.vertex_groups.remove(merge_vertex_group)
+            
+            # 恢复原始活动物体
+            bpy.context.view_layer.objects.active = original_active_object
+            
+            self.report({'INFO'}, f"已将 {len(secondary_objects)} 个次选物体的原点对齐到主选物体")
+            return {'FINISHED'}
+            
+        except Exception as e:
+            # 恢复原始活动物体
+            bpy.context.view_layer.objects.active = original_active_object
+            self.report({'ERROR'}, f"对齐过程中发生错误: {str(e)}")
+            return {'CANCELLED'}
+
 classes = [
     OBJECT_OT_reset_z_axis,
     ParentByBoundingbox,
@@ -2138,6 +2257,7 @@ classes = [
     GeometryMatcherOperator,
     RemoveInstanceDuplicatesOperator,
     BatchCreateVertexGroup,
+    AlignObjectOriginOperator,
 ]
 
 def register():

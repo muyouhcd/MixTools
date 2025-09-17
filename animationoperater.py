@@ -390,6 +390,72 @@ def register():
     bpy.utils.register_class(AddCycleModifierNoOffset)
     bpy.utils.register_class(RemoveAllModifiersFromAnimation)
     bpy.utils.register_class(AddFollowPathConstraint)
+    bpy.utils.register_class(SetToRestPosition)
+    bpy.utils.register_class(SetToPosePosition)
+
+# 设置骨架为静止位置（批量）
+class SetToRestPosition(bpy.types.Operator):
+    bl_idname = "armature.set_to_rest_position"
+    bl_label = "设置为静止位置"
+    bl_description = "将所选物体中的骨架设置为静止位置（批量）"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        affected_armatures = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'ARMATURE':
+                # 进入姿态模式
+                bpy.context.view_layer.objects.active = obj
+                bpy.ops.object.mode_set(mode='POSE')
+                
+                # 清除所有骨骼的变换
+                bpy.ops.pose.select_all(action='SELECT')
+                bpy.ops.pose.transforms_clear()
+                
+                # 返回对象模式
+                bpy.ops.object.mode_set(mode='OBJECT')
+                affected_armatures += 1
+        
+        if affected_armatures > 0:
+            self.report({'INFO'}, f"已将 {affected_armatures} 个骨架设置为静止位置")
+        else:
+            self.report({'WARNING'}, "所选物体中没有骨架")
+            
+        return {'FINISHED'}
+
+# 设置骨架为姿态位置（批量）
+class SetToPosePosition(bpy.types.Operator):
+    bl_idname = "armature.set_to_pose_position"
+    bl_label = "设置为姿态位置"
+    bl_description = "将所选物体中的骨架设置为姿态位置（批量）"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        affected_armatures = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'ARMATURE':
+                # 进入姿态模式
+                bpy.context.view_layer.objects.active = obj
+                bpy.ops.object.mode_set(mode='POSE')
+                
+                # 应用当前姿态到静止位置
+                bpy.ops.pose.select_all(action='SELECT')
+                bpy.ops.pose.armature_apply(selected=False)
+                
+                # 返回对象模式
+                bpy.ops.object.mode_set(mode='OBJECT')
+                affected_armatures += 1
+        
+        if affected_armatures > 0:
+            self.report({'INFO'}, f"已将 {affected_armatures} 个骨架设置为姿态位置")
+        else:
+            self.report({'WARNING'}, "所选物体中没有骨架")
+            
+        return {'FINISHED'}
 
 def unregister():
     bpy.utils.unregister_class(ClearScaleAnimation)
@@ -400,4 +466,6 @@ def unregister():
     bpy.utils.unregister_class(AddCycleModifierNoOffset)
     bpy.utils.unregister_class(RemoveAllModifiersFromAnimation)
     bpy.utils.unregister_class(AddFollowPathConstraint)
+    bpy.utils.unregister_class(SetToRestPosition)
+    bpy.utils.unregister_class(SetToPosePosition)
 

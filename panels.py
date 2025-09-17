@@ -84,6 +84,7 @@ class CustomFunctionsPanel(Panel):
             op = align_box.operator("object.move_origin", text="移动原点")
             op.axis_direction = context.scene.axis_direction_enum
             align_box.operator("object.reset_z_axis", text="Z轴归零", icon='AXIS_TOP')
+            align_box.operator("object.align_object_origin", text="对齐物体原点", icon='PIVOT_CURSOR')
 
             # Selection Tools
             layout.label(text="选择工具:", icon='RESTRICT_SELECT_OFF')
@@ -518,14 +519,14 @@ class CustomFunctionsPanel(Panel):
             
             # 骨架操作工具
             armature_tools_box = col_animation.box()
-            armature_tools_box.label(text="骨架操作工具（测试）:", icon='ARMATURE_DATA')
+            armature_tools_box.label(text="骨架操作工具:", icon='ARMATURE_DATA')
             
-            # # 添加骨架位置设置工具
-            # armature_position_box = armature_tools_box.box()
-            # armature_position_box.label(text="骨架位置设置:", icon='ARMATURE_DATA')
-            # row = armature_position_box.row(align=True)
-            # row.operator("armature.set_to_rest_position", text="设置为静置位置", icon='ARMATURE_DATA')
-            # row.operator("armature.set_to_pose_position", text="设置为姿态位置", icon='POSE_HLT')
+            # 添加骨架位置设置工具
+            armature_position_box = armature_tools_box.box()
+            armature_position_box.label(text="骨架位置设置:", icon='ARMATURE_DATA')
+            row = armature_position_box.row(align=True)
+            row.operator("armature.set_to_rest_position", text="设置为静止位置", icon='ARMATURE_DATA')
+            row.operator("armature.set_to_pose_position", text="设置为姿态位置", icon='POSE_HLT')
             
             # 添加空物体转骨骼工具
             empty_to_bone_box = armature_tools_box.box()
