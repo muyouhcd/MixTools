@@ -2132,6 +2132,19 @@ class AlignObjectOriginOperator(bpy.types.Operator):
         secondary_parents = []
         secondary_world_matrices = []
         
+        # 记录副选物体的材质信息
+        secondary_materials = []
+        secondary_material_slot_counts = []
+        for obj in secondary_objects:
+            obj_materials = []
+            for slot in obj.material_slots:
+                if slot.material:
+                    obj_materials.append(slot.material.name)
+                else:
+                    obj_materials.append(None)
+            secondary_materials.append(obj_materials)
+            secondary_material_slot_counts.append(len(obj.material_slots))
+        
         for obj in secondary_objects:
             # 记录集合位置
             obj_collections = [col for col in bpy.data.collections if obj in col.objects.values()]
@@ -2200,25 +2213,60 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                     original_collections = secondary_collections[i]
                     original_parent = secondary_parents[i]
                     original_world_matrix = secondary_world_matrices[i]
+                    original_materials = secondary_materials[i]
+                    original_material_slot_count = secondary_material_slot_counts[i]
                     
                     # 恢复物体名称
                     split_obj.name = original_name
                     # 恢复mesh名称
                     split_obj.data.name = original_mesh_name
                     
+                    # 恢复材质信息
+                    # 清空当前材质槽
+                    split_obj.data.materials.clear()
+                    # 确保材质插槽数量与原始一致
+                    for _ in range(original_material_slot_count):
+                        split_obj.data.materials.append(None)
+                    # 重新添加原始材质
+                    for j, material_name in enumerate(original_materials):
+                        if j < len(split_obj.data.materials):
+                            if material_name and material_name in bpy.data.materials:
+                                split_obj.data.materials[j] = bpy.data.materials[material_name]
+                            else:
+                                split_obj.data.materials[j] = None
+                    
                     # 恢复集合位置
                     for col in original_collections:
                         if split_obj not in col.objects.values():
                             col.objects.link(split_obj)
                     
-                    # 恢复父级关系
+                    # 恢复父级关系并保持世界空间变换不变
                     if original_parent:
+                        # 先解除当前父级关系（如果有的话）
+                        if split_obj.parent:
+                            # 记录当前世界空间变换
+                            current_world_matrix = split_obj.matrix_world.copy()
+                            # 解除父级关系
+                            split_obj.parent = None
+                            # 保持世界空间变换不变
+                            split_obj.matrix_world = current_world_matrix
+                        
+                        # 设置新的父级关系
                         split_obj.parent = original_parent
                         # 保持世界空间变换不变
                         split_obj.matrix_world = original_world_matrix
                     else:
-                        # 如果没有父级，直接设置世界空间变换
-                        split_obj.matrix_world = original_world_matrix
+                        # 如果没有父级，先解除当前父级关系（如果有的话）
+                        if split_obj.parent:
+                            # 记录当前世界空间变换
+                            current_world_matrix = split_obj.matrix_world.copy()
+                            # 解除父级关系
+                            split_obj.parent = None
+                            # 保持世界空间变换不变
+                            split_obj.matrix_world = current_world_matrix
+                        else:
+                            # 直接设置世界空间变换
+                            split_obj.matrix_world = original_world_matrix
                     
                     # 删除临时Merge顶点组
                     # 删除主选物体中的Merge顶点组
