@@ -2272,6 +2272,13 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                                         break
                     
                     # 恢复集合位置
+                    # 先从主选物体的集合中移除拆分出的物体
+                    main_object_collections = [col for col in bpy.data.collections if main_object in col.objects.values()]
+                    for col in main_object_collections:
+                        if split_obj in col.objects.values():
+                            col.objects.unlink(split_obj)
+                    
+                    # 然后添加到原始集合中
                     for col in original_collections:
                         if split_obj not in col.objects.values():
                             col.objects.link(split_obj)
