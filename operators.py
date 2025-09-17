@@ -2132,6 +2132,15 @@ class AlignObjectOriginOperator(bpy.types.Operator):
         secondary_parents = []
         secondary_world_matrices = []
         
+        # 记录主选物体的材质信息
+        main_materials = []
+        main_material_slot_count = len(main_object.material_slots)
+        for slot in main_object.material_slots:
+            if slot.material:
+                main_materials.append(slot.material.name)
+            else:
+                main_materials.append(None)
+        
         # 记录副选物体的材质信息
         secondary_materials = []
         secondary_material_slot_counts = []
@@ -2144,6 +2153,15 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                     obj_materials.append(None)
             secondary_materials.append(obj_materials)
             secondary_material_slot_counts.append(len(obj.material_slots))
+        
+        # 记录副选物体的UV层名称
+        secondary_uv_layer_names = []
+        for obj in secondary_objects:
+            uv_layer_names = []
+            if obj.data.uv_layers:
+                for uv_layer in obj.data.uv_layers:
+                    uv_layer_names.append(uv_layer.name)
+            secondary_uv_layer_names.append(uv_layer_names)
         
         for obj in secondary_objects:
             # 记录集合位置
@@ -2204,7 +2222,7 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                 
                 # 重命名拆分出的物体
                 all_objects = bpy.context.selected_objects
-                split_objects = [obj for obj in all_objects if obj != merged_object]
+                split_objects = [obj for obj in all_objects if obj != main_object]
                 
                 if split_objects:
                     split_obj = split_objects[0]  # 取第一个拆分出的物体
@@ -2215,6 +2233,7 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                     original_world_matrix = secondary_world_matrices[i]
                     original_materials = secondary_materials[i]
                     original_material_slot_count = secondary_material_slot_counts[i]
+                    original_uv_layer_names = secondary_uv_layer_names[i]
                     
                     # 恢复物体名称
                     split_obj.name = original_name
@@ -2222,18 +2241,35 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                     split_obj.data.name = original_mesh_name
                     
                     # 恢复材质信息
-                    # 清空当前材质槽
-                    split_obj.data.materials.clear()
-                    # 确保材质插槽数量与原始一致
-                    for _ in range(original_material_slot_count):
+                    # 移除多余的材质插槽，只保留原始数量
+                    while len(split_obj.data.materials) > original_material_slot_count:
+                        split_obj.data.materials.pop()
+                    
+                    # 如果插槽数量不足，添加空插槽
+                    while len(split_obj.data.materials) < original_material_slot_count:
                         split_obj.data.materials.append(None)
-                    # 重新添加原始材质
+                    
+                    # 重新添加原始材质到对应插槽
                     for j, material_name in enumerate(original_materials):
-                        if j < len(split_obj.data.materials):
+                        if j < original_material_slot_count:
                             if material_name and material_name in bpy.data.materials:
                                 split_obj.data.materials[j] = bpy.data.materials[material_name]
                             else:
                                 split_obj.data.materials[j] = None
+                    
+                    # 删除多余的UV层，只保留原始的UV层
+                    if original_uv_layer_names and split_obj.data.uv_layers:
+                        # 获取当前所有UV层名称
+                        current_uv_layers = [uv_layer.name for uv_layer in split_obj.data.uv_layers]
+                        
+                        # 删除不在原始UV层列表中的UV层
+                        for uv_layer_name in current_uv_layers:
+                            if uv_layer_name not in original_uv_layer_names:
+                                # 找到要删除的UV层
+                                for j, uv_layer in enumerate(split_obj.data.uv_layers):
+                                    if uv_layer.name == uv_layer_name:
+                                        split_obj.data.uv_layers.remove(uv_layer)
+                                        break
                     
                     # 恢复集合位置
                     for col in original_collections:
@@ -2289,11 +2325,26 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                     if merge_vertex_group:
                         split_obj.vertex_groups.remove(merge_vertex_group)
             
-            # 恢复原始活动物体
-            bpy.context.view_layer.objects.active = original_active_object
-            
-            self.report({'INFO'}, f"已将 {len(secondary_objects)} 个次选物体的原点对齐到主选物体")
-            return {'FINISHED'}
+                # 恢复主选物体的材质槽数量
+                while len(merged_object.data.materials) > main_material_slot_count:
+                    merged_object.data.materials.pop()
+                
+                while len(merged_object.data.materials) < main_material_slot_count:
+                    merged_object.data.materials.append(None)
+                
+                # 恢复主选物体的材质
+                for j, material_name in enumerate(main_materials):
+                    if j < main_material_slot_count:
+                        if material_name and material_name in bpy.data.materials:
+                            merged_object.data.materials[j] = bpy.data.materials[material_name]
+                        else:
+                            merged_object.data.materials[j] = None
+                
+                # 恢复原始活动物体
+                bpy.context.view_layer.objects.active = original_active_object
+                
+                self.report({'INFO'}, f"已将 {len(secondary_objects)} 个次选物体的原点对齐到主选物体")
+                return {'FINISHED'}
             
         except Exception as e:
             # 恢复原始活动物体
