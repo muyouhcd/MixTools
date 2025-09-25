@@ -676,7 +676,7 @@ class CustomFunctionsPanel(Panel):
             
             row = assembly_asset_box.row()
             row.operator("object.mian_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
-            row.operator("object.mian_create_asset_library_outline", text="创建分类大纲", icon='OUTLINER_COLLECTION')
+            # row.operator("object.mian_create_asset_library_outline", text="创建分类大纲", icon='OUTLINER_COLLECTION')
 
             # Voxelizer设置
             box_voxelizer = col_assestoperation.box()
@@ -696,8 +696,25 @@ class CustomFunctionsPanel(Panel):
 
             # 物体分类工具
             object_classifier_box = col_assestoperation.box()
-            object_classifier_box.label(text="物体分类工具:", icon='OUTLINER_COLLECTION')
+            object_classifier_box.label(text="角色部件分类工具:", icon='OUTLINER_COLLECTION')
             object_classifier_box.operator("object.mian_object_classifier", text="按名称分类物体", icon='OUTLINER_COLLECTION')
+            
+            # 物体替换工具
+            object_replacer_box = col_assestoperation.box()
+            object_replacer_box.label(text="物体替换工具:", icon='FILE_REFRESH')
+            
+            # 文件选择
+            object_replacer_box.prop(context.scene, "replacement_blend_file", text="替换源文件", icon='FILE_BLEND')
+            
+            # 测试文件路径按钮
+            test_row = object_replacer_box.row()
+            test_row.operator("object.mian_test_file_path", text="测试文件路径", icon='QUESTION')
+            
+            # 套装替换选项
+            object_replacer_box.prop(context.scene, "enable_set_replacement", text="套装替换", icon='OUTLINER_COLLECTION')
+            
+            # 替换按钮
+            object_replacer_box.operator("object.mian_object_replacer", text="从文件替换物体", icon='FILE_REFRESH')
 
 #批量渲染
         col_autorender = layout.column()
@@ -1067,6 +1084,19 @@ def register():
         name="创建闭合曲线",
         description="是否创建闭合的曲线路径",
         default=True
+    )
+    
+    # 物体替换工具属性
+    bpy.types.Scene.replacement_blend_file = bpy.props.StringProperty(
+        name="替换源文件",
+        description="选择包含替换物体的.blend文件",
+        subtype='FILE_PATH',
+        default=""
+    )
+    bpy.types.Scene.enable_set_replacement = bpy.props.BoolProperty(
+        name="套装替换",
+        description="启用套装替换模式，将同套装的物体一起替换",
+        default=False
     )
 
 
