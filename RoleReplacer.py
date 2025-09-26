@@ -723,6 +723,148 @@ def find_matching_sets(source_sets, target_sets):
     
     return matches
 
+def recursive_cleanup_unused_data():
+    """递归清理所有无用的数据块"""
+    print("开始递归清理无用数据...")
+    
+    # 清理策略：多次迭代清理，直到没有更多数据可以清理
+    max_iterations = 10
+    total_cleaned = 0
+    
+    for iteration in range(max_iterations):
+        iteration_cleaned = 0
+        
+        # 1. 清理无用的网格数据
+        orphaned_meshes = [mesh for mesh in bpy.data.meshes if mesh.users == 0]
+        for mesh in orphaned_meshes:
+            try:
+                if mesh.name in bpy.data.meshes:
+                    bpy.data.meshes.remove(mesh)
+                    iteration_cleaned += 1
+            except Exception as e:
+                print(f"清理网格 '{mesh.name}' 时出错: {e}")
+        
+        # 2. 清理无用的材质数据
+        orphaned_materials = [mat for mat in bpy.data.materials if mat.users == 0]
+        for mat in orphaned_materials:
+            try:
+                if mat.name in bpy.data.materials:
+                    bpy.data.materials.remove(mat)
+                    iteration_cleaned += 1
+            except Exception as e:
+                print(f"清理材质 '{mat.name}' 时出错: {e}")
+        
+        # 3. 清理无用的纹理数据
+        orphaned_textures = [tex for tex in bpy.data.textures if tex.users == 0]
+        for tex in orphaned_textures:
+            try:
+                if tex.name in bpy.data.textures:
+                    bpy.data.textures.remove(tex)
+                    iteration_cleaned += 1
+            except Exception as e:
+                print(f"清理纹理 '{tex.name}' 时出错: {e}")
+        
+        # 4. 清理无用的图像数据
+        orphaned_images = [img for img in bpy.data.images if img.users == 0]
+        for img in orphaned_images:
+            try:
+                if img.name in bpy.data.images:
+                    bpy.data.images.remove(img)
+                    iteration_cleaned += 1
+            except Exception as e:
+                print(f"清理图像 '{img.name}' 时出错: {e}")
+        
+        # 5. 清理无用的节点组
+        orphaned_nodegroups = [ng for ng in bpy.data.node_groups if ng.users == 0]
+        for ng in orphaned_nodegroups:
+            try:
+                if ng.name in bpy.data.node_groups:
+                    bpy.data.node_groups.remove(ng)
+                    iteration_cleaned += 1
+            except Exception as e:
+                print(f"清理节点组 '{ng.name}' 时出错: {e}")
+        
+        # 6. 清理无用的动作数据
+        orphaned_actions = [act for act in bpy.data.actions if act.users == 0]
+        for act in orphaned_actions:
+            try:
+                if act.name in bpy.data.actions:
+                    bpy.data.actions.remove(act)
+                    iteration_cleaned += 1
+            except Exception as e:
+                print(f"清理动作 '{act.name}' 时出错: {e}")
+        
+        # 7. 清理无用的集合
+        orphaned_collections = [col for col in bpy.data.collections if col.users == 0]
+        for col in orphaned_collections:
+            try:
+                if col.name in bpy.data.collections:
+                    bpy.data.collections.remove(col)
+                    iteration_cleaned += 1
+            except Exception as e:
+                print(f"清理集合 '{col.name}' 时出错: {e}")
+        
+        total_cleaned += iteration_cleaned
+        
+        # 如果这一轮没有清理任何数据，说明已经清理完毕
+        if iteration_cleaned == 0:
+            break
+        
+        print(f"第 {iteration + 1} 轮清理: {iteration_cleaned} 个数据块")
+    
+    print(f"递归清理完成: 总共清理了 {total_cleaned} 个无用数据块")
+
+def final_cleanup_after_replacement():
+    """替换完成后的最终清理，确保没有遗留数据"""
+    print("开始最终清理...")
+    
+    # 强制垃圾回收
+    import gc
+    gc.collect()
+    
+    # 获取当前选中的物体名称
+    selected_names = {obj.name for obj in bpy.context.selected_objects}
+    
+    # 清理所有非选中的网格物体
+    all_objects = list(bpy.context.scene.objects)
+    objects_cleaned = 0
+    
+    for obj in all_objects:
+        if (obj.name not in selected_names and 
+            obj.type == 'MESH' and 
+            not obj.name.startswith('Camera') and
+            not obj.name.startswith('Light') and
+            not obj.name.startswith('Cube') and
+            not obj.name.startswith('Plane') and
+            not obj.name.startswith('Sphere') and
+            not obj.name.startswith('Lamp')):
+            try:
+                if obj.name in bpy.data.objects:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                    objects_cleaned += 1
+            except Exception as e:
+                print(f"最终清理物体 '{obj.name}' 时出错: {e}")
+    
+    # 多次递归清理所有数据
+    for i in range(3):  # 进行3轮深度清理
+        recursive_cleanup_unused_data()
+    
+    # 最终检查：清理所有孤立的网格
+    final_meshes_cleaned = 0
+    for mesh in bpy.data.meshes:
+        if mesh.users == 0:
+            try:
+                if mesh.name in bpy.data.meshes:
+                    bpy.data.meshes.remove(mesh)
+                    final_meshes_cleaned += 1
+            except Exception as e:
+                print(f"最终清理网格 '{mesh.name}' 时出错: {e}")
+    
+    print(f"最终清理完成: 清理了 {objects_cleaned} 个物体, {final_meshes_cleaned} 个网格")
+    
+    # 最后一次垃圾回收
+    gc.collect()
+
 def clean_imported_objects():
     """清理之前导入的物体，避免累积"""
     # 获取当前场景中的所有物体
@@ -758,14 +900,8 @@ def clean_imported_objects():
     if removed_count > 0:
         print(f"已清理 {removed_count} 个累积的物体")
     
-    # 清理孤立的网格数据
-    orphaned_meshes = [mesh for mesh in bpy.data.meshes if mesh.users == 0]
-    for mesh in orphaned_meshes:
-        try:
-            if mesh.name in bpy.data.meshes:
-                bpy.data.meshes.remove(mesh)
-        except Exception as e:
-            print(f"清理网格 '{mesh.name}' 时出错: {e}")
+    # 执行递归清理
+    recursive_cleanup_unused_data()
 
 def replace_objects_from_file():
     """从文件替换物体的主函数
@@ -824,6 +960,10 @@ def replace_objects_from_file():
         return "无法从文件中加载有效的物体"
     
     print(f"从文件中加载了 {len(target_objects)} 个物体")
+    
+    # 加载完成后自动清理无用数据
+    print("正在清理加载后的无用数据...")
+    recursive_cleanup_unused_data()
     
     # 重新获取选中的物体（防止文件切换后引用丢失）
     current_selected_objects = []
@@ -1020,6 +1160,9 @@ def replace_objects_from_file():
             print(f"清理孤立网格 '{mesh.name}' 时出错: {e}")
     
     print(f"清理完成: 删除了 {removed_count} 个临时物体, {removed_mesh_count} 个孤立网格")
+    
+    # 替换完成后进行最终清理
+    final_cleanup_after_replacement()
     
     if enable_set_replacement:
         return f"替换完成：{replaced_count} 个物体已替换，{set_replaced_count} 个套装已处理"
