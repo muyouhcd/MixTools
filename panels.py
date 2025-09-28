@@ -356,6 +356,8 @@ class CustomFunctionsPanel(Panel):
             row = remove_suffix_box.row(align=True)
             row.operator("object.mian_remove_name_suffix", text="移除后缀", icon='X')
             row.operator("object.remove_suffix_and_resolve", text="移除后缀并解决重名", icon='DECORATE_KEYFRAME')
+            row = remove_suffix_box.row(align=True)
+            row.operator("object.remove_top_level_suffix", text="移除顶级父级.00n后缀", icon='OUTLINER_OB_EMPTY')
             
             # 数据命名同步
             naming_convention_box = col_renameoperation.box()
@@ -706,9 +708,6 @@ class CustomFunctionsPanel(Panel):
             # 文件选择
             object_replacer_box.prop(context.scene, "replacement_blend_file", text="替换源文件", icon='FILE_BLEND')
             
-            # 测试文件路径按钮
-            test_row = object_replacer_box.row()
-            test_row.operator("object.mian_test_file_path", text="测试文件路径", icon='QUESTION')
             
             # 套装替换选项
             object_replacer_box.prop(context.scene, "enable_set_replacement", text="套装替换", icon='OUTLINER_COLLECTION')

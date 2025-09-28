@@ -321,24 +321,6 @@ def find_matching_objects(source_objects, target_objects):
     print(f"匹配完成: 找到 {len(matches)} 个匹配的源物体")
     return matches
 
-def test_serial_number_parsing():
-    """测试序号解析功能"""
-    test_cases = [
-        "male_upper_body",
-        "male_upper_body.001",
-        "female_lower_body.002",
-        "male_hair.003",
-        "female_eyes.004",
-        "male_upper_body_sets.001",
-        "female_lower_body_sets.002"
-    ]
-    
-    print("测试序号解析功能:")
-    for test_name in test_cases:
-        result = parse_object_name(test_name)
-        print(f"  '{test_name}' -> 基础名称: '{result['base_name']}', 性别: {result['gender']}, 部位: {result['parts']}")
-    
-    return True
 
 def validate_object_state(obj):
     """验证对象状态是否有效
@@ -1201,56 +1183,11 @@ class mian_OT_ObjectReplacer(bpy.types.Operator):
             self.report({'ERROR'}, f"替换过程中出现错误: {str(e)}")
             return {'CANCELLED'}
 
-class mian_OT_TestFilePath(bpy.types.Operator):
-    """测试文件路径"""
-    bl_idname = "object.mian_test_file_path"
-    bl_label = "测试文件路径"
-    bl_description = "测试选择的文件路径是否正确"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        scene = context.scene
-        file_path = scene.replacement_blend_file
-        
-        if not file_path:
-            self.report({'WARNING'}, "请先选择文件")
-            return {'CANCELLED'}
-        
-        abs_path = bpy.path.abspath(file_path)
-        info = f"原始路径: {file_path}\n绝对路径: {abs_path}\n文件存在: {os.path.exists(abs_path)}"
-        
-        if os.path.exists(abs_path):
-            self.report({'INFO'}, f"文件路径正确: {abs_path}")
-        else:
-            self.report({'ERROR'}, f"文件不存在: {abs_path}")
-        
-        print(info)
-        return {'FINISHED'}
-
-class mian_OT_TestSerialParsing(bpy.types.Operator):
-    """测试序号解析功能"""
-    bl_idname = "object.mian_test_serial_parsing"
-    bl_label = "测试序号解析"
-    bl_description = "测试物体名称序号解析功能"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    def execute(self, context):
-        try:
-            test_serial_number_parsing()
-            self.report({'INFO'}, "序号解析测试完成，请查看控制台输出")
-            return {'FINISHED'}
-        except Exception as e:
-            self.report({'ERROR'}, f"测试过程中出现错误: {str(e)}")
-            return {'CANCELLED'}
 
 def register():
     bpy.utils.register_class(mian_OT_ObjectClassifier)
     bpy.utils.register_class(mian_OT_ObjectReplacer)
-    bpy.utils.register_class(mian_OT_TestFilePath)
-    bpy.utils.register_class(mian_OT_TestSerialParsing)
 
 def unregister():
     bpy.utils.unregister_class(mian_OT_ObjectClassifier)
     bpy.utils.unregister_class(mian_OT_ObjectReplacer)
-    bpy.utils.unregister_class(mian_OT_TestFilePath)
-    bpy.utils.unregister_class(mian_OT_TestSerialParsing)

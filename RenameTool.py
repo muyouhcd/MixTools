@@ -101,6 +101,133 @@ class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
                     obj.name = new_name
         return {'FINISHED'}
 
+#移除所选物体顶级父级名称中的.00n后缀
+class OBJECT_OT_remove_top_level_suffix(Operator):
+    bl_idname = "object.remove_top_level_suffix"
+    bl_label = "移除顶级父级.00n后缀"
+    bl_description = "移除所选物体顶级父级名称中的.00n后缀，如有重名则保持顶级无后缀，冲突物体加后缀"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        selected_objects = bpy.context.selected_objects
+        if not selected_objects:
+            self.report({'WARNING'}, "请先选择物体")
+            return {'CANCELLED'}
+        
+        # 正则表达式匹配各种数字后缀格式
+        # 支持 .001, .002, .01, .1, .0001 等格式
+        suffix_patterns = [
+            re.compile(r"\.\d{3}$"),  # .001, .002, .003
+            re.compile(r"\.\d{2}$"),  # .01, .02, .03
+            re.compile(r"\.\d{1}$"),  # .1, .2, .3
+            re.compile(r"\.\d{4,}$"), # .0001, .00001 等
+        ]
+        
+        # 存储顶级父级对象
+        top_level_objects = set()
+        
+        # 找到所有选中物体的顶级父级
+        for obj in selected_objects:
+            top_parent = obj
+            while top_parent.parent:
+                top_parent = top_parent.parent
+            top_level_objects.add(top_parent)
+        
+        processed_count = 0
+        skipped_count = 0
+        
+        # 预处理：收集所有需要重命名的物体信息
+        rename_tasks = []
+        for top_obj in top_level_objects:
+            print(f"分析顶级父级: {top_obj.name}")
+            
+            # 检查是否有数字后缀
+            matched_pattern = None
+            for pattern in suffix_patterns:
+                if pattern.search(top_obj.name):
+                    matched_pattern = pattern
+                    break
+            
+            if matched_pattern:
+                new_name = re.sub(matched_pattern, "", top_obj.name)
+                rename_tasks.append({
+                    'object': top_obj,
+                    'old_name': top_obj.name,
+                    'new_name': new_name,
+                    'pattern': matched_pattern
+                })
+                print(f"  计划重命名: {top_obj.name} -> {new_name}")
+            else:
+                print(f"  无数字后缀，跳过: {top_obj.name}")
+                skipped_count += 1
+        
+        # 按新名称分组，处理重名冲突
+        name_groups = {}
+        for task in rename_tasks:
+            new_name = task['new_name']
+            if new_name not in name_groups:
+                name_groups[new_name] = []
+            name_groups[new_name].append(task)
+        
+        # 处理每个名称组
+        for new_name, tasks in name_groups.items():
+            print(f"处理名称组: {new_name} (共{len(tasks)}个物体)")
+            
+            # 检查是否与现有物体重名
+            existing_obj = bpy.data.objects.get(new_name)
+            if existing_obj:
+                print(f"  发现现有物体重名: {existing_obj.name}")
+                # 将现有物体也加入重命名任务
+                tasks.append({
+                    'object': existing_obj,
+                    'old_name': existing_obj.name,
+                    'new_name': new_name,
+                    'pattern': None,
+                    'is_existing': True
+                })
+            
+            # 为每个任务分配唯一名称
+            used_names = set()  # 跟踪已使用的名称
+            for i, task in enumerate(tasks):
+                if i == 0 and not task.get('is_existing', False):
+                    # 第一个物体保持原名称
+                    final_name = new_name
+                else:
+                    # 其他物体添加后缀
+                    counter = 1
+                    while True:
+                        final_name = f"{new_name}.{str(counter).zfill(3)}"
+                        # 检查名称是否已被使用或已存在
+                        if final_name not in used_names and not bpy.data.objects.get(final_name):
+                            break
+                        counter += 1
+                        if counter > 999:
+                            final_name = f"{new_name}_conflict_{counter}"
+                            break
+                
+                # 将分配的名称加入已使用集合
+                used_names.add(final_name)
+                task['final_name'] = final_name
+                print(f"  分配名称: {task['old_name']} -> {final_name}")
+        
+        # 执行重命名
+        for task in rename_tasks:
+            top_obj = task['object']
+            final_name = task['final_name']
+            
+            print(f"执行重命名: {top_obj.name} -> {final_name}")
+            
+            try:
+                top_obj.name = final_name
+                print(f"  成功重命名为: {top_obj.name}")
+                processed_count += 1
+            except Exception as e:
+                print(f"  重命名失败: {e}")
+                self.report({'ERROR'}, f"重命名 {top_obj.name} 失败: {e}")
+        
+        self.report({'INFO'}, f"已处理 {processed_count} 个顶级父级物体，跳过 {skipped_count} 个")
+        return {'FINISHED'}
+
 #更改mesh名称为物体名称
 class RenameMeshesOperator(bpy.types.Operator):
     """Rename Meshes to their object names"""      
@@ -637,6 +764,7 @@ def register():
     bpy.utils.register_class(RenameTextureOrign)
     bpy.utils.register_class(RemoveNameSuffix)
     bpy.utils.register_class(OBJECT_OT_remove_suffix_and_resolve_conflicts)
+    bpy.utils.register_class(OBJECT_OT_remove_top_level_suffix)
     bpy.utils.register_class(RenameMeshesOperator)
     bpy.utils.register_class(RenameObjectsOperator)
     bpy.utils.register_class(OBJECT_OT_RenameButton)
@@ -649,6 +777,7 @@ def unregister():
     bpy.utils.unregister_class(RenameTextureOrign)
     bpy.utils.unregister_class(RemoveNameSuffix)
     bpy.utils.unregister_class(OBJECT_OT_remove_suffix_and_resolve_conflicts)
+    bpy.utils.unregister_class(OBJECT_OT_remove_top_level_suffix)
     bpy.utils.unregister_class(RenameMeshesOperator)
     bpy.utils.unregister_class(RenameObjectsOperator)
     bpy.utils.unregister_class(OBJECT_OT_RenameButton)
