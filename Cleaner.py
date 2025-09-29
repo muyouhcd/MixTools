@@ -155,6 +155,45 @@ class OBJECT_OT_clean_empty(bpy.types.Operator):
 
         return {'FINISHED'}
 
+#自动递归清理无子集空物体
+class OBJECT_OT_clean_empty_recursive(bpy.types.Operator):
+    """自动递归清理无子集空物体"""
+    bl_idname = "object.clean_empty_recursive"
+    bl_label = "自动递归清理"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        total_deleted = 0
+        iteration = 0
+        max_iterations = 100  # 防止无限循环
+        
+        while iteration < max_iterations:
+            iteration += 1
+            # 获取当前场景的所有对象
+            scene_objects = context.scene.objects
+            # 收集所有没有子对象的空物体
+            empties_to_delete = [obj for obj in scene_objects if obj.type == 'EMPTY' and not obj.children]
+            
+            if not empties_to_delete:
+                # 没有更多空物体可以删除，退出循环
+                break
+                
+            # 删除这些空物体
+            for empty in empties_to_delete:
+                bpy.data.objects.remove(empty)
+            
+            total_deleted += len(empties_to_delete)
+            
+            # 强制更新场景
+            bpy.context.view_layer.update()
+        
+        if iteration >= max_iterations:
+            self.report({'WARNING'}, f"达到最大迭代次数({max_iterations})，可能还有空物体未清理")
+        
+        self.report({'INFO'}, f"递归清理完成，共删除了 {total_deleted} 个空物体，进行了 {iteration} 次迭代")
+
+        return {'FINISHED'}
+
 
 def register():
     bpy.utils.register_class(IMAGE_OT_RemoveBrokenImages)
@@ -162,6 +201,7 @@ def register():
     bpy.utils.register_class(OBJECT_OT_clean_meshes_without_faces)
     bpy.utils.register_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
     bpy.utils.register_class(OBJECT_OT_clean_empty)
+    bpy.utils.register_class(OBJECT_OT_clean_empty_recursive)
 
 def unregister():
     bpy.utils.unregister_class(IMAGE_OT_RemoveBrokenImages)
@@ -169,6 +209,7 @@ def unregister():
     bpy.utils.unregister_class(OBJECT_OT_clean_meshes_without_faces)
     bpy.utils.unregister_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
     bpy.utils.unregister_class(OBJECT_OT_clean_empty)
+    bpy.utils.unregister_class(OBJECT_OT_clean_empty_recursive)
 
 if __name__ == "__main__":
      register()

@@ -43,6 +43,7 @@ class CustomFunctionsPanel(Panel):
             clean_box = layout.box()
             clean_box.operator("object.mian_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
             clean_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
+            clean_box.operator("object.clean_empty_recursive", text="自动递归清理", icon='PARTICLEMODE')
             
             # 空物体显示尺寸设置
             empty_size_row = clean_box.row(align=True)
