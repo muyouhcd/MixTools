@@ -6,7 +6,15 @@ from collections import defaultdict
 import re
 import numpy as np
 from bpy.props import PointerProperty
-from PIL import Image
+
+# 延迟导入PIL
+def get_pil_image():
+    """安全地导入PIL Image"""
+    try:
+        from PIL import Image
+        return Image
+    except ImportError:
+        return None
 
 
 def rename_texture():
@@ -404,6 +412,10 @@ def sample_texture_on_object(obj):
                         break
                         
         if os.path.exists(img_path):
+            Image = get_pil_image()
+            if Image is None:
+                print("PIL库不可用，跳过图像处理")
+                return
             img = Image.open(img_path).convert("RGBA")
             width, height = img.size
             

@@ -21,7 +21,27 @@ class CustomFunctionsPanel(Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-# 小工具集合
+        
+        # 检查PIL依赖是否可用 - 改进版本
+        can_load_safely = False
+        try:
+            # 尝试导入PIL模块
+            import PIL
+            # 进一步验证PIL功能是否可用
+            from PIL import Image, ImageOps
+            can_load_safely = True
+            print(f"✅ PIL依赖检查通过 (版本: {PIL.__version__})")
+        except ImportError as e:
+            print(f"❌ PIL依赖检查失败: {e}")
+            can_load_safely = False
+        except Exception as e:
+            print(f"⚠️ PIL依赖检查异常: {e}")
+            can_load_safely = False
+        
+        # 调试信息
+        print(f"🔍 UI面板PIL检查结果: can_load_safely={can_load_safely}")
+        
+        # 小工具集合
         col_tools = layout.column()
         col_tools.prop(scene, "tools_expand", text="模型编辑工具集", emboss=False,
                        icon='TRIA_DOWN' if context.scene.tools_expand else 'TRIA_RIGHT')
@@ -725,83 +745,123 @@ class CustomFunctionsPanel(Panel):
             # 快速处理显示效果
             quick_render_box = col_autorender.box()
             quick_render_box.label(text="快速处理:", icon='SHADING_RENDERED')
-            quick_render_box.operator("auto_render.oneclick", 
-                                   text="优化体素模型显示效果", 
+            
+            # 条件显示渲染按钮
+            if can_load_safely:
+                # 检查操作符是否已注册
+                if hasattr(bpy.types, 'AUTO_RENDER_OT_oneclick'):
+                    quick_render_box.operator("auto_render.oneclick", 
+                                           text="优化体素模型显示效果", 
+                                           icon='SHADERFX')
+                    print("✅ 渲染按钮显示正常")
+                else:
+                    quick_render_box.label(text="⚠️ 渲染操作符未注册", icon='ERROR')
+                    print("❌ 渲染操作符未注册")
+            else:
+                # 受限模式：显示禁用按钮
+                disabled_row = quick_render_box.row()
+                disabled_row.enabled = False
+                disabled_row.operator("auto_render.oneclick", 
+                                   text="优化体素模型显示效果 (需要PIL)", 
                                    icon='SHADERFX')
+                
+                # 显示安装提示
+                info_box = quick_render_box.box()
+                info_box.label(text="⚠️ 此功能需要PIL依赖", icon='ERROR')
+                info_box.label(text="安装命令: python.exe -m pip install pillow")
+                info_box.label(text="安装后请重启插件")
             
             # 批量渲染设置
             box_autorender = col_autorender.box()
             box_autorender.label(text="批量渲染", icon='RENDER_STILL')
-            # 输出设置
-            output_col = box_autorender.column(align=True)
-            output_col.prop(bpy.context.scene.auto_render_settings, "output_path", text="路径", icon='FILE_FOLDER')
             
-            # 命名模式选择
-            naming_row = output_col.row(align=True)
-            naming_row.prop(bpy.context.scene.auto_render_settings, "naming_mode", text="命名模式", icon='OUTLINER_OB_FONT')
-            
-            # 自定义名称输入（仅在需要时显示）
-            if bpy.context.scene.auto_render_settings.naming_mode in ['CUSTOM', 'HYBRID']:
-                output_col.prop(bpy.context.scene.auto_render_settings, "output_name", text="自定义名称", icon='FILE_BLANK')
-            
-            output_row = output_col.row(align=True)
-            output_row.prop(bpy.context.scene.auto_render_settings, "output_format", text="格式", icon='FILE_IMAGE')
-            
-            # EXR格式说明
-            if bpy.context.scene.auto_render_settings.output_format == 'EXR':
-                exr_info = output_col.box()
-                exr_info.label(text="EXR格式特性:", icon='INFO')
-                exr_info.label(text="• 完美支持透明通道和32位色彩")
-                exr_info.label(text="• 高动态范围，适合后期处理")
-                exr_info.label(text="• 不支持图像尺寸调节和边框添加")
-                exr_info.label(text="• 建议使用Blender内置设置")
-            elif bpy.context.scene.auto_render_settings.output_format == 'EXR_TO_PNG':
-                exr_to_png_info = output_col.box()
-                exr_to_png_info.label(text="EXR→PNG模式特性:", icon='INFO')
-                exr_to_png_info.label(text="• 先渲染为EXR，完美支持透明通道")
-                exr_to_png_info.label(text="• 自动转换为PNG，解决alpha硬裁切问题")
-                exr_to_png_info.label(text="• 支持图像尺寸调节和边框添加")
-                exr_to_png_info.label(text="• 最终输出为PNG格式")
+            # 检查auto_render_settings是否可用
+            if hasattr(bpy.context.scene, 'auto_render_settings'):
+                # 输出设置
+                output_col = box_autorender.column(align=True)
+                output_col.prop(bpy.context.scene.auto_render_settings, "output_path", text="路径", icon='FILE_FOLDER')
+                
+                # 命名模式选择
+                naming_row = output_col.row(align=True)
+                naming_row.prop(bpy.context.scene.auto_render_settings, "naming_mode", text="命名模式", icon='OUTLINER_OB_FONT')
+                
+                # 自定义名称输入（仅在需要时显示）
+                if bpy.context.scene.auto_render_settings.naming_mode in ['CUSTOM', 'HYBRID']:
+                    output_col.prop(bpy.context.scene.auto_render_settings, "output_name", text="自定义名称", icon='FILE_BLANK')
+                
+                output_row = output_col.row(align=True)
+                output_row.prop(bpy.context.scene.auto_render_settings, "output_format", text="格式", icon='FILE_IMAGE')
+                
+                # EXR格式说明
+                if bpy.context.scene.auto_render_settings.output_format == 'EXR':
+                    exr_info = output_col.box()
+                    exr_info.label(text="EXR格式特性:", icon='INFO')
+                    exr_info.label(text="• 完美支持透明通道和32位色彩")
+                    exr_info.label(text="• 高动态范围，适合后期处理")
+                    exr_info.label(text="• 不支持图像尺寸调节和边框添加")
+                    exr_info.label(text="• 建议使用Blender内置设置")
+                elif bpy.context.scene.auto_render_settings.output_format == 'EXR_TO_PNG':
+                    exr_to_png_info = output_col.box()
+                    exr_to_png_info.label(text="EXR→PNG模式特性:", icon='INFO')
+                    exr_to_png_info.label(text="• 先渲染为EXR，完美支持透明通道")
+                    exr_to_png_info.label(text="• 自动转换为PNG，解决alpha硬裁切问题")
+                    exr_to_png_info.label(text="• 支持图像尺寸调节和边框添加")
+                    exr_to_png_info.label(text="• 最终输出为PNG格式")
 
-            # 最终图像尺寸设置
-            final_size_col = box_autorender.column(align=True)
-            final_size_col.prop(bpy.context.scene.auto_render_settings, "enable_resize", text="启用图像尺寸后处理调节", icon='FULLSCREEN_ENTER')
-            if bpy.context.scene.auto_render_settings.enable_resize:
-                final_size_row = final_size_col.row(align=True)
-                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_width", text="宽度")
-                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
-                final_size_row = final_size_col.row(align=True)
-                final_size_row.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
-            
-            # 像素边距控制（独立功能，始终可见）
-            pixel_margin_row = final_size_col.row(align=True)
-            pixel_margin_row.prop(bpy.context.scene.auto_render_settings, "pixel_margin", text="像素边距")
-            pixel_margin_row.label(text="(相机会自动调整距离产生指定像素边距)")
-            # 渲染对象
-            render_col = box_autorender.column()
-            render_row = render_col.row(align=True)
-            render_row.prop(bpy.context.scene.auto_render_settings, "collections", text="集合", icon='OUTLINER_COLLECTION')
-            render_row.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机", icon='CAMERA_DATA')
-            # 相机设置
-            camera_col = box_autorender.column()
-            # 功能选项 - 放在一排
-            options_row = camera_col.row()
-            options_row.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到物体")
-            options_row.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面")
-            options_row.prop(bpy.context.scene.auto_render_settings, "auto_keyframe", text="自动关键帧")
-            options_row.prop(bpy.context.scene.auto_render_settings, "use_compositor", text="合成器效果")
-            
-            # 透视相机增强聚焦选项
-            if bpy.context.scene.auto_render_settings.focus_each_object:
-                perspective_row = camera_col.row()
-                # 增强透视相机聚焦功能已移除
-            # 关键帧管理
-            keyframe_col = box_autorender.column()
-            keyframe_row = keyframe_col.row(align=True)
-            keyframe_row.operator("auto_render.generate_keyframes_only", text="仅生成关键帧", icon='KEY_HLT')
-            keyframe_row.operator("auto_render.clear_camera_keyframes", text="清除关键帧", icon='KEY_DEHLT')
-            # 执行按钮
-            box_autorender.operator("auto_render.execute", text="执行渲染", icon='RENDER_STILL')
+                # 最终图像尺寸设置
+                final_size_col = box_autorender.column(align=True)
+                final_size_col.prop(bpy.context.scene.auto_render_settings, "enable_resize", text="启用图像尺寸后处理调节", icon='FULLSCREEN_ENTER')
+                if bpy.context.scene.auto_render_settings.enable_resize:
+                    final_size_row = final_size_col.row(align=True)
+                    final_size_row.prop(bpy.context.scene.auto_render_settings, "final_width", text="宽度")
+                    final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
+                    final_size_row = final_size_col.row(align=True)
+                    final_size_row.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
+                
+                # 像素边距控制（独立功能，始终可见）
+                pixel_margin_row = final_size_col.row(align=True)
+                pixel_margin_row.prop(bpy.context.scene.auto_render_settings, "pixel_margin", text="像素边距")
+                pixel_margin_row.label(text="(相机会自动调整距离产生指定像素边距)")
+                
+                # 渲染对象
+                render_col = box_autorender.column()
+                render_row = render_col.row(align=True)
+                render_row.prop(bpy.context.scene.auto_render_settings, "collections", text="集合", icon='OUTLINER_COLLECTION')
+                render_row.prop(bpy.context.scene.auto_render_settings, "cameras", text="相机", icon='CAMERA_DATA')
+                
+                # 相机设置
+                camera_col = box_autorender.column()
+                # 功能选项 - 放在一排
+                options_row = camera_col.row()
+                options_row.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到物体")
+                options_row.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面")
+                options_row.prop(bpy.context.scene.auto_render_settings, "auto_keyframe", text="自动关键帧")
+                options_row.prop(bpy.context.scene.auto_render_settings, "use_compositor", text="合成器效果")
+                
+                # 透视相机增强聚焦选项
+                if bpy.context.scene.auto_render_settings.focus_each_object:
+                    perspective_row = camera_col.row()
+                    # 增强透视相机聚焦功能已移除
+                
+                # 关键帧管理
+                keyframe_col = box_autorender.column()
+                keyframe_row = keyframe_col.row(align=True)
+                keyframe_row.operator("auto_render.generate_keyframes_only", text="仅生成关键帧", icon='KEY_HLT')
+                keyframe_row.operator("auto_render.clear_camera_keyframes", text="清除关键帧", icon='KEY_DEHLT')
+                
+                # 执行按钮
+                if can_load_safely:
+                    box_autorender.operator("auto_render.execute", text="执行渲染", icon='RENDER_STILL')
+                else:
+                    # 受限模式：显示禁用按钮
+                    disabled_row = box_autorender.row()
+                    disabled_row.enabled = False
+                    disabled_row.operator("auto_render.execute", text="执行渲染 (需要PIL)", icon='RENDER_STILL')
+            else:
+                # auto_render_settings不可用时的提示
+                info_box = box_autorender.box()
+                info_box.label(text="⚠️ 渲染设置不可用", icon='ERROR')
+                info_box.label(text="请确保AutoRender模块已正确注册")
 
 # 批量调整渲染设置
         col_renderadj = layout.column()

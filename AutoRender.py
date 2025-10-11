@@ -23,15 +23,22 @@ def has_use_zbuffer_attribute():
     except AttributeError:
         return False
 
-# 尝试导入PIL库，如果不存在则记录警告
-PIL_AVAILABLE = False
-try:
-    from PIL import Image, ImageOps
-    PIL_AVAILABLE = True
-    print("PIL库已成功导入，边框添加功能可用")
-except ImportError:
-    print("警告: 未能导入PIL库 (Pillow)，边框添加功能将被禁用")
-    print("提示: 要启用边框功能，请在Blender的Python环境中安装Pillow库")
+# PIL库可用性标志，延迟检查
+PIL_AVAILABLE = None
+
+def check_pil_availability():
+    """检查PIL库是否可用"""
+    global PIL_AVAILABLE
+    if PIL_AVAILABLE is None:
+        try:
+            from PIL import Image, ImageOps
+            PIL_AVAILABLE = True
+            print("PIL库已成功导入，边框添加功能可用")
+        except ImportError:
+            PIL_AVAILABLE = False
+            print("警告: 未能导入PIL库 (Pillow)，边框添加功能将被禁用")
+            print("提示: 要启用边框功能，请在Blender的Python环境中安装Pillow库")
+    return PIL_AVAILABLE
     print("可以通过Blender的Python或系统命令行运行: pip install Pillow")
 
 class AutoRenderer():
@@ -126,7 +133,7 @@ class AutoRenderer():
                 print("尝试使用PIL库进行转换...")
                 
                 # 回退到PIL库转换
-                if PIL_AVAILABLE:
+                if check_pil_availability():
                     try:
                         from PIL import Image
                         
@@ -1592,7 +1599,7 @@ class AutoRenderer():
     def resize_image(self, image_path, target_width, target_height):
         """将图像缩放至指定尺寸"""
         # 检查PIL库是否可用
-        if not PIL_AVAILABLE:
+        if not check_pil_availability():
             print("PIL库不可用，跳过图像缩放功能")
             return False
             
@@ -1646,7 +1653,7 @@ class AutoRenderer():
             return
             
         # 检查PIL库是否可用
-        if not PIL_AVAILABLE:
+        if not check_pil_availability():
             print("PIL库不可用，跳过边框添加功能")
             return
             
