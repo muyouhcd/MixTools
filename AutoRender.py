@@ -27,7 +27,7 @@ def has_use_zbuffer_attribute():
 PIL_AVAILABLE = None
 
 def check_pil_availability():
-    """检查PIL库是否可用"""
+    """检查PIL库是否可用，只检查一次并缓存结果"""
     global PIL_AVAILABLE
     if PIL_AVAILABLE is None:
         try:
@@ -38,8 +38,8 @@ def check_pil_availability():
             PIL_AVAILABLE = False
             print("警告: 未能导入PIL库 (Pillow)，边框添加功能将被禁用")
             print("提示: 要启用边框功能，请在Blender的Python环境中安装Pillow库")
+            print("可以通过Blender的Python或系统命令行运行: pip install Pillow")
     return PIL_AVAILABLE
-    print("可以通过Blender的Python或系统命令行运行: pip install Pillow")
 
 class AutoRenderer():
     def __init__(self, collections: list, camera_name="Camera", 
@@ -52,13 +52,15 @@ class AutoRenderer():
         集合：字符串列表，每个字符串都是一个集合的名称
         report_callback: 可选的回调函数，用于向Blender信息窗口报告信息
         """
-        # 显示Blender版本兼容性信息
-        version = bpy.app.version
-        print(f"ℹ Blender版本: {version[0]}.{version[1]}.{version[2]}")
-        if is_blender_4_3_or_later():
-            print("ℹ 检测到Blender 4.3+，已适配use_zbuffer属性移除的变更")
-        if not has_use_zbuffer_attribute():
-            print("ℹ use_zbuffer属性不可用，将跳过Z缓冲相关设置")
+        # 显示Blender版本兼容性信息 - 全局缓存版本，只检查一次
+        if not hasattr(AutoRenderer, '_version_checked'):
+            version = bpy.app.version
+            print(f"ℹ Blender版本: {version[0]}.{version[1]}.{version[2]}")
+            if is_blender_4_3_or_later():
+                print("ℹ 检测到Blender 4.3+，已适配use_zbuffer属性移除的变更")
+            if not has_use_zbuffer_attribute():
+                print("ℹ use_zbuffer属性不可用，将跳过Z缓冲相关设置")
+            AutoRenderer._version_checked = True
         self.collections = collections
         self.cam = bpy.data.objects.get(camera_name)  # 通过参数传递的 camera_name 获取相机对象
         if not self.cam:
@@ -270,9 +272,15 @@ class AutoRenderer():
             
             if visible_objects:
                 expanded_groups[top_parent_name] = visible_objects
-                print(f"顶级父物体 '{top_parent_name}' 包含 {len(visible_objects)} 个可见子物体")
+                # 全局缓存物体数量信息，避免重复打印
+                if not hasattr(AutoRenderer, '_object_count_checked'):
+                    print(f"顶级父物体 '{top_parent_name}' 包含 {len(visible_objects)} 个可见子物体")
+                    AutoRenderer._object_count_checked = True
             else:
-                print(f"警告: 顶级父物体 '{top_parent_name}' 没有可见的子物体")
+                # 减少警告打印的频率
+                if not hasattr(self, '_no_visible_objects_warning_shown'):
+                    print(f"警告: 顶级父物体 '{top_parent_name}' 没有可见的子物体")
+                    self._no_visible_objects_warning_shown = True
         
         return expanded_groups
 
@@ -297,17 +305,26 @@ class AutoRenderer():
                 original_animation_data = self.cam.animation_data
                 # 记录当前帧，确保使用正确的关键帧数据
                 current_frame = bpy.context.scene.frame_current
-                print(f"ℹ 当前帧: {current_frame}")
+                # 减少当前帧打印的频率
+                if not hasattr(self, '_current_frame_printed'):
+                    print(f"ℹ 当前帧: {current_frame}")
+                    self._current_frame_printed = True
         
         # 自动激活选中的相机
-        print(f"ℹ 自动激活相机: {self.cam.name}")
+        # 全局缓存相机激活状态，避免重复打印
+        if not hasattr(AutoRenderer, '_camera_activated') or AutoRenderer._camera_activated != self.cam.name:
+            print(f"ℹ 自动激活相机: {self.cam.name}")
+            AutoRenderer._camera_activated = self.cam.name
         bpy.context.scene.camera = self.cam
         
         # 检查相机类型并应用相应的聚焦策略
         camera_data = self.cam.data
         is_orthographic = camera_data.type == 'ORTHO'
         
-        print(f"ℹ 相机类型: {'正交相机' if is_orthographic else '透视相机'}")
+        # 全局缓存相机类型，避免重复打印
+        if not hasattr(AutoRenderer, '_camera_type_checked') or AutoRenderer._camera_type_checked != is_orthographic:
+            print(f"ℹ 相机类型: {'正交相机' if is_orthographic else '透视相机'}")
+            AutoRenderer._camera_type_checked = is_orthographic
         
         # 将视图切换到相机视图
         for area in bpy.context.screen.areas:
@@ -324,22 +341,31 @@ class AutoRenderer():
                             self._focus_perspective_camera(objects, camera_data)
                         
                         # 不再需要恢复动画数据，因为我们没有禁用它们
-                        print(f"ℹ 相机聚焦完成，保持动画数据有效")
+                        # 减少聚焦完成的打印频率
+                        if not hasattr(self, '_focus_completed_printed'):
+                            print(f"ℹ 相机聚焦完成，保持动画数据有效")
+                            self._focus_completed_printed = True
                         
                         # 验证相机位置是否正确对准物体
-                        print("ℹ 验证相机位置...")
-                        if self.verify_camera_position(objects):
-                            print("✓ 相机位置验证通过")
-                        else:
-                            print("⚠ 相机位置验证失败，可能需要手动调整")
+                        # 减少验证打印频率
+                        if not hasattr(self, '_position_verified'):
+                            print("ℹ 验证相机位置...")
+                            if self.verify_camera_position(objects):
+                                print("✓ 相机位置验证通过")
+                            else:
+                                print("⚠ 相机位置验证失败，可能需要手动调整")
+                            self._position_verified = True
                         
                         # 自动关键帧：记录相机位置和旋转
-                        print(f"检查是否需要添加关键帧: self.auto_keyframe = {self.auto_keyframe}")
-                        if self.auto_keyframe:
-                            print("✓ 启用自动关键帧，开始添加关键帧...")
-                            self.auto_keyframe_camera()
-                        else:
-                            print("⚠ 自动关键帧未启用")
+                        # 减少关键帧检查的打印频率
+                        if not hasattr(self, '_keyframe_checked'):
+                            print(f"检查是否需要添加关键帧: self.auto_keyframe = {self.auto_keyframe}")
+                            if self.auto_keyframe:
+                                print("✓ 启用自动关键帧，开始添加关键帧...")
+                                self.auto_keyframe_camera()
+                            else:
+                                print("⚠ 自动关键帧未启用")
+                            self._keyframe_checked = True
                         
                         break
     
@@ -349,12 +375,15 @@ class AutoRenderer():
             if self.pixel_margin <= 0:
                 return 0
             
-            print(f"ℹ 计算正交相机缩放: 像素边距={self.pixel_margin}px")
-            
-            # 获取渲染分辨率
-            render_width = bpy.context.scene.render.resolution_x
-            render_height = bpy.context.scene.render.resolution_y
-            print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
+            # 全局缓存正交相机计算信息，避免重复打印
+            if not hasattr(AutoRenderer, '_ortho_calc_checked'):
+                print(f"ℹ 计算正交相机缩放: 像素边距={self.pixel_margin}px")
+                
+                # 获取渲染分辨率
+                render_width = bpy.context.scene.render.resolution_x
+                render_height = bpy.context.scene.render.resolution_y
+                print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
+                AutoRenderer._ortho_calc_checked = True
             
             # 正交相机：精确的边距计算
             max_size = max(bbox_size)
@@ -372,9 +401,12 @@ class AutoRenderer():
             # 计算需要的正交缩放
             required_ortho_scale = max_size + world_margin * 2
             
-            print(f"ℹ 正交相机缩放计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
-            print(f"ℹ 当前缩放={current_ortho_scale:.2f}, 像素比例={pixel_to_world_ratio:.6f}")
-            print(f"ℹ 世界边距={world_margin:.2f}, 需要缩放={required_ortho_scale:.2f}")
+            # 减少详细计算信息的打印频率
+            if not hasattr(self, '_ortho_details_printed'):
+                print(f"ℹ 正交相机缩放计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
+                print(f"ℹ 当前缩放={current_ortho_scale:.2f}, 像素比例={pixel_to_world_ratio:.6f}")
+                print(f"ℹ 世界边距={world_margin:.2f}, 需要缩放={required_ortho_scale:.2f}")
+                self._ortho_details_printed = True
             
             return required_ortho_scale
                 
@@ -388,12 +420,15 @@ class AutoRenderer():
             if self.pixel_margin <= 0:
                 return 0
             
-            print(f"ℹ 计算透视相机距离: 像素边距={self.pixel_margin}px")
-            
-            # 获取渲染分辨率
-            render_width = bpy.context.scene.render.resolution_x
-            render_height = bpy.context.scene.render.resolution_y
-            print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
+            # 全局缓存透视相机计算信息，避免重复打印
+            if not hasattr(AutoRenderer, '_perspective_calc_checked'):
+                print(f"ℹ 计算透视相机距离: 像素边距={self.pixel_margin}px")
+                
+                # 获取渲染分辨率
+                render_width = bpy.context.scene.render.resolution_x
+                render_height = bpy.context.scene.render.resolution_y
+                print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
+                AutoRenderer._perspective_calc_checked = True
             
             # 透视相机：精确的边距计算
             max_size = max(bbox_size)
@@ -415,9 +450,12 @@ class AutoRenderer():
             # 计算带边距的距离
             required_distance = base_distance + pixel_margin_world
             
-            print(f"ℹ 透视相机距离计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
-            print(f"ℹ 视野角度={fov_degrees:.2f}°, 基础距离={base_distance:.2f}")
-            print(f"ℹ 像素边距世界距离={pixel_margin_world:.2f}, 需要距离={required_distance:.2f}")
+            # 减少透视相机详细计算信息的打印频率
+            if not hasattr(self, '_perspective_details_printed'):
+                print(f"ℹ 透视相机距离计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
+                print(f"ℹ 视野角度={fov_degrees:.2f}°, 基础距离={base_distance:.2f}")
+                print(f"ℹ 像素边距世界距离={pixel_margin_world:.2f}, 需要距离={required_distance:.2f}")
+                self._perspective_details_printed = True
             
             return required_distance
                 
@@ -428,12 +466,17 @@ class AutoRenderer():
     def _verify_camera_view_coverage(self, objects, camera_data, is_orthographic):
         """验证相机视野是否足够覆盖所有物体"""
         try:
-            print("ℹ 验证相机视野覆盖...")
+            # 全局缓存视野验证状态，避免重复打印
+            if not hasattr(AutoRenderer, '_coverage_verified'):
+                print("ℹ 验证相机视野覆盖...")
+                AutoRenderer._coverage_verified = True
             
             # 计算所有物体的边界框
             bbox_min, bbox_max = self._calculate_group_bbox(objects)
             if not bbox_min or not bbox_max:
-                print("⚠ 无法计算边界框，跳过视野验证")
+                if not hasattr(self, '_bbox_error_shown'):
+                    print("⚠ 无法计算边界框，跳过视野验证")
+                    self._bbox_error_shown = True
                 return
             
             bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
@@ -444,15 +487,22 @@ class AutoRenderer():
                 current_scale = camera_data.ortho_scale
                 coverage_ratio = current_scale / max_size
                 
-                print(f"ℹ 正交相机视野验证: 当前缩放={current_scale:.2f}, 物体尺寸={max_size:.2f}, 覆盖比例={coverage_ratio:.2f}")
+                # 减少正交相机视野验证的打印频率
+                if not hasattr(self, '_ortho_coverage_printed'):
+                    print(f"ℹ 正交相机视野验证: 当前缩放={current_scale:.2f}, 物体尺寸={max_size:.2f}, 覆盖比例={coverage_ratio:.2f}")
+                    self._ortho_coverage_printed = True
                 
                 # 更保守的验证：只在实际不足时才调整
                 if coverage_ratio < 1.05:  # 降低阈值到1.05
                     safety_scale = max_size * 1.05  # 只增加5%的安全边距
                     camera_data.ortho_scale = safety_scale
-                    print(f"⚠ 视野不足，增加正交缩放到: {safety_scale:.2f}")
+                    if not hasattr(self, '_ortho_insufficient_shown'):
+                        print(f"⚠ 视野不足，增加正交缩放到: {safety_scale:.2f}")
+                        self._ortho_insufficient_shown = True
                 else:
-                    print("✓ 正交相机视野充足")
+                    if not hasattr(self, '_ortho_sufficient_shown'):
+                        print("✓ 正交相机视野充足")
+                        self._ortho_sufficient_shown = True
                     
             else:
                 # 验证透视相机视野
@@ -466,7 +516,10 @@ class AutoRenderer():
                 required_distance = (max_size / 2) / math.tan(fov_radians / 2)
                 coverage_ratio = camera_to_center / required_distance
                 
-                print(f"ℹ 透视相机视野验证: 当前距离={camera_to_center:.2f}, 需要距离={required_distance:.2f}, 覆盖比例={coverage_ratio:.2f}")
+                # 减少透视相机视野验证的打印频率
+                if not hasattr(self, '_perspective_coverage_printed'):
+                    print(f"ℹ 透视相机视野验证: 当前距离={camera_to_center:.2f}, 需要距离={required_distance:.2f}, 覆盖比例={coverage_ratio:.2f}")
+                    self._perspective_coverage_printed = True
                 
                 # 更保守的验证：只在实际不足时才调整
                 if coverage_ratio < 1.05:  # 降低阈值到1.05
@@ -474,9 +527,13 @@ class AutoRenderer():
                     direction = (self.cam.location - mathutils.Vector(bbox_center)).normalized()
                     new_position = mathutils.Vector(bbox_center) + direction * safety_distance
                     self.cam.location = new_position
-                    print(f"⚠ 视野不足，增加相机距离到: {safety_distance:.2f}")
+                    if not hasattr(self, '_perspective_insufficient_shown'):
+                        print(f"⚠ 视野不足，增加相机距离到: {safety_distance:.2f}")
+                        self._perspective_insufficient_shown = True
                 else:
-                    print("✓ 透视相机视野充足")
+                    if not hasattr(self, '_perspective_sufficient_shown'):
+                        print("✓ 透视相机视野充足")
+                        self._perspective_sufficient_shown = True
                     
         except Exception as e:
             print(f"⚠ 视野验证时出错: {str(e)}")
@@ -490,7 +547,10 @@ class AutoRenderer():
     def focus_single_object(self, obj):
         """聚焦到单个物体，为关键帧生成做准备"""
         try:
-            print(f"ℹ 开始聚焦到单个物体: {obj.name}")
+            # 全局缓存单个物体聚焦状态，避免重复打印
+            if not hasattr(AutoRenderer, '_single_object_focus_checked'):
+                print(f"ℹ 开始聚焦到单个物体: {obj.name}")
+                AutoRenderer._single_object_focus_checked = True
             
             # 选择单个物体
             bpy.context.view_layer.objects.active = obj
@@ -498,7 +558,10 @@ class AutoRenderer():
             obj.select_set(True)
             
             # 自动激活选中的相机
-            print(f"ℹ 自动激活相机: {self.cam.name}")
+            # 全局缓存单个相机激活状态，避免重复打印
+            if not hasattr(AutoRenderer, '_single_camera_activated') or AutoRenderer._single_camera_activated != self.cam.name:
+                print(f"ℹ 自动激活相机: {self.cam.name}")
+                AutoRenderer._single_camera_activated = self.cam.name
             bpy.context.scene.camera = self.cam
             
             # 将视图切换到相机视图
@@ -876,11 +939,14 @@ class AutoRenderer():
             camera = self.cam
             camera_data = camera.data
             
-            print(f"开始为相机 '{camera.name}' 添加关键帧...")
-            print(f"当前帧: {current_frame}")
-            print(f"相机类型: {'正交相机' if camera_data.type == 'ORTHO' else '透视相机'}")
-            print(f"相机位置: {camera.location}")
-            print(f"相机旋转: {camera.rotation_euler}")
+            # 全局缓存关键帧添加状态，避免重复打印
+            if not hasattr(AutoRenderer, '_keyframe_added_checked'):
+                print(f"开始为相机 '{camera.name}' 添加关键帧...")
+                print(f"当前帧: {current_frame}")
+                print(f"相机类型: {'正交相机' if camera_data.type == 'ORTHO' else '透视相机'}")
+                print(f"相机位置: {camera.location}")
+                print(f"相机旋转: {camera.rotation_euler}")
+                AutoRenderer._keyframe_added_checked = True
             
             # 为相机位置添加关键帧
             camera.keyframe_insert(data_path="location", frame=current_frame)

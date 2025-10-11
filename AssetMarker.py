@@ -519,8 +519,8 @@ class CreateAssemblyAsset(bpy.types.Operator):
                 self.report({'WARNING'}, "集合及其子集合中没有顶级物体")
                 return {'CANCELLED'}
             
-            # 获取批次大小设置
-            batch_size = context.scene.batch_size
+            # 设置固定的批次大小
+            batch_size = 5
             
             # 将物体分组
             total_objects = len(top_level_objects)
@@ -586,20 +586,12 @@ def register():
         description="选择将要标记资产的集合",
         type=bpy.types.Collection
     )
-    bpy.types.Scene.batch_size = bpy.props.IntProperty(
-        name="批次大小",
-        description="每批处理的物体数量，较小的批次可以防止性能下降",
-        default=5,
-        min=1,
-        max=20
-    )
 
 def unregister():
     bpy.utils.unregister_class(CreateAssemblyAsset)
     
     del bpy.types.Scene.create_top_level_parent
     del bpy.types.Scene.asset_collection
-    del bpy.types.Scene.batch_size
 
 if __name__ == "__main__":
     register() 

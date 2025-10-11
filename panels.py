@@ -17,50 +17,65 @@ class CustomFunctionsPanel(Panel):
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "工具箱"
+    
+    # 类变量用于缓存PIL检查结果
+    _pil_available = None
+    _pil_checked = False
+    
+    @classmethod
+    def _check_pil_dependency(cls):
+        """检查PIL依赖是否可用，只检查一次并缓存结果"""
+        if not cls._pil_checked:
+            try:
+                # 尝试导入PIL模块
+                import PIL
+                # 进一步验证PIL功能是否可用
+                from PIL import Image, ImageOps
+                cls._pil_available = True
+                print(f"✅ PIL依赖检查通过 (版本: {PIL.__version__})")
+            except ImportError as e:
+                cls._pil_available = False
+                print(f"❌ PIL依赖检查失败: {e}")
+            except Exception as e:
+                cls._pil_available = False
+                print(f"⚠️ PIL依赖检查异常: {e}")
+            cls._pil_checked = True
+        return cls._pil_available
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
         
-        # 检查PIL依赖是否可用 - 改进版本
-        can_load_safely = False
-        try:
-            # 尝试导入PIL模块
-            import PIL
-            # 进一步验证PIL功能是否可用
-            from PIL import Image, ImageOps
-            can_load_safely = True
-            print(f"✅ PIL依赖检查通过 (版本: {PIL.__version__})")
-        except ImportError as e:
-            print(f"❌ PIL依赖检查失败: {e}")
-            can_load_safely = False
-        except Exception as e:
-            print(f"⚠️ PIL依赖检查异常: {e}")
-            can_load_safely = False
+        # 检查PIL依赖是否可用 - 全局缓存版本，只检查一次
+        can_load_safely = self._check_pil_dependency()
         
-        # 调试信息
-        print(f"🔍 UI面板PIL检查结果: can_load_safely={can_load_safely}")
-        
-        # 小工具集合
-        col_tools = layout.column()
-        col_tools.prop(scene, "tools_expand", text="模型编辑工具集", emboss=False,
-                       icon='TRIA_DOWN' if context.scene.tools_expand else 'TRIA_RIGHT')
-
-        if scene.tools_expand:
-            # Edit Tools
-            layout.label(text="编辑工具:", icon='TOOL_SETTINGS')
-            edit_box = layout.box()
+        # 编辑工具
+        col_edit_tools = layout.column()
+        col_edit_tools.prop(scene, "edit_tools_expand", text="编辑工具", emboss=False,
+                           icon='TRIA_DOWN' if context.scene.edit_tools_expand else 'TRIA_RIGHT')
+        if scene.edit_tools_expand:
+            # 基础编辑工具
+            edit_box = col_edit_tools.box()
+            edit_box.label(text="基础编辑工具:", icon='TOOL_SETTINGS')
             edit_box.operator("object.mian_remove_vertex_group", text="移除顶点组", icon='GROUP_VERTEX')
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
             edit_box.operator("object.remove_constraints", text="移除约束", icon='CONSTRAINT')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='UNLINKED')
             edit_box.operator("object.mian_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
             
+            # 合并工具
+            merge_box = col_edit_tools.box()
+            merge_box.label(text="合并工具:", icon='SNAP_MIDPOINT')
+            merge_box.operator("object.combin_same_origin_object", text="合并同原点物体", icon='PIVOT_BOUNDBOX')
 
-            
-            # Animation Tools
-            layout.label(text="清理工具:", icon='BRUSH_DATA')
-            clean_box = layout.box()
+        # 清理简化工具
+        col_clean_tools = layout.column()
+        col_clean_tools.prop(scene, "clean_tools_expand", text="清理简化工具", emboss=False,
+                            icon='TRIA_DOWN' if context.scene.clean_tools_expand else 'TRIA_RIGHT')
+        if scene.clean_tools_expand:
+            # 基础清理工具
+            clean_box = col_clean_tools.box()
+            clean_box.label(text="基础清理工具:", icon='BRUSH_DATA')
             clean_box.operator("object.mian_clean_collection", text="清空空集合", icon='OUTLINER_COLLECTION')
             clean_box.operator("object.clean_empty", text="清除无子集空物体", icon='OUTLINER_OB_EMPTY')
             clean_box.operator("object.clean_empty_recursive", text="自动递归清理", icon='PARTICLEMODE')
@@ -76,40 +91,46 @@ class CustomFunctionsPanel(Panel):
             clean_box.operator("image.remove_broken", text="清理丢失图像", icon='IMAGE_DATA')
             
             # 场景简化工具
-            layout.label(text="场景简化工具:", icon='VIEW_CAMERA')
-            scene_clean_box = layout.box()
+            scene_clean_box = col_clean_tools.box()
+            scene_clean_box.label(text="场景简化工具:", icon='VIEW_CAMERA')
             scene_clean_box.operator("object.auto_hide_clean", text="将相机拍不到的物体放入集合并隐藏", icon='HIDE_OFF')
             scene_clean_box.operator("object.auto_hide_delete", text="直接删除不可见物体", icon='TRASH')
+            
+            # 实例化工具
+            instance_box = col_clean_tools.box()
+            instance_box.label(text="实例化工具:", icon='DUPLICATE')
+            instance_box.operator("object.object_instance", text="对所选物体进行转换实例化", icon='DUPLICATE')
+            instance_box.operator("object.geometry_matcher", text="对全场景进行几何相同性检测并实例化", icon='MESH_DATA')
+            instance_box.operator("object.remove_instance_duplicates", text="删除实例化物体重复项", icon='TRASH')
 
-            # Generation Tools
-            layout.label(text="生成工具:", icon='SHADERFX')
-            gen_box = layout.box()
+        # 生成工具
+        col_gen_tools = layout.column()
+        col_gen_tools.prop(scene, "gen_tools_expand", text="生成工具", emboss=False,
+                          icon='TRIA_DOWN' if context.scene.gen_tools_expand else 'TRIA_RIGHT')
+        if scene.gen_tools_expand:
+            # 基础生成工具
+            gen_box = col_gen_tools.box()
+            gen_box.label(text="基础生成工具:", icon='SHADERFX')
             gen_box.operator("object.mian_boundbox_gen", text="生成包围盒", icon='CUBE')
             gen_box.operator("object.convex_hull_creator", text="生成凸包", icon='META_CUBE')
             gen_box.operator("object.mian_safecombin", text="安全合并", icon='AUTOMERGE_ON')
-            gen_box.operator("object.object_instance", text="对所选物体进行转换实例化", icon='DUPLICATE')
-            gen_box.operator("object.geometry_matcher", text="对全场景进行几何相同性检测并实例化", icon='MESH_DATA')
-            gen_box.operator("object.remove_instance_duplicates", text="删除实例化物体重复项", icon='TRASH')
             
             # 批量顶点组工具
-            vertex_group_box = gen_box.box()
+            vertex_group_box = col_gen_tools.box()
             vertex_group_box.label(text="批量顶点组工具:", icon='GROUP_VERTEX')
             vertex_group_row = vertex_group_box.row(align=True)
             vertex_group_row.prop(scene, "vertex_group_name", text="顶点组名称")
             vertex_group_row.operator("object.batch_create_vertex_group", text="创建顶点组", icon='ADD')
 
-            # Alignment Tools
-            layout.label(text="对齐工具:", icon='ORIENTATION_GLOBAL')
-            align_box = layout.box()
-            align_box.prop(context.scene, "axis_direction_enum", text="轴向选择")
-            op = align_box.operator("object.move_origin", text="移动原点")
-            op.axis_direction = context.scene.axis_direction_enum
-            align_box.operator("object.reset_z_axis", text="Z轴归零", icon='AXIS_TOP')
-            align_box.operator("object.align_object_origin", text="对齐物体原点", icon='PIVOT_CURSOR')
 
-            # Selection Tools
-            layout.label(text="选择工具:", icon='RESTRICT_SELECT_OFF')
-            select_box = layout.box()
+        # 选择工具
+        col_select_tools = layout.column()
+        col_select_tools.prop(scene, "select_tools_expand", text="选择工具", emboss=False,
+                             icon='TRIA_DOWN' if context.scene.select_tools_expand else 'TRIA_RIGHT')
+        if scene.select_tools_expand:
+            # 基础选择工具
+            select_box = col_select_tools.box()
+            select_box.label(text="基础选择工具:", icon='RESTRICT_SELECT_OFF')
             select_box.operator("object.match_uv", text="选取同UV物体", icon='GROUP_UVS')
             select_box.operator("object.select_large_objects", text="选择过大物体", icon='FULLSCREEN_ENTER')
             select_box.operator("object.select_small_objects", text="选择过小物体", icon='FULLSCREEN_EXIT')
@@ -117,10 +138,8 @@ class CustomFunctionsPanel(Panel):
             select_box.operator("object.select_objects_without_vertex_groups", text="选择没有顶点组物体", icon='GROUP_VERTEX')
             
             # 按名称列表筛选工具
-            namelist_select_box = layout.box()
+            namelist_select_box = col_select_tools.box()
             namelist_select_box.label(text="按名称列表筛选:", icon='OUTLINER_OB_GROUP_INSTANCE')
-            
-            # 添加描述信息
             namelist_select_box.label(text="要保留的物体名称列表:", icon='TEXT')
             
             # 使用简单的输入框显示当前内容
@@ -151,10 +170,6 @@ class CustomFunctionsPanel(Panel):
             row.prop(scene, "show_report_option", text="显示报告")
             namelist_select_box.operator("object.select_and_delete_by_name_list", text="按名称列表筛选物体", icon='TRASH')
 
-            # 合并工具
-            layout.label(text="合并工具:", icon='SNAP_MIDPOINT')
-            convert_box = layout.box()
-            convert_box.operator("object.combin_same_origin_object", text="合并同原点物体", icon='PIVOT_BOUNDBOX')
             
 # 绑定操作
         col_BindOperation = layout.column()
@@ -162,29 +177,26 @@ class CustomFunctionsPanel(Panel):
                                icon='TRIA_DOWN' if context.scene.BindOperation_expand else 'TRIA_RIGHT')
         if context.scene.BindOperation_expand:
             # 碰撞检测与集合绑定
-            bounding_box_operations = col_BindOperation.box()
-            bounding_box_operations.label(text="碰撞检测与集合绑定:", icon='MOD_BOOLEAN')
-            
-            col = bounding_box_operations.column(align=True)
-            col.operator("object.mian_collection_byboundingbox", text="检测碰撞归集合", icon='SNAP_VOLUME')
-            col.operator("object.mian_parent_byboundingbox", text="检测碰撞归子集", icon='SNAP_FACE')
-            col.operator("object.collection_by_attached", text="检测并合并碰撞", icon='FACE_MAPS')
+            collision_box = col_BindOperation.box()
+            collision_box.label(text="碰撞检测与集合绑定:", icon='MOD_BOOLEAN')
+            row1 = collision_box.row(align=True)
+            row1.operator("object.mian_collection_byboundingbox", text="检测碰撞归集合", icon='SNAP_VOLUME')
+            row1.operator("object.mian_parent_byboundingbox", text="检测碰撞归子集", icon='SNAP_FACE')
+            collision_box.operator("object.collection_by_attached", text="检测并合并碰撞", icon='FACE_MAPS')
             
             # 集合父级设置
-            parent_by_collections_box = col_BindOperation.box()
-            parent_by_collections_box.label(text="集合父级设置:", icon='GROUP')
-            parent_by_collections_box.label(text="以集合物体绑定子集合父级", icon='INFO')
-            
-            col = parent_by_collections_box.column()
-            col.prop(scene, "collectionA", text="父级集合", icon='COLLECTION_COLOR_01')
-            col.prop(scene, "collectionB", text="子级集合", icon='COLLECTION_COLOR_04')
-            parent_by_collections_box.operator("object.mian_set_parent_collections", text="设置父级关系", icon='LINKED')
+            parent_box = col_BindOperation.box()
+            parent_box.label(text="集合父级设置:", icon='GROUP')
+            parent_box.label(text="以集合物体绑定子集合父级", icon='INFO')
+            parent_box.prop(scene, "collectionA", text="父级集合", icon='COLLECTION_COLOR_01')
+            parent_box.prop(scene, "collectionB", text="子级集合", icon='COLLECTION_COLOR_04')
+            parent_box.operator("object.mian_set_parent_collections", text="设置父级关系", icon='LINKED')
 
             # 空物体父级绑定
-            empty_parent_box = col_BindOperation.box()
-            empty_parent_box.label(text="空物体父级绑定:", icon='EMPTY_DATA')
-            empty_parent_box.prop(scene, "multiple_object_binding", text="为多个物体创建共同父级")
-            empty_parent_box.operator("object.mian_create_empty_at_bottom", text="创建空物体父级", icon='EMPTY_ARROWS')
+            empty_box = col_BindOperation.box()
+            empty_box.label(text="空物体父级绑定:", icon='EMPTY_DATA')
+            empty_box.prop(scene, "multiple_object_binding", text="为多个物体创建共同父级")
+            empty_box.operator("object.mian_create_empty_at_bottom", text="创建空物体父级", icon='EMPTY_ARROWS')
 
 # 材质操作
         col_meterialoperation = layout.column()
@@ -416,6 +428,15 @@ class CustomFunctionsPanel(Panel):
         col_rsm.prop(scene, "rsm_expand", text="变换工具", emboss=False,
                      icon='TRIA_DOWN' if context.scene.rsm_expand else 'TRIA_RIGHT')
         if context.scene.rsm_expand:
+            # 对齐工具
+            align_box = col_rsm.box()
+            align_box.label(text="对齐工具:", icon='ORIENTATION_GLOBAL')
+            align_box.prop(context.scene, "axis_direction_enum", text="轴向选择")
+            op = align_box.operator("object.move_origin", text="移动原点")
+            op.axis_direction = context.scene.axis_direction_enum
+            align_box.operator("object.reset_z_axis", text="Z轴归零", icon='AXIS_TOP')
+            align_box.operator("object.align_object_origin", text="对齐物体原点", icon='PIVOT_CURSOR')
+            
             # 下落至表面
             surface_box = col_rsm.box()
             surface_box.label(text="放置与对齐:", icon='SNAP_FACE')
@@ -620,9 +641,9 @@ class CustomFunctionsPanel(Panel):
             # 输入框和编辑按钮在同一行
             input_row = text_box.row(align=True)
             input_row.prop(context.scene, "fbx_name_list_text", text="", icon='TEXT')
-            input_row.operator("better_fbx.edit_names_list", text="编辑", icon='TEXT')
+            input_row.operator("object.edit_names_list", text="编辑", icon='TEXT')
             if scene.fbx_temp_names_file_path:
-                input_row.operator("better_fbx.read_names_from_temp_file", text="加载", icon='IMPORT')
+                input_row.operator("object.read_names_from_temp_file", text="加载", icon='IMPORT')
             
             
             name_list_box.prop(context.scene, "fbx_search_directory", text="搜索目录", icon='FILE_FOLDER')
@@ -695,7 +716,6 @@ class CustomFunctionsPanel(Panel):
             assembly_asset_box.label(text="批量标记资产:", icon='ASSET_MANAGER')
             assembly_asset_box.prop(context.scene, "asset_collection", text="目标集合", icon='COLLECTION_COLOR_04')
             assembly_asset_box.prop(context.scene, "create_top_level_parent", text="创建顶级父级")
-            assembly_asset_box.prop(context.scene, "batch_size", text="批次大小", icon='SETTINGS')
             
             row = assembly_asset_box.row()
             row.operator("object.mian_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
@@ -717,25 +737,6 @@ class CustomFunctionsPanel(Panel):
             convert_box.operator("object.voxel_converter", text="生成体素化指令", icon='CONSOLE')
             convert_box.prop(scene, "resolution_factor", text="分辨率因子")
 
-            # 物体分类工具
-            object_classifier_box = col_assestoperation.box()
-            object_classifier_box.label(text="角色部件分类工具:", icon='OUTLINER_COLLECTION')
-            object_classifier_box.operator("object.mian_object_classifier", text="按名称分类物体", icon='OUTLINER_COLLECTION')
-            
-            # 物体替换工具
-            object_replacer_box = col_assestoperation.box()
-            object_replacer_box.label(text="物体替换工具:", icon='FILE_REFRESH')
-            
-            # 文件选择
-            object_replacer_box.prop(context.scene, "replacement_blend_file", text="替换源文件", icon='FILE_BLEND')
-            
-            
-            # 套装替换选项
-            object_replacer_box.prop(context.scene, "enable_set_replacement", text="套装替换", icon='OUTLINER_COLLECTION')
-            
-            # 替换按钮
-            object_replacer_box.operator("object.mian_object_replacer", text="从文件替换物体", icon='FILE_REFRESH')
-
 #批量渲染
         col_autorender = layout.column()
         col_autorender.prop(scene, "autorender_expand", text="渲染工具", emboss=False, 
@@ -753,10 +754,14 @@ class CustomFunctionsPanel(Panel):
                     quick_render_box.operator("auto_render.oneclick", 
                                            text="优化体素模型显示效果", 
                                            icon='SHADERFX')
-                    print("✅ 渲染按钮显示正常")
+                    # 移除调试打印，减少控制台输出
+                    # print("✅ 渲染按钮显示正常")
                 else:
                     quick_render_box.label(text="⚠️ 渲染操作符未注册", icon='ERROR')
-                    print("❌ 渲染操作符未注册")
+                    # 只在首次检查失败时打印
+                    if not hasattr(self, '_render_op_error_shown'):
+                        print("❌ 渲染操作符未注册")
+                        self._render_op_error_shown = True
             else:
                 # 受限模式：显示禁用按钮
                 disabled_row = quick_render_box.row()
@@ -862,14 +867,9 @@ class CustomFunctionsPanel(Panel):
                 info_box = box_autorender.box()
                 info_box.label(text="⚠️ 渲染设置不可用", icon='ERROR')
                 info_box.label(text="请确保AutoRender模块已正确注册")
-
-# 批量调整渲染设置
-        col_renderadj = layout.column()
-        col_renderadj.prop(scene, "renderadj_expand", text="渲染设置批量调整", emboss=False,
-                           icon='TRIA_DOWN' if context.scene.renderadj_expand else 'TRIA_RIGHT')
-
-        if context.scene.renderadj_expand:
-            box_renderadj = col_renderadj.box()
+            
+            # 批量调整渲染设置
+            box_renderadj = col_autorender.box()
             box_renderadj.label(text="批量调整渲染设置:", icon='PREFERENCES')
             
             change_resolution_prop = context.scene.change_resolution_prop
@@ -914,6 +914,7 @@ class CustomFunctionsPanel(Panel):
             operator_instance.output_resolution_y = str(change_resolution_prop.output_resolution_y)
             operator_instance.resolution_percentage = str(change_resolution_prop.resolution_percentage)
             operator_instance.output_frame_rate = str(change_resolution_prop.output_frame_rate)
+
 
             
 class AddSourceMaterialOperator(bpy.types.Operator):
@@ -988,7 +989,12 @@ def register():
         description="要拆分的材质"
     )
     
-    bpy.types.Scene.tools_expand = bpy.props.BoolProperty(default=False)
+    # 新的独立工具分类属性
+    bpy.types.Scene.edit_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.clean_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.gen_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.select_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.namelist_tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.BindOperation_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.meterialoperation_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.renameoperation_expand = bpy.props.BoolProperty(default=False)
@@ -997,7 +1003,6 @@ def register():
     bpy.types.Scene.inout_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.assestoperation_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.autorender_expand = bpy.props.BoolProperty(default=False)
-    bpy.types.Scene.renderadj_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.light_tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.animation_tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.curve_tools_expand = bpy.props.BoolProperty(default=False)
@@ -1146,18 +1151,6 @@ def register():
         default=True
     )
     
-    # 物体替换工具属性
-    bpy.types.Scene.replacement_blend_file = bpy.props.StringProperty(
-        name="替换源文件",
-        description="选择包含替换物体的.blend文件",
-        subtype='FILE_PATH',
-        default=""
-    )
-    bpy.types.Scene.enable_set_replacement = bpy.props.BoolProperty(
-        name="套装替换",
-        description="启用套装替换模式，将同套装的物体一起替换",
-        default=False
-    )
 
 
 def unregister():
@@ -1170,7 +1163,12 @@ def unregister():
     # 注销场景属性
     properties_to_remove = [
         # 基础属性
-        "tools_expand",
+        "edit_tools_expand",
+        "clean_tools_expand", 
+        "gen_tools_expand",
+        "align_tools_expand",
+        "select_tools_expand",
+        "namelist_tools_expand",
         "BindOperation_expand",
         "meterialoperation_expand",
         "renameoperation_expand",
@@ -1179,7 +1177,6 @@ def unregister():
         "inout_expand",
         "assestoperation_expand",
         "autorender_expand",
-        "renderadj_expand",
         "light_tools_expand",
         "animation_tools_expand",
         "curve_tools_expand",

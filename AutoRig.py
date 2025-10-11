@@ -551,42 +551,70 @@ class BoneDataExporterPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
 
-        row = layout.row()
-        row.prop(scene, "show_bone_operators", text="骨骼操作", icon='TRIA_DOWN' if scene.show_bone_operators else 'TRIA_RIGHT', emboss=False)
+        # 骨骼操作
+        col_bone_ops = layout.column()
+        col_bone_ops.prop(scene, "show_bone_operators", text="骨骼操作", emboss=False,
+                         icon='TRIA_DOWN' if scene.show_bone_operators else 'TRIA_RIGHT')
         if scene.show_bone_operators:
-            row = layout.row()
-            row.operator("object.export_bone_data", text="导出骨骼", icon='GROUP_BONE')
-            row.operator("object.restore_bone_data", text="还原骨骼", icon='BONE_DATA')
-            row.operator("object.restore_empty_data", text="还原点位", icon='EMPTY_DATA')
-            row = layout.row()
-            row.operator('object.reset_bone_position', text="重置端点", icon='BONE_DATA')
-            row.operator('object.connect_bone', text="连接骨骼", icon='CONSTRAINT_BONE')
+            bone_box = col_bone_ops.box()
+            bone_box.label(text="骨骼操作工具:", icon='BONE_DATA')
+            row1 = bone_box.row(align=True)
+            row1.operator("object.export_bone_data", text="导出骨骼", icon='GROUP_BONE')
+            row1.operator("object.restore_bone_data", text="还原骨骼", icon='BONE_DATA')
+            row1.operator("object.restore_empty_data", text="还原点位", icon='EMPTY_DATA')
+            row2 = bone_box.row(align=True)
+            row2.operator('object.reset_bone_position', text="重置端点", icon='BONE_DATA')
+            row2.operator('object.connect_bone', text="连接骨骼", icon='CONSTRAINT_BONE')
+
+        # 配置管理
+        col_config = layout.column()
+        col_config.prop(scene, "config_expand", text="配置管理", emboss=False,
+                       icon='TRIA_DOWN' if scene.config_expand else 'TRIA_RIGHT')
+        if scene.config_expand:
+            config_box = col_config.box()
+            config_box.label(text="配置列表:", icon='PREFERENCES')
+            config_box.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
+            config_box.operator("object.refresh_json_list", text="刷新配置列表", icon='FILE_REFRESH')
+            config_box.operator("object.one_click_operator", text="一键绑定处理角色(64)", icon='COMMUNITY')
+
+        # 角色处理
+        col_character_process = layout.column()
+        col_character_process.prop(scene, "character_process_expand", text="角色处理", emboss=False,
+                                  icon='TRIA_DOWN' if scene.character_process_expand else 'TRIA_RIGHT')
+        if scene.character_process_expand:
+            # 导出设置
+            export_box = col_character_process.box()
+            export_box.label(text="导出设置:", icon='EXPORT')
+            export_box.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')
+            export_box.operator("scene.export_fbx_without_parent", text="导出角色(无父级)", icon='EXPORT')
             
+            # 角色处理工具
+            process_box = col_character_process.box()
+            process_box.label(text="角色处理工具:", icon='COMMUNITY')
+            row1 = process_box.row(align=True)
+            row1.operator("object.mian_parent_byboundingbox", text="接触底心创建父级", icon='ARMATURE_DATA')
+            row1.operator("object.scale_adjust", text="缩小1/2", icon='COMMUNITY')
+            row2 = process_box.row(align=True)
+            row2.operator("object.mian_char_operater", text="导入模型一键预处理", icon='COMMUNITY')
+            row2.operator("object.with_combin_rename", text="重命名并合并", icon='COMMUNITY')
 
-        box_json=layout.box()
-        row = box_json.row()
-        row.alignment = 'CENTER'  # 设置行的对齐方式为居中
-        row.label(text="配置列表")
+        # 角色工具
+        col_character_tools = layout.column()
+        col_character_tools.prop(scene, "character_tools_expand", text="角色工具", emboss=False,
+                                icon='TRIA_DOWN' if scene.character_tools_expand else 'TRIA_RIGHT')
+        if scene.character_tools_expand:
+            # 角色部件分类工具
+            classifier_box = col_character_tools.box()
+            classifier_box.label(text="角色部件分类工具:", icon='OUTLINER_COLLECTION')
+            classifier_box.operator("object.mian_object_classifier", text="按名称分类物体", icon='OUTLINER_COLLECTION')
+            
+            # 物体替换工具
+            replacer_box = col_character_tools.box()
+            replacer_box.label(text="物体替换工具:", icon='FILE_REFRESH')
+            replacer_box.prop(context.scene, "replacement_blend_file", text="替换源文件", icon='FILE_BLEND')
+            replacer_box.prop(context.scene, "enable_set_replacement", text="套装替换", icon='OUTLINER_COLLECTION')
+            replacer_box.operator("object.mian_object_replacer", text="从文件替换物体", icon='FILE_REFRESH')
 
-        box_json.template_list("UI_UL_list", "json_files", context.scene, "json_file_list", context.scene, "json_file_index")
-        box_json.operator("object.refresh_json_list", text="刷新配置列表",icon='FILE_REFRESH')
-
-        # box_json.operator("object.restore_skeleton_from_json", text="根据所选配置自动绑定",icon='ARMATURE_DATA')
-
-        # box_json.prop(bpy.context.scene.generate_parent_object, "generate_parent", text="添加父级对象")
-        box_json.operator("object.one_click_operator", text="一键绑定处理角色(64)",icon='COMMUNITY')
-
-        box_json.prop(context.scene, "export_directory", text="导出目录", icon='FILE_FOLDER')  # 添加目录选择器
-        # box_json.operator("scene.export_fbx_by_parent_max", text="导出角色(完整)",icon='EXPORT')
-        # box_json.operator("scene.export_fbx_by_mesh", text="导出角色(部件)",icon='EXPORT')
-        box_json.operator("scene.export_fbx_without_parent", text="导出角色(无父级)",icon='EXPORT')
-
-        box_step=layout.box()
-        row = box_step.row()
-        box_step.operator("object.mian_parent_byboundingbox", text="接触底心创建父级",icon='ARMATURE_DATA')
-        box_step.operator("object.scale_adjust", text="缩小1/2",icon='COMMUNITY')
-        box_step.operator("object.mian_char_operater", text="导入模型一键预处理",icon='COMMUNITY')
-        box_step.operator("object.with_combin_rename", text="重命名并合并",icon='COMMUNITY')
 
 
 
@@ -1178,6 +1206,23 @@ def register():
     bpy.utils.register_class(ConnectBone)
     bpy.utils.register_class(ResetBonePosition)
     bpy.utils.register_class(ExportFbxWithoutParent)
+    
+    # 角色工具属性
+    bpy.types.Scene.config_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.character_process_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.character_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.replacement_blend_file = bpy.props.StringProperty(
+        name="替换源文件",
+        description="选择包含替换物体的.blend文件",
+        subtype='FILE_PATH',
+        default=""
+    )
+    bpy.types.Scene.enable_set_replacement = bpy.props.BoolProperty(
+        name="套装替换",
+        description="启用套装替换模式，将同套装的物体一起替换",
+        default=False
+    )
+    
 
 def unregister():
     bpy.utils.unregister_class(CharOperater)
@@ -1199,6 +1244,14 @@ def unregister():
     # del bpy.types.Scene.my_tool
     del bpy.types.Scene.json_file_list
     del bpy.types.Scene.json_file_index
+    
+    # 删除角色工具属性
+    del bpy.types.Scene.config_expand
+    del bpy.types.Scene.character_process_expand
+    del bpy.types.Scene.character_tools_expand
+    del bpy.types.Scene.replacement_blend_file
+    del bpy.types.Scene.enable_set_replacement
+    
     del bpy.types.Scene.show_bone_operators
 
 if __name__ == "__main__":

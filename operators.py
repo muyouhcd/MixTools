@@ -1334,7 +1334,10 @@ class RemoveVertexGroup(bpy.types.Operator):
                 while obj.vertex_groups:
                     obj.vertex_groups.remove(obj.vertex_groups[0])
 
-        print("顶点组已成功移除！")
+        # 减少成功消息的打印频率
+        if not hasattr(self, '_vertex_group_removed_printed'):
+            print("顶点组已成功移除！")
+            self._vertex_group_removed_printed = True
         return {'FINISHED'}
 # 对齐原点
 class AlignOrign(bpy.types.Operator):
@@ -1719,7 +1722,10 @@ class ApplyAndSeparate(bpy.types.Operator):
     def execute(self, context):
         # 获取当前所选物体和具有负缩放的物体列表
         selected_objects = context.selected_objects
-        print(f"开始执行操作，选中了 {len(selected_objects)} 个物体。")
+        # 减少操作开始消息的打印频率
+        if not hasattr(self, '_operation_started_printed'):
+            print(f"开始执行操作，选中了 {len(selected_objects)} 个物体。")
+            self._operation_started_printed = True
         
         negatively_scaled_objects = set()
 
