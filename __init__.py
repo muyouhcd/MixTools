@@ -1,7 +1,7 @@
 bl_info = {
-    "name": "MiaoToolBox",
+    "name": "MixToolBox",
     "author": "MuyouHCD",
-    "version": (4,8,66),
+    "version": (4,8,67),
     "blender": (3, 6, 1),
     "location": "View3D",
     "description": "如遇到插件无法打开请手动切换至blender的python目录运行以下指令进行安装：python.exe -m pip install pillow",
@@ -431,7 +431,7 @@ dependency_manager = DependencyManager()
 def safe_plugin_initialization():
     """安全的插件初始化流程"""
     print("=" * 50)
-    print("🚀 MiaoTools 插件初始化")
+    print("🚀 MixTools 插件初始化")
     print("=" * 50)
     
     # 1. 先检查依赖状态（不安装）
@@ -450,7 +450,7 @@ def safe_plugin_initialization():
         print(f"📁 插件路径: {local_addon_path}")
         
         if local_addon_path:
-            local_package_dir = os.path.join(local_addon_path, "MiaoTools", "package")
+            local_package_dir = os.path.join(local_addon_path, "MixTools", "package")
             print(f"📦 包目录: {local_package_dir}")
             print(f"📦 包目录存在: {os.path.exists(local_package_dir)}")
             

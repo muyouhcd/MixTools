@@ -54,7 +54,7 @@ def unzip_file(zip_path, extract_to):
     with zipfile.ZipFile(zip_path, 'r') as zip_ref:
         zip_ref.extractall(extract_to)
 
-def find_new_version_directory(base_path, expected_name="MiaoTools"):
+def find_new_version_directory(base_path, expected_name="MixTools"):
     """
     在基路径中查找预期名称的新版本目录。
     """
@@ -129,7 +129,7 @@ class UpdateStatus:
 update_status = UpdateStatus()
 
 class UpdateAddonOperator(bpy.types.Operator):
-    """更新MiaoTools插件到最新版本"""
+    """更新MixTools插件到最新版本"""
     bl_idname = "wm.update_addon"
     bl_label = "更新插件(仅支持blender3.4及以上版本)"
     
@@ -194,7 +194,7 @@ class UpdateAddonOperator(bpy.types.Operator):
     def start_update_process(self):
         try:
             update_status.update("正在获取最新版本信息...", 0.1)
-            user_repo = 'muyouhcd/MiaoTools'
+            user_repo = 'muyouhcd/MixTools'
             latest_release_info = self.get_latest_release_info(user_repo)
             
             if not latest_release_info:
@@ -230,7 +230,7 @@ class UpdateAddonOperator(bpy.types.Operator):
         api_url = f"https://api.github.com/repos/{user_repo}/releases/latest"
         try:
             # 添加超时和用户代理
-            headers = {'User-Agent': 'MiaoTools-Updater/1.0'}
+            headers = {'User-Agent': 'MixTools-Updater/1.0'}
             response = requests.get(api_url, headers=headers, timeout=10)
             response.raise_for_status()
             return response.json()
@@ -284,8 +284,8 @@ class UpdateAddonOperator(bpy.types.Operator):
                 update_status.error = "无法确定插件安装目录"
                 return
                 
-            # 定位MiaoTools子目录
-            mian_tools_path = os.path.join(addon_dir, "MiaoTools")
+            # 定位MixTools子目录
+            mian_tools_path = os.path.join(addon_dir, "MixTools")
             if not os.path.exists(mian_tools_path):
                 os.makedirs(mian_tools_path)
             

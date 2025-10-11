@@ -589,8 +589,8 @@ class CustomFunctionsPanel(Panel):
             # 批量导入
             import_box = col_inout.box()
             import_box.label(text="批量导入:", icon='IMPORT')
-            import_box.operator("miao.batch_import_fbx", text="批量导入FBX（原生）", icon='FILE_3D')
-            import_box.operator("miao.batch_import_obj", text="批量导入OBJ（原生）", icon='FILE_3D')
+            import_box.operator("operation.batch_import_fbx", text="批量导入FBX（原生）", icon='FILE_3D')
+            import_box.operator("operation.batch_import_obj", text="批量导入OBJ（原生）", icon='FILE_3D')
             
             # Better FBX导入
             better_fbx_box = import_box.box()

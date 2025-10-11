@@ -1,7 +1,7 @@
-# MiaoTools
+# MixTools
 
 **🛠️ 概述**  
-MiaoTools 是一个 Blender 插件，集合了多种便捷操作工具，以提升 Blender 的使用效率和工作流程。
+MixTools 是一个 Blender 插件，集合了多种便捷操作工具，以提升 Blender 的使用效率和工作流程。
 
 **🚀 最新功能**  
 - **批量渲染系统**: 支持多种格式的自动批量渲染，包含相机聚焦和关键帧功能
@@ -1368,7 +1368,7 @@ MiaoTools 是一个 Blender 插件，集合了多种便捷操作工具，以提�
 
 ---
 
-**MiaoTools** - 让Blender工作更高效！ 🎯
+**MixTools** - 让Blender工作更高效！ 🎯
 
 
 

@@ -23,7 +23,7 @@ class MySettings(PropertyGroup):
     voxelizer_path : StringProperty(
             name="cuda_voxelizer文件路径",
             description="Path to Cuda Voxelizer",
-            default=f"C:\\Users\\admin\\AppData\\Roaming\\Blender Foundation\\Blender\\{version2}\\scripts\\addons\\miaotools\\",
+            default=f"C:\\Users\\admin\\AppData\\Roaming\\Blender Foundation\\Blender\\{version2}\\scripts\\addons\\Mixtools\\",
             maxlen=1024,
             subtype='DIR_PATH')# type: ignore
 

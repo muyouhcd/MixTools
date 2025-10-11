@@ -513,8 +513,8 @@ def get_addon_path():
 
     # 确认已经找到 "addons" 文件夹
     if os.path.basename(file_path) == "addons":
-        # 添加相对路径到 MiaoTools\RigJson
-        target_path = os.path.join(file_path, "MiaoTools", "RigJson")
+        # 添加相对路径到 MixTools\RigJson
+        target_path = os.path.join(file_path, "MixTools", "RigJson")
 
         # 确保该路径存在
         if os.path.exists(target_path):
