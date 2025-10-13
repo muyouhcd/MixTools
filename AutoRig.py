@@ -6,8 +6,6 @@ from collections import defaultdict
 from mathutils.bvhtree import BVHTree
 import bmesh # type: ignore
 import random
-import math
-import time
 
 # 获取当前文件所在目录
 current_dir = os.path.dirname(os.path.realpath(__file__))
@@ -110,11 +108,6 @@ def set_object_as_top_parent(parent_name, keep_transform=True):
 
     print(f"已将 '{parent_name}' 设置为选定对象的顶级父级。")
 
-def add_top_level_parent():
-    # 检查是否有对象被选中
-    if not bpy.context.selected_objects:
-        print("没有选中的对象")
-        return
 
 def select_top_level_parent():
     # 获取当前选定的物体
@@ -243,20 +236,6 @@ def get_largest_mesh_object():
 
     return largest_mesh_obj
 
-def get_largest_mesh_object_name():
-    """
-    获取选定对象中最大网格对象的名称。
-
-    返回:
-    str: 最大网格对象的名称。如果没有选定网格对象，则返回 None。
-    """
-    largest_mesh_obj = get_largest_mesh_object()
-    if largest_mesh_obj:
-        print(f"最大网格对象的名称是: {largest_mesh_obj.name}")
-        return largest_mesh_obj.name
-    else:
-        print("未找到可识别的网格对象。")
-        return None
 
 def delete_largest_mesh_object():
     """
@@ -522,8 +501,6 @@ def get_addon_path():
     
     return ''  # 如果未找到则返回空字符串
 
-def operate_char():
-    bpy.ops.object.restore_skeleton_from_json()
 
 def bind_skeleton():
     #绑定操作
@@ -731,72 +708,6 @@ class OneClickOperator(bpy.types.Operator):
         select_armature()
 
         return {'FINISHED'}
-    # def execute(self, context):
-    #     #断开所有约束，清空变换
-    #     bpy.ops.object.select_all(action='SELECT')
-    #     bpy.ops.object.mian_apply_and_separate()
-    #     bpy.ops.object.select_all(action='SELECT')
-    #     bpy.ops.transform.resize(value=(0.25, 0.25, 0.25), orient_type='GLOBAL',
-    #                             orient_matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1)),
-    #                             orient_matrix_type='GLOBAL',
-    #                             mirror=False,
-    #                             use_proportional_edit=False,
-    #                             proportional_edit_falloff='SMOOTH',
-    #                             proportional_size=1,
-    #                             use_proportional_connected=False, use_proportional_projected=False,
-    #                             snap=False,
-    #                             snap_elements={'INCREMENT'},
-    #                             use_snap_project=False, snap_target='CLOSEST',
-    #                             use_snap_self=True,
-    #                             use_snap_edit=True,
-    #                             use_snap_nonedit=True,
-    #                             use_snap_selectable=False)
-    #     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-    #     bpy.ops.object.reset_normals_flat_shading()
-
-    #     #清除父级关系
-    #     bpy.ops.object.parent_clear(type='CLEAR_KEEP_TRANSFORM')
-
-    #     #清除空物体
-    #     bpy.ops.object.clean_empty()
-    #     bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
-    #     bpy.ops.object.select_all(action='SELECT')
-
-    #     bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-
-    #     #底部中心创建父级
-    #     bpy.ops.object.mian_create_empty_at_bottom()
-    #     #选取顶级父级清除位移
-    #     select_top_level_parent()
-    #     bpy.ops.object.location_clear(clear_delta=False)
-    #     bpy.ops.object.select_all(action='SELECT')
-
-    #     #删除父级
-    #     # delete_top_level_parent()
-
-    #     #设置名称为最大物体
-    #     name=get_largest_mesh_object_name()
-
-    #     #删除定位框（尺寸最大物体）
-    #     delete_largest_mesh_object()
-
-    #     #重命名父级为尺寸最大物体名称
-    #     rename_top_level_parents(name)
-
-    #     # 绑定操作
-    #     bind_skeleton()
-
-    #     #设置骨架为父级
-    #     # set_armature_as_parent(keep_transform=True)
-        
-    #     #设置指定名称物体为父级
-    #     bpy.ops.object.select_all(action='SELECT')
-    #     set_object_as_top_parent(name, keep_transform=True)
-
-    #     #设置材质
-    #     set_material()
-
-    #     return {'FINISHED'}
 
 class WithCombinRename(bpy.types.Operator):
 
