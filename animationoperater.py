@@ -308,15 +308,6 @@ class RemoveAllModifiersFromAnimation(bpy.types.Operator):
             
         return {'FINISHED'}
 
-def register():
-    bpy.utils.register_class(ClearScaleAnimation)
-    bpy.utils.register_class(ClearAllAnimation)
-    bpy.utils.register_class(ClearLocationAnimation)
-    bpy.utils.register_class(ClearRotationAnimation)
-    bpy.utils.register_class(AddCycleModifierToAnimation)
-    bpy.utils.register_class(AddCycleModifierNoOffset)
-    bpy.utils.register_class(RemoveAllModifiersFromAnimation)
-
 # 为选中物体添加跟随曲线约束
 class AddFollowPathConstraint(bpy.types.Operator):
     bl_idname = "animation.add_follow_path_constraint"
@@ -381,18 +372,6 @@ class AddFollowPathConstraint(bpy.types.Operator):
         
         return {'FINISHED'}
 
-def register():
-    bpy.utils.register_class(ClearScaleAnimation)
-    bpy.utils.register_class(ClearAllAnimation)
-    bpy.utils.register_class(ClearLocationAnimation)
-    bpy.utils.register_class(ClearRotationAnimation)
-    bpy.utils.register_class(AddCycleModifierToAnimation)
-    bpy.utils.register_class(AddCycleModifierNoOffset)
-    bpy.utils.register_class(RemoveAllModifiersFromAnimation)
-    bpy.utils.register_class(AddFollowPathConstraint)
-    bpy.utils.register_class(SetToRestPosition)
-    bpy.utils.register_class(SetToPosePosition)
-
 # 设置骨架为静止位置（批量）
 class SetToRestPosition(bpy.types.Operator):
     bl_idname = "armature.set_to_rest_position"
@@ -403,25 +382,63 @@ class SetToRestPosition(bpy.types.Operator):
     def execute(self, context):
         selected_objects = context.selected_objects
         affected_armatures = 0
+        errors = []
         
-        for obj in selected_objects:
-            if obj.type == 'ARMATURE':
-                # 进入姿态模式
-                bpy.context.view_layer.objects.active = obj
-                bpy.ops.object.mode_set(mode='POSE')
-                
-                # 清除所有骨骼的变换
-                bpy.ops.pose.select_all(action='SELECT')
-                bpy.ops.pose.transforms_clear()
-                
-                # 返回对象模式
-                bpy.ops.object.mode_set(mode='OBJECT')
-                affected_armatures += 1
+        if not selected_objects:
+            self.report({'WARNING'}, "请先选择要处理的骨架对象")
+            return {'CANCELLED'}
         
-        if affected_armatures > 0:
-            self.report({'INFO'}, f"已将 {affected_armatures} 个骨架设置为静止位置")
-        else:
-            self.report({'WARNING'}, "所选物体中没有骨架")
+        # 保存当前的活动对象和模式
+        original_active = context.active_object
+        original_mode = context.mode if hasattr(context, 'mode') else 'OBJECT'
+        
+        try:
+            for obj in selected_objects:
+                if obj.type == 'ARMATURE':
+                    try:
+                        # 确保对象可见且可编辑
+                        if obj.hide_viewport:
+                            obj.hide_viewport = False
+                        
+                        # 设置为活动对象
+                        context.view_layer.objects.active = obj
+                        
+                        # 设置骨架为静止位置模式
+                        obj.data.pose_position = 'REST'
+                        
+                        affected_armatures += 1
+                        print(f"✅ 骨架 '{obj.name}' 已设置为静止位置")
+                        
+                    except Exception as e:
+                        error_msg = f"处理骨架 '{obj.name}' 时出错: {str(e)}"
+                        errors.append(error_msg)
+                        print(f"❌ {error_msg}")
+                        continue
+                else:
+                    print(f"⚠️ 跳过非骨架对象: {obj.name} (类型: {obj.type})")
+            
+            # 恢复原始活动对象
+            if original_active:
+                context.view_layer.objects.active = original_active
+            
+            # 报告结果
+            if affected_armatures > 0:
+                success_msg = f"已将 {affected_armatures} 个骨架设置为静止位置"
+                if errors:
+                    success_msg += f" (有 {len(errors)} 个错误)"
+                self.report({'INFO'}, success_msg)
+                
+                # 打印错误信息到控制台
+                for error in errors:
+                    print(f"❌ {error}")
+            else:
+                self.report({'WARNING'}, "所选物体中没有骨架对象")
+                
+        except Exception as e:
+            error_msg = f"批量设置静止位置时发生错误: {str(e)}"
+            self.report({'ERROR'}, error_msg)
+            print(f"❌ {error_msg}")
+            return {'CANCELLED'}
             
         return {'FINISHED'}
 
@@ -435,27 +452,77 @@ class SetToPosePosition(bpy.types.Operator):
     def execute(self, context):
         selected_objects = context.selected_objects
         affected_armatures = 0
+        errors = []
         
-        for obj in selected_objects:
-            if obj.type == 'ARMATURE':
-                # 进入姿态模式
-                bpy.context.view_layer.objects.active = obj
-                bpy.ops.object.mode_set(mode='POSE')
-                
-                # 应用当前姿态到静止位置
-                bpy.ops.pose.select_all(action='SELECT')
-                bpy.ops.pose.armature_apply(selected=False)
-                
-                # 返回对象模式
-                bpy.ops.object.mode_set(mode='OBJECT')
-                affected_armatures += 1
+        if not selected_objects:
+            self.report({'WARNING'}, "请先选择要处理的骨架对象")
+            return {'CANCELLED'}
         
-        if affected_armatures > 0:
-            self.report({'INFO'}, f"已将 {affected_armatures} 个骨架设置为姿态位置")
-        else:
-            self.report({'WARNING'}, "所选物体中没有骨架")
+        # 保存当前的活动对象和模式
+        original_active = context.active_object
+        original_mode = context.mode if hasattr(context, 'mode') else 'OBJECT'
+        
+        try:
+            for obj in selected_objects:
+                if obj.type == 'ARMATURE':
+                    try:
+                        # 确保对象可见且可编辑
+                        if obj.hide_viewport:
+                            obj.hide_viewport = False
+                        
+                        # 设置为活动对象
+                        context.view_layer.objects.active = obj
+                        
+                        # 设置骨架为姿态位置模式
+                        obj.data.pose_position = 'POSE'
+                        
+                        affected_armatures += 1
+                        print(f"✅ 骨架 '{obj.name}' 已设置为姿态位置")
+                        
+                    except Exception as e:
+                        error_msg = f"处理骨架 '{obj.name}' 时出错: {str(e)}"
+                        errors.append(error_msg)
+                        print(f"❌ {error_msg}")
+                        continue
+                else:
+                    print(f"⚠️ 跳过非骨架对象: {obj.name} (类型: {obj.type})")
+            
+            # 恢复原始活动对象
+            if original_active:
+                context.view_layer.objects.active = original_active
+            
+            # 报告结果
+            if affected_armatures > 0:
+                success_msg = f"已将 {affected_armatures} 个骨架设置为姿态位置"
+                if errors:
+                    success_msg += f" (有 {len(errors)} 个错误)"
+                self.report({'INFO'}, success_msg)
+                
+                # 打印错误信息到控制台
+                for error in errors:
+                    print(f"❌ {error}")
+            else:
+                self.report({'WARNING'}, "所选物体中没有骨架对象")
+                
+        except Exception as e:
+            error_msg = f"批量设置姿态位置时发生错误: {str(e)}"
+            self.report({'ERROR'}, error_msg)
+            print(f"❌ {error_msg}")
+            return {'CANCELLED'}
             
         return {'FINISHED'}
+
+def register():
+    bpy.utils.register_class(ClearScaleAnimation)
+    bpy.utils.register_class(ClearAllAnimation)
+    bpy.utils.register_class(ClearLocationAnimation)
+    bpy.utils.register_class(ClearRotationAnimation)
+    bpy.utils.register_class(AddCycleModifierToAnimation)
+    bpy.utils.register_class(AddCycleModifierNoOffset)
+    bpy.utils.register_class(RemoveAllModifiersFromAnimation)
+    bpy.utils.register_class(AddFollowPathConstraint)
+    bpy.utils.register_class(SetToRestPosition)
+    bpy.utils.register_class(SetToPosePosition)
 
 def unregister():
     bpy.utils.unregister_class(ClearScaleAnimation)
