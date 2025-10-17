@@ -8,6 +8,23 @@ import random
 def log_info(message):
     print(f"[T-Pose重计算] {message}")
 
+# 时间格式化函数
+def format_time(seconds):
+    """将秒数转换为更易读的时间格式"""
+    if seconds < 1:
+        return f"{seconds*1000:.0f}毫秒"
+    elif seconds < 60:
+        return f"{seconds:.1f}秒"
+    elif seconds < 3600:
+        minutes = int(seconds // 60)
+        secs = seconds % 60
+        return f"{minutes}分{secs:.1f}秒"
+    else:
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        secs = seconds % 60
+        return f"{hours}小时{minutes}分{secs:.1f}秒"
+
 # 添加内存估计函数
 def estimate_memory_usage(bone_count, frame_count):
     """估计操作将使用的内存量（粗略估计，单位为MB）"""
@@ -865,7 +882,7 @@ class RandomOffsetAnimation(bpy.types.Operator):
                             offset_info += f" (实际范围: +{offset_data['offset']:.1f})"
                         elif offset_data['can_negative']:
                             offset_info += f" (实际范围: -{offset_data['offset']:.1f})"
-                    print(f"✅ 进度: {i + 1}/{total_objects} - 物体 '{obj.name}' 已{offset_info} (耗时: {elapsed_time:.2f}秒)")
+                    print(f"✅ 进度: {i + 1}/{total_objects} - 物体 '{obj.name}' 已{offset_info} (耗时: {format_time(elapsed_time)})")
                     
             except Exception as e:
                 print(f"⚠️ 处理物体 '{obj.name}' 时出错: {e}")
@@ -899,7 +916,7 @@ class RandomOffsetAnimation(bpy.types.Operator):
         
         if affected_objects > 0:
             avg_time = total_time / affected_objects
-            self.report({'INFO'}, f"已对 {affected_objects} 个物体的动画进行随机偏移 (总耗时: {total_time:.2f}秒, 平均: {avg_time:.2f}秒/物体)")
+            self.report({'INFO'}, f"已对 {affected_objects} 个物体的动画进行随机偏移 (总耗时: {format_time(total_time)}, 平均: {format_time(avg_time)}/物体)")
         else:
             # 提供更详细的错误信息
             no_animation_count = 0
@@ -932,35 +949,6 @@ class RemoveDuplicateFrames(bpy.types.Operator):
     bl_description = "移除所选物体动画中起始和结束的重复帧，保留离动作帧最近的一个"
     bl_options = {'REGISTER', 'UNDO'}
     
-    # 添加属性来控制检测精度
-    threshold: bpy.props.FloatProperty(
-        name="检测阈值",
-        description="检测重复帧的精度阈值（数值越小检测越精确）",
-        default=0.001,
-        min=0.0001,
-        max=1.0
-    )
-    
-    # 添加检测模式选择
-    detection_mode: bpy.props.EnumProperty(
-        name="检测模式",
-        description="选择检测重复帧的算法模式",
-        items=[
-            ('FAST', "快速模式", "使用向量化操作，适合大量关键帧"),
-            ('PRECISE', "精确模式", "逐帧检测，确保100%准确"),
-            ('SMART', "智能模式", "自动选择最佳检测方式")
-        ],
-        default='SMART'
-    )
-    
-    # 添加批处理大小控制
-    batch_size: bpy.props.IntProperty(
-        name="批处理大小",
-        description="每次处理的关键帧数量（0表示自动）",
-        default=0,
-        min=0,
-        max=1000
-    )
     
     def execute(self, context):
         selected_objects = context.selected_objects
@@ -971,19 +959,29 @@ class RemoveDuplicateFrames(bpy.types.Operator):
         
         affected_objects = 0
         total_frames_removed = 0
+        total_objects = len(selected_objects)
+        start_time = time.time()
         
-        for obj in selected_objects:
+        print(f"🚀 开始处理 {total_objects} 个物体的重复帧移除...")
+        print(f"📊 检测模式: {context.scene.duplicate_frames_detection_mode}")
+        print(f"📊 检测阈值: {context.scene.duplicate_frames_threshold}")
+        print(f"⏰ 开始时间: {time.strftime('%H:%M:%S')}")
+        print("=" * 60)
+        
+        for obj_idx, obj in enumerate(selected_objects, 1):
             # 检查对象是否有动画数据
             if obj.animation_data is None or obj.animation_data.action is None:
+                print(f"⏭️  [{obj_idx}/{total_objects}] 跳过物体 '{obj.name}': 没有动画数据")
                 continue
                 
             action = obj.animation_data.action
             fcurves = action.fcurves
             
             if not fcurves:
+                print(f"⏭️  [{obj_idx}/{total_objects}] 跳过物体 '{obj.name}': 没有动画曲线")
                 continue
             
-            print(f"🔍 处理物体 '{obj.name}': 找到 {len(fcurves)} 条动画曲线")
+            print(f"🔍 [{obj_idx}/{total_objects}] 处理物体 '{obj.name}': 找到 {len(fcurves)} 条动画曲线")
             
             # 高效分析所有曲线的重复帧
             curves_processed = 0
@@ -991,13 +989,14 @@ class RemoveDuplicateFrames(bpy.types.Operator):
             
             # 预过滤：只处理可能有重复帧的曲线
             valid_curves = []
+            threshold = context.scene.duplicate_frames_threshold
             for fc in fcurves:
                 keyframes = fc.keyframe_points
                 if len(keyframes) >= 3:  # 至少需要3个关键帧
                     # 快速预检查：如果第一个和最后一个关键帧值相同，可能有重复帧
                     first_val = keyframes[0].co[1]
                     last_val = keyframes[-1].co[1]
-                    if abs(first_val - last_val) <= self.threshold:
+                    if abs(first_val - last_val) <= threshold:
                         valid_curves.append(fc)
                     else:
                         # 即使首尾不同，也可能有部分重复，也加入处理
@@ -1006,7 +1005,7 @@ class RemoveDuplicateFrames(bpy.types.Operator):
             print(f"  🔍 预过滤后需要处理的曲线: {len(valid_curves)}/{len(fcurves)}")
             
             # 批量处理有效曲线
-            for fc in valid_curves:
+            for curve_idx, fc in enumerate(valid_curves, 1):
                 try:
                     # 获取所有关键帧
                     keyframes = fc.keyframe_points
@@ -1018,11 +1017,25 @@ class RemoveDuplicateFrames(bpy.types.Operator):
                     if len(sorted_keyframes) < 3:
                         continue
                     
-                    # 检测起始重复帧
-                    start_frames_to_remove = self._detect_start_duplicates(sorted_keyframes, self.threshold)
+                    # 从场景属性获取设置
+                    detection_mode = context.scene.duplicate_frames_detection_mode
+                    threshold = context.scene.duplicate_frames_threshold
                     
-                    # 检测结束重复帧
-                    end_frames_to_remove = self._detect_end_duplicates(sorted_keyframes, self.threshold)
+                    # 根据模式选择检测方法
+                    if detection_mode == 'FAST':
+                        start_frames_to_remove = self._detect_start_duplicates(sorted_keyframes, threshold)
+                        end_frames_to_remove = self._detect_end_duplicates(sorted_keyframes, threshold)
+                    elif detection_mode == 'PRECISE':
+                        start_frames_to_remove = self._detect_start_duplicates_fallback(sorted_keyframes, threshold)
+                        end_frames_to_remove = self._detect_end_duplicates_fallback(sorted_keyframes, threshold)
+                    else:  # SMART mode
+                        # 智能选择：根据关键帧数量选择最佳方法
+                        if len(sorted_keyframes) > 100:
+                            start_frames_to_remove = self._detect_start_duplicates(sorted_keyframes, threshold)
+                            end_frames_to_remove = self._detect_end_duplicates(sorted_keyframes, threshold)
+                        else:
+                            start_frames_to_remove = self._detect_start_duplicates_fallback(sorted_keyframes, threshold)
+                            end_frames_to_remove = self._detect_end_duplicates_fallback(sorted_keyframes, threshold)
                     
                     # 移除重复帧
                     frames_removed = self._remove_duplicate_keyframes(fc, start_frames_to_remove, end_frames_to_remove)
@@ -1030,18 +1043,42 @@ class RemoveDuplicateFrames(bpy.types.Operator):
                     if frames_removed > 0:
                         curves_processed += 1
                         frames_removed_this_obj += frames_removed
-                        print(f"  ✅ 曲线 '{fc.data_path}': 移除了 {frames_removed} 个重复帧")
+                        print(f"  ✅ [{curve_idx}/{len(valid_curves)}] 曲线 '{fc.data_path}': 移除了 {frames_removed} 个重复帧")
+                    else:
+                        print(f"  ℹ️  [{curve_idx}/{len(valid_curves)}] 曲线 '{fc.data_path}': 无重复帧")
                     
                 except Exception as e:
-                    print(f"  ⚠️ 处理曲线 '{fc.data_path}' 时出错: {e}")
+                    print(f"  ⚠️ [{curve_idx}/{len(valid_curves)}] 处理曲线 '{fc.data_path}' 时出错: {e}")
                     continue
             
             if curves_processed > 0:
                 affected_objects += 1
                 total_frames_removed += frames_removed_this_obj
-                print(f"✅ 物体 '{obj.name}': 处理了 {curves_processed} 条曲线，移除了 {frames_removed_this_obj} 个重复帧")
+                print(f"✅ [{obj_idx}/{total_objects}] 物体 '{obj.name}': 处理了 {curves_processed} 条曲线，移除了 {frames_removed_this_obj} 个重复帧")
             else:
-                print(f"ℹ️ 物体 '{obj.name}': 没有找到需要移除的重复帧")
+                print(f"ℹ️  [{obj_idx}/{total_objects}] 物体 '{obj.name}': 没有找到需要移除的重复帧")
+            
+            # 显示当前进度百分比和时间统计
+            progress_percent = (obj_idx / total_objects) * 100
+            elapsed_time = time.time() - start_time
+            avg_time_per_obj = elapsed_time / obj_idx if obj_idx > 0 else 0
+            estimated_remaining = avg_time_per_obj * (total_objects - obj_idx)
+            
+            print(f"📊 进度: {progress_percent:.1f}% ({obj_idx}/{total_objects})")
+            print(f"⏱️ 已用时间: {format_time(elapsed_time)} | 预计剩余: {format_time(estimated_remaining)}")
+            print("-" * 40)
+        
+        # 最终结果汇总
+        total_time = time.time() - start_time
+        print("=" * 60)
+        print("🎉 处理完成！")
+        print(f"📊 总处理物体: {total_objects}")
+        print(f"✅ 成功处理: {affected_objects}")
+        print(f"🗑️ 总移除帧数: {total_frames_removed}")
+        print(f"📈 成功率: {(affected_objects/total_objects)*100:.1f}%")
+        print(f"⏱️ 总耗时: {format_time(total_time)}")
+        print(f"⚡ 平均速度: {total_objects/total_time:.1f}物体/秒")
+        print("=" * 60)
         
         if affected_objects > 0:
             self.report({'INFO'}, f"已从 {affected_objects} 个物体中移除 {total_frames_removed} 个重复帧")

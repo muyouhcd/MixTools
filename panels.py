@@ -542,8 +542,19 @@ class CustomFunctionsPanel(Panel):
             row2.operator("animation.clear_rotation_animation", text="清除旋转动画", icon='DRIVER_ROTATIONAL_DIFFERENCE')
             row2.operator("animation.clear_all_animation", text="清除所有动画", icon='CANCEL')
             
-            row3 = animation_tools_box.row(align=True)
-            row3.operator("animation.remove_duplicate_frames", text="移除重复帧", icon='KEYFRAME_HLT')
+            # 移除重复帧工具
+            duplicate_frames_box = animation_tools_box.box()
+            duplicate_frames_box.label(text="移除重复帧:", icon='KEYFRAME_HLT')
+            
+            # 检测模式选择
+            duplicate_frames_box.prop(context.scene, "duplicate_frames_detection_mode", text="检测模式")
+            
+            # 检测阈值设置
+            threshold_row = duplicate_frames_box.row(align=True)
+            threshold_row.prop(context.scene, "duplicate_frames_threshold", text="检测阈值")
+            
+            # 执行按钮
+            duplicate_frames_box.operator("animation.remove_duplicate_frames", text="移除重复帧", icon='KEYFRAME_HLT')
             
             # 动画修改器工具
             animation_modifier_box = col_animation.box()
@@ -1164,6 +1175,26 @@ def register():
         name="创建闭合曲线",
         description="是否创建闭合的曲线路径",
         default=True
+    )
+    
+    # 移除重复帧工具属性
+    bpy.types.Scene.duplicate_frames_detection_mode = bpy.props.EnumProperty(
+        name="检测模式",
+        description="选择检测重复帧的算法模式",
+        items=[
+            ('FAST', "快速模式", "使用向量化操作，适合大量关键帧"),
+            ('PRECISE', "精确模式", "逐帧检测，确保100%准确"),
+            ('SMART', "智能模式", "自动选择最佳检测方式")
+        ],
+        default='SMART'
+    )
+    
+    bpy.types.Scene.duplicate_frames_threshold = bpy.props.FloatProperty(
+        name="检测阈值",
+        description="检测重复帧的精度阈值（数值越小检测越精确）",
+        default=0.001,
+        min=0.0001,
+        max=1.0
     )
     
     
