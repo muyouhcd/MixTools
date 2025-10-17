@@ -925,6 +925,236 @@ class RandomOffsetAnimation(bpy.types.Operator):
         
         return {'FINISHED'}
 
+# 移除动画起始和结束的重复帧
+class RemoveDuplicateFrames(bpy.types.Operator):
+    bl_idname = "animation.remove_duplicate_frames"
+    bl_label = "移除重复帧"
+    bl_description = "移除所选物体动画中起始和结束的重复帧，保留离动作帧最近的一个"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    # 添加属性来控制检测精度
+    threshold: bpy.props.FloatProperty(
+        name="检测阈值",
+        description="检测重复帧的精度阈值（数值越小检测越精确）",
+        default=0.001,
+        min=0.0001,
+        max=1.0
+    )
+    
+    # 添加检测模式选择
+    detection_mode: bpy.props.EnumProperty(
+        name="检测模式",
+        description="选择检测重复帧的算法模式",
+        items=[
+            ('FAST', "快速模式", "使用向量化操作，适合大量关键帧"),
+            ('PRECISE', "精确模式", "逐帧检测，确保100%准确"),
+            ('SMART', "智能模式", "自动选择最佳检测方式")
+        ],
+        default='SMART'
+    )
+    
+    # 添加批处理大小控制
+    batch_size: bpy.props.IntProperty(
+        name="批处理大小",
+        description="每次处理的关键帧数量（0表示自动）",
+        default=0,
+        min=0,
+        max=1000
+    )
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请先选择要处理的物体")
+            return {'CANCELLED'}
+        
+        affected_objects = 0
+        total_frames_removed = 0
+        
+        for obj in selected_objects:
+            # 检查对象是否有动画数据
+            if obj.animation_data is None or obj.animation_data.action is None:
+                continue
+                
+            action = obj.animation_data.action
+            fcurves = action.fcurves
+            
+            if not fcurves:
+                continue
+            
+            print(f"🔍 处理物体 '{obj.name}': 找到 {len(fcurves)} 条动画曲线")
+            
+            # 高效分析所有曲线的重复帧
+            curves_processed = 0
+            frames_removed_this_obj = 0
+            
+            # 预过滤：只处理可能有重复帧的曲线
+            valid_curves = []
+            for fc in fcurves:
+                keyframes = fc.keyframe_points
+                if len(keyframes) >= 3:  # 至少需要3个关键帧
+                    # 快速预检查：如果第一个和最后一个关键帧值相同，可能有重复帧
+                    first_val = keyframes[0].co[1]
+                    last_val = keyframes[-1].co[1]
+                    if abs(first_val - last_val) <= self.threshold:
+                        valid_curves.append(fc)
+                    else:
+                        # 即使首尾不同，也可能有部分重复，也加入处理
+                        valid_curves.append(fc)
+            
+            print(f"  🔍 预过滤后需要处理的曲线: {len(valid_curves)}/{len(fcurves)}")
+            
+            # 批量处理有效曲线
+            for fc in valid_curves:
+                try:
+                    # 获取所有关键帧
+                    keyframes = fc.keyframe_points
+                    
+                    # 按时间排序关键帧
+                    sorted_keyframes = sorted(keyframes, key=lambda kf: kf.co[0])
+                    
+                    # 快速跳过：如果关键帧太少，直接跳过
+                    if len(sorted_keyframes) < 3:
+                        continue
+                    
+                    # 检测起始重复帧
+                    start_frames_to_remove = self._detect_start_duplicates(sorted_keyframes, self.threshold)
+                    
+                    # 检测结束重复帧
+                    end_frames_to_remove = self._detect_end_duplicates(sorted_keyframes, self.threshold)
+                    
+                    # 移除重复帧
+                    frames_removed = self._remove_duplicate_keyframes(fc, start_frames_to_remove, end_frames_to_remove)
+                    
+                    if frames_removed > 0:
+                        curves_processed += 1
+                        frames_removed_this_obj += frames_removed
+                        print(f"  ✅ 曲线 '{fc.data_path}': 移除了 {frames_removed} 个重复帧")
+                    
+                except Exception as e:
+                    print(f"  ⚠️ 处理曲线 '{fc.data_path}' 时出错: {e}")
+                    continue
+            
+            if curves_processed > 0:
+                affected_objects += 1
+                total_frames_removed += frames_removed_this_obj
+                print(f"✅ 物体 '{obj.name}': 处理了 {curves_processed} 条曲线，移除了 {frames_removed_this_obj} 个重复帧")
+            else:
+                print(f"ℹ️ 物体 '{obj.name}': 没有找到需要移除的重复帧")
+        
+        if affected_objects > 0:
+            self.report({'INFO'}, f"已从 {affected_objects} 个物体中移除 {total_frames_removed} 个重复帧")
+        else:
+            self.report({'WARNING'}, "所选物体中没有找到需要移除的重复帧")
+        
+        return {'FINISHED'}
+    
+    def _detect_start_duplicates(self, sorted_keyframes, threshold):
+        """高效检测起始重复帧 - 使用向量化操作"""
+        if len(sorted_keyframes) < 3:
+            return []
+        
+        # 提取所有关键帧的值到numpy数组进行批量比较
+        try:
+            import numpy as np
+            values = np.array([kf.co[1] for kf in sorted_keyframes])
+            reference_value = values[0]
+            
+            # 向量化比较：一次性比较所有值与参考值
+            differences = np.abs(values - reference_value)
+            duplicate_mask = differences <= threshold
+            
+            # 找到第一个非重复帧的位置
+            first_different_idx = np.argmax(~duplicate_mask)
+            if first_different_idx == 0 and not duplicate_mask[0]:
+                # 如果第一个就是不同的，说明没有重复帧
+                return []
+            
+            # 返回从第二个到第一个不同帧之前的所有帧
+            return [sorted_keyframes[i] for i in range(1, first_different_idx) if duplicate_mask[i]]
+            
+        except ImportError:
+            # 如果numpy不可用，回退到原始方法
+            return self._detect_start_duplicates_fallback(sorted_keyframes, threshold)
+    
+    def _detect_end_duplicates(self, sorted_keyframes, threshold):
+        """高效检测结束重复帧 - 使用向量化操作"""
+        if len(sorted_keyframes) < 3:
+            return []
+        
+        try:
+            import numpy as np
+            values = np.array([kf.co[1] for kf in sorted_keyframes])
+            reference_value = values[-1]
+            
+            # 向量化比较：一次性比较所有值与参考值
+            differences = np.abs(values - reference_value)
+            duplicate_mask = differences <= threshold
+            
+            # 从后往前找到第一个非重复帧的位置
+            last_different_idx = len(values) - 1 - np.argmax(~duplicate_mask[::-1])
+            if last_different_idx == len(values) - 1 and not duplicate_mask[-1]:
+                # 如果最后一个就是不同的，说明没有重复帧
+                return []
+            
+            # 返回从倒数第二个到最后一个不同帧之后的所有帧
+            return [sorted_keyframes[i] for i in range(last_different_idx + 1, len(values) - 1) if duplicate_mask[i]]
+            
+        except ImportError:
+            # 如果numpy不可用，回退到原始方法
+            return self._detect_end_duplicates_fallback(sorted_keyframes, threshold)
+    
+    def _detect_start_duplicates_fallback(self, sorted_keyframes, threshold):
+        """回退方法：原始逐帧检测"""
+        frames_to_remove = []
+        reference_value = sorted_keyframes[0].co[1]
+        
+        for i in range(1, len(sorted_keyframes)):
+            current_value = sorted_keyframes[i].co[1]
+            if abs(current_value - reference_value) <= threshold:
+                frames_to_remove.append(sorted_keyframes[i])
+            else:
+                break
+        
+        return frames_to_remove
+    
+    def _detect_end_duplicates_fallback(self, sorted_keyframes, threshold):
+        """回退方法：原始逐帧检测"""
+        frames_to_remove = []
+        reference_value = sorted_keyframes[-1].co[1]
+        
+        for i in range(len(sorted_keyframes) - 2, -1, -1):
+            current_value = sorted_keyframes[i].co[1]
+            if abs(current_value - reference_value) <= threshold:
+                frames_to_remove.append(sorted_keyframes[i])
+            else:
+                break
+        
+        return frames_to_remove
+    
+    def _remove_duplicate_keyframes(self, fcurve, start_frames, end_frames):
+        """移除重复的关键帧"""
+        frames_to_remove = start_frames + end_frames
+        
+        if not frames_to_remove:
+            return 0
+        
+        # 按时间排序要移除的帧
+        frames_to_remove.sort(key=lambda kf: kf.co[0])
+        
+        # 倒序移除关键帧，避免索引偏移问题
+        removed_count = 0
+        for kf in reversed(frames_to_remove):
+            try:
+                fcurve.keyframe_points.remove(kf)
+                removed_count += 1
+            except ValueError:
+                # 关键帧可能已经被移除
+                continue
+        
+        return removed_count
+
 def register():
     bpy.utils.register_class(ClearScaleAnimation)
     bpy.utils.register_class(ClearAllAnimation)
@@ -937,6 +1167,7 @@ def register():
     bpy.utils.register_class(SetToRestPosition)
     bpy.utils.register_class(SetToPosePosition)
     bpy.utils.register_class(RandomOffsetAnimation)
+    bpy.utils.register_class(RemoveDuplicateFrames)
 
 def unregister():
     bpy.utils.unregister_class(ClearScaleAnimation)
@@ -950,4 +1181,5 @@ def unregister():
     bpy.utils.unregister_class(SetToRestPosition)
     bpy.utils.unregister_class(SetToPosePosition)
     bpy.utils.unregister_class(RandomOffsetAnimation)
+    bpy.utils.unregister_class(RemoveDuplicateFrames)
 

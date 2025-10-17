@@ -542,6 +542,9 @@ class CustomFunctionsPanel(Panel):
             row2.operator("animation.clear_rotation_animation", text="清除旋转动画", icon='DRIVER_ROTATIONAL_DIFFERENCE')
             row2.operator("animation.clear_all_animation", text="清除所有动画", icon='CANCEL')
             
+            row3 = animation_tools_box.row(align=True)
+            row3.operator("animation.remove_duplicate_frames", text="移除重复帧", icon='KEYFRAME_HLT')
+            
             # 动画修改器工具
             animation_modifier_box = col_animation.box()
             animation_modifier_box.label(text="动画修改器工具:", icon='MODIFIER')
