@@ -57,7 +57,6 @@ class CustomFunctionsPanel(Panel):
             # 基础编辑工具
             edit_box = col_edit_tools.box()
             edit_box.label(text="基础编辑工具:", icon='TOOL_SETTINGS')
-            edit_box.operator("object.mian_remove_vertex_group", text="移除顶点组", icon='GROUP_VERTEX')
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
             edit_box.operator("object.remove_constraints", text="移除约束", icon='CONSTRAINT')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='UNLINKED')
@@ -89,6 +88,12 @@ class CustomFunctionsPanel(Panel):
             clean_box.operator("object.clean_meshes_without_faces", text="清理无实体物体", icon='MESH_DATA')
             clean_box.operator("object.uv_cleaner", text="清理UV非法数据", icon='UV')
             clean_box.operator("image.remove_broken", text="清理丢失图像", icon='IMAGE_DATA')
+            
+            # 顶点组清理工具
+            vertex_group_clean_box = clean_box.box()
+            vertex_group_clean_box.label(text="顶点组清理:", icon='GROUP_VERTEX')
+            vertex_group_clean_box.operator("object.mian_remove_vertex_group", text="移除所有顶点组", icon='GROUP_VERTEX')
+            vertex_group_clean_box.operator("object.mian_remove_empty_vertex_groups", text="移除空顶点组", icon='GROUP_VERTEX')
             
             # 场景简化工具
             scene_clean_box = col_clean_tools.box()

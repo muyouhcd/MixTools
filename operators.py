@@ -1339,6 +1339,60 @@ class RemoveVertexGroup(bpy.types.Operator):
             print("顶点组已成功移除！")
             self._vertex_group_removed_printed = True
         return {'FINISHED'}
+
+# 移除选中物体中空的顶点组
+class RemoveEmptyVertexGroups(bpy.types.Operator):
+    bl_idname = "object.mian_remove_empty_vertex_groups"
+    bl_label = "移除选中物体中空的顶点组"
+    bl_description = "移除选中物体中权重为0或没有顶点的空顶点组"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        total_removed = 0
+        affected_objects = 0
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请先选择要处理的物体")
+            return {'CANCELLED'}
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH' and obj.vertex_groups:
+                removed_count = 0
+                
+                # 从后往前遍历顶点组，避免删除时索引变化的问题
+                for i in range(len(obj.vertex_groups) - 1, -1, -1):
+                    vg = obj.vertex_groups[i]
+                    is_empty = True
+                    
+                    # 检查顶点组是否为空
+                    if obj.data.vertices:
+                        for vertex in obj.data.vertices:
+                            # 检查顶点是否属于这个顶点组且有权重
+                            for group in vertex.groups:
+                                if group.group == vg.index and group.weight > 0:
+                                    is_empty = False
+                                    break
+                            if not is_empty:
+                                break
+                    
+                    # 如果顶点组为空，则删除
+                    if is_empty:
+                        obj.vertex_groups.remove(vg)
+                        removed_count += 1
+                
+                if removed_count > 0:
+                    total_removed += removed_count
+                    affected_objects += 1
+                    print(f"✅ 物体 '{obj.name}' 移除了 {removed_count} 个空顶点组")
+        
+        if affected_objects > 0:
+            self.report({'INFO'}, f"已从 {affected_objects} 个物体中移除 {total_removed} 个空顶点组")
+        else:
+            self.report({'INFO'}, "没有找到空的顶点组")
+        
+        return {'FINISHED'}
+
 # 对齐原点
 class AlignOrign(bpy.types.Operator):
     bl_idname = "object.mian_align_orign"
@@ -2396,6 +2450,7 @@ classes = [
     BoundboxGen,
     CombinObject,
     RemoveVertexGroup,
+    RemoveEmptyVertexGroups,
     QueueUp,
     RandomPlacement,
     CollectionByBoundingbox,
