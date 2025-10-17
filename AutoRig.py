@@ -589,7 +589,7 @@ class BoneDataExporterPanel(bpy.types.Panel):
             replacer_box = col_character_tools.box()
             replacer_box.label(text="物体替换工具:", icon='FILE_REFRESH')
             replacer_box.prop(context.scene, "replacement_blend_file", text="替换源文件", icon='FILE_BLEND')
-            replacer_box.prop(context.scene, "enable_set_replacement", text="套装替换", icon='OUTLINER_COLLECTION')
+            replacer_box.prop(context.scene, "enable_set_replacement", text="套装替换")
             replacer_box.operator("object.mian_object_replacer", text="从文件替换物体", icon='FILE_REFRESH')
 
 
@@ -1131,7 +1131,7 @@ def register():
     bpy.types.Scene.enable_set_replacement = bpy.props.BoolProperty(
         name="套装替换",
         description="启用套装替换模式，将同套装的物体一起替换",
-        default=False
+        default=True
     )
     
 

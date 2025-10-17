@@ -2,6 +2,7 @@ import bpy
 import mathutils
 import time
 import gc  # Add garbage collection import
+import random
 
 # 添加日志函数，用于打印详细信息
 def log_info(message):
@@ -512,6 +513,418 @@ class SetToPosePosition(bpy.types.Operator):
             
         return {'FINISHED'}
 
+# 动画随机偏移操作符（优化版本）
+class RandomOffsetAnimation(bpy.types.Operator):
+    bl_idname = "animation.random_offset_animation"
+    bl_label = "随机偏移动画"
+    bl_description = "对所选物体的动画进行高效整体随机偏移，骨架以整体为单位进行偏移。偏移范围根据实际可用空间动态计算"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        selected_objects = context.selected_objects
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请先选择要处理的物体")
+            return {'CANCELLED'}
+        
+        affected_objects = 0
+        total_objects = len(selected_objects)
+        
+        # 获取场景的帧范围
+        scene = context.scene
+        frame_start = scene.frame_start
+        frame_end = scene.frame_end
+        frame_range = frame_end - frame_start
+        
+        # 简化算法：只要动画与显示范围有完整重叠就可以随机移动
+        print(f"🔍 场景帧范围: {frame_start} - {frame_end}")
+        # 为每个物体单独计算安全偏移范围
+        object_safe_offsets = {}
+        
+        for obj in selected_objects:
+            if obj.animation_data and obj.animation_data.action:
+                action = obj.animation_data.action
+                obj_min_frame = float('inf')
+                obj_max_frame = float('-inf')
+                
+                # 找到该物体的动画范围
+                for fc in action.fcurves:
+                    if fc.keyframe_points:
+                        for kf in fc.keyframe_points:
+                            obj_min_frame = min(obj_min_frame, kf.co[0])
+                            obj_max_frame = max(obj_max_frame, kf.co[0])
+                
+                if obj_min_frame != float('inf') and obj_max_frame != float('-inf'):
+                    print(f"🔍 物体 '{obj.name}': 动画范围 {obj_min_frame:.1f}-{obj_max_frame:.1f}, 显示范围 {frame_start}-{frame_end}")
+                    
+                    # 检查是否有重叠（更宽松的条件）
+                    # 1. 帧范围包裹动画
+                    frame_contains_animation = (frame_start <= obj_min_frame and obj_max_frame <= frame_end)
+                    # 2. 动画包裹帧范围
+                    animation_contains_frame = (obj_min_frame <= frame_start and frame_end <= obj_max_frame)
+                    # 3. 部分重叠（动画与帧范围有交集）
+                    has_partial_overlap = not (obj_max_frame < frame_start or obj_min_frame > frame_end)
+                    
+                    has_complete_overlap = frame_contains_animation or animation_contains_frame
+                    has_any_overlap = has_complete_overlap or has_partial_overlap
+                    
+                    if has_complete_overlap:
+                        # 有完整重叠，根据谁长谁包裹的逻辑计算偏移范围
+                        print(f"🔍 物体 '{obj.name}': 进入完整重叠分支")
+                        scene_length = frame_end - frame_start
+                        animation_length = obj_max_frame - obj_min_frame
+                        
+                        print(f"📊 物体 '{obj.name}': 完整重叠")
+                        print(f"📊 动画范围: {obj_min_frame:.1f} - {obj_max_frame:.1f} (长度: {animation_length:.1f})")
+                        print(f"📊 场景范围: {frame_start} - {frame_end} (长度: {scene_length:.1f})")
+                        
+                        if scene_length >= animation_length:
+                            # 场景范围更长，场景包裹动画
+                            forward_space = frame_end - obj_max_frame  # 向前空间（负向移动）
+                            backward_space = obj_min_frame - frame_start  # 向后空间（正向移动）
+                            
+                            print(f"📊 场景包裹动画，向前空间: {forward_space:.1f}，向后空间: {backward_space:.1f}")
+                            
+                            if forward_space == 0 and backward_space == 0:
+                                # 动画完全填满场景范围，无需偏移
+                                safe_offset = 0
+                                can_positive = False
+                                can_negative = False
+                                print(f"📊 动画完全填满场景范围，无需偏移")
+                            else:
+                                # 动画可以在场景范围内偏移
+                                safe_offset = min(forward_space, backward_space)
+                                can_positive = backward_space > 0  # 向后偏移（正向移动）
+                                can_negative = forward_space > 0   # 向前偏移（负向移动）
+                                if can_positive and can_negative:
+                                    print(f"📊 动画可在场景范围内偏移: ±{safe_offset:.1f}")
+                                elif can_positive:
+                                    print(f"📊 动画可在场景范围内偏移: +{safe_offset:.1f} (向后)")
+                                elif can_negative:
+                                    print(f"📊 动画可在场景范围内偏移: -{safe_offset:.1f} (向前)")
+                                else:
+                                    print(f"📊 动画可在场景范围内偏移: 0")
+                        else:
+                            # 动画范围更长，动画包裹场景
+                            forward_space = obj_max_frame - frame_end  # 向前超出（负向移动）
+                            backward_space = frame_start - obj_min_frame  # 向后超出（正向移动）
+                            
+                            print(f"📊 动画包裹场景，向前超出: {forward_space:.1f}，向后超出: {backward_space:.1f}")
+                            
+                            # 动画可以在超出场景的范围内偏移
+                            # 使用较大的超出空间作为偏移范围，而不是取最小值
+                            if forward_space > 0 and backward_space > 0:
+                                # 双向都有超出，使用较小的作为安全偏移
+                                safe_offset = min(forward_space, backward_space)
+                                can_positive = True   # 向后偏移（正向移动）
+                                can_negative = True   # 向前偏移（负向移动）
+                            elif forward_space > 0:
+                                # 只有向前超出
+                                safe_offset = forward_space
+                                can_positive = False  # 不能向后偏移
+                                can_negative = True   # 可以向前偏移（负向移动）
+                            elif backward_space > 0:
+                                # 只有向后超出
+                                safe_offset = backward_space
+                                can_positive = True   # 可以向后偏移（正向移动）
+                                can_negative = False  # 不能向前偏移
+                            else:
+                                # 没有超出（这种情况不应该发生）
+                                safe_offset = 0
+                                can_positive = False
+                                can_negative = False
+                            
+                            if can_positive and can_negative:
+                                print(f"📊 动画可在超出场景范围内偏移: ±{safe_offset:.1f}")
+                            elif can_positive:
+                                print(f"📊 动画可在超出场景范围内偏移: +{safe_offset:.1f} (向后)")
+                            elif can_negative:
+                                print(f"📊 动画可在超出场景范围内偏移: -{safe_offset:.1f} (向前)")
+                            else:
+                                print(f"📊 动画可在超出场景范围内偏移: 0")
+                        
+                        # 存储偏移信息
+                        offset_info = {
+                            'offset': safe_offset,
+                            'can_positive': can_positive,
+                            'can_negative': can_negative,
+                            'max_positive': safe_offset if can_positive else 0,
+                            'max_negative': safe_offset if can_negative else 0
+                        }
+                        object_safe_offsets[obj] = offset_info
+                    elif has_partial_overlap:
+                        # 有部分重叠，先计算需要移动多少帧才能完全重叠
+                        print(f"🔍 物体 '{obj.name}': 进入部分重叠分支")
+                        # 计算动画需要移动的距离
+                        if obj_min_frame < frame_start:
+                            # 动画开始太早，需要向后移动（正向移动）
+                            move_offset = frame_start - obj_min_frame
+                            # 计算移动后剩余的空间
+                            remaining_space = frame_end - (obj_max_frame + move_offset)
+                            safe_offset = max(0, remaining_space)
+                            can_positive = remaining_space > 0  # 向后偏移（正向移动）
+                            can_negative = False  # 已经移动到最左边界
+                        else:
+                            # 动画结束太晚，需要向前移动（负向移动）
+                            move_offset = frame_end - obj_max_frame  # 这会是负值
+                            # 计算移动后剩余的空间
+                            remaining_space = (obj_min_frame + move_offset) - frame_start
+                            safe_offset = max(0, remaining_space)
+                            can_positive = False  # 已经移动到最右边界
+                            can_negative = remaining_space > 0  # 向前偏移（负向移动）
+                        
+                        print(f"📊 物体 '{obj.name}': 有部分重叠，需要先移动 {move_offset:.1f} 帧到完全重叠位置")
+                        print(f"📊 移动后剩余空间: {remaining_space:.1f}，实际可偏移范围: ±{safe_offset:.1f}")
+                        
+                        # 存储偏移信息，包含预移动偏移
+                        offset_info = {
+                            'offset': safe_offset,
+                            'can_positive': can_positive,
+                            'can_negative': can_negative,
+                            'max_positive': safe_offset if can_positive else 0,
+                            'max_negative': safe_offset if can_negative else 0,
+                            'pre_move_offset': move_offset  # 预移动偏移
+                        }
+                        object_safe_offsets[obj] = offset_info
+                    else:
+                        print(f"🔍 物体 '{obj.name}': 进入无重叠分支")
+                        print(f"⚠️ 物体 '{obj.name}': 动画范围 {obj_min_frame:.1f}-{obj_max_frame:.1f} 与显示范围 {frame_start}-{frame_end} 无重叠，跳过")
+                        object_safe_offsets[obj] = 0
+        
+        # 开始处理
+        start_time = time.time()
+        
+        for i, obj in enumerate(selected_objects):
+            # 检查对象是否有动画数据
+            if obj.animation_data is None:
+                print(f"⚠️ 物体 '{obj.name}': 没有animation_data，跳过")
+                continue
+                
+            if obj.animation_data.action is None:
+                print(f"⚠️ 物体 '{obj.name}': 没有action，跳过")
+                continue
+            
+            action = obj.animation_data.action
+            fcurves = action.fcurves
+            
+            if not fcurves:
+                print(f"⚠️ 物体 '{obj.name}': 没有动画曲线，跳过")
+                continue
+                
+            print(f"🔍 物体 '{obj.name}': 找到 {len(fcurves)} 条动画曲线")
+            
+            # 生成随机偏移值
+            pre_move_offset = 0  # 预移动偏移
+            if obj in object_safe_offsets:
+                # 使用该物体的安全偏移范围和方向信息
+                offset_info = object_safe_offsets[obj]
+                if offset_info == 0:
+                    print(f"⚠️ 跳过物体 '{obj.name}': 动画与场景帧范围无重叠")
+                    continue
+                elif offset_info['offset'] <= 0:
+                    print(f"ℹ️ 物体 '{obj.name}': 偏移空间为 {offset_info['offset']:.1f}，无需偏移")
+                    # 当偏移空间为0时，不进行偏移
+                    safe_offset = 0
+                    can_positive = False
+                    can_negative = False
+                else:
+                    safe_offset = offset_info['offset']
+                    can_positive = offset_info['can_positive']
+                    can_negative = offset_info['can_negative']
+                
+                # 检查是否需要预移动
+                if 'pre_move_offset' in offset_info:
+                    pre_move_offset = offset_info['pre_move_offset']
+                    print(f"🔧 物体 '{obj.name}': 需要预移动 {pre_move_offset:.1f} 帧")
+                
+                # 根据可偏移方向生成随机偏移
+                if safe_offset <= 0 or (not can_positive and not can_negative):
+                    # 没有可用空间或无法偏移，跳过
+                    print(f"ℹ️ 物体 '{obj.name}': 无需偏移，跳过处理")
+                    continue
+                elif can_positive and can_negative:
+                    # 可以双向偏移
+                    random_offset = random.randint(-safe_offset, safe_offset)
+                    print(f"🎯 物体 '{obj.name}': 可以双向偏移，生成偏移: {random_offset} (范围: ±{safe_offset})")
+                elif can_positive:
+                    # 只能向后偏移（正向移动）
+                    random_offset = random.randint(0, safe_offset)
+                    print(f"🎯 物体 '{obj.name}': 只能向后偏移，生成偏移: {random_offset} (范围: 0-{safe_offset})")
+                elif can_negative:
+                    # 只能向前偏移（负向移动）
+                    random_offset = random.randint(-safe_offset, 0)
+                    print(f"🎯 物体 '{obj.name}': 只能向前偏移，生成偏移: {random_offset} (范围: -{safe_offset}-0)")
+                else:
+                    # 无法偏移，跳过
+                    print(f"ℹ️ 物体 '{obj.name}': 无法偏移，跳过处理")
+                    continue
+            else:
+                # 这种情况应该很少见，使用默认的小范围偏移
+                default_offset = 10
+                random_offset = random.randint(-default_offset, default_offset)
+                print(f"ℹ️ 物体 '{obj.name}': 使用默认偏移范围 ±{default_offset}，实际偏移: {random_offset}")
+            
+            print(f"🎲 物体 '{obj.name}': 生成随机偏移 {random_offset} 帧")
+            
+            if random_offset == 0:
+                print(f"ℹ️ 物体 '{obj.name}': 随机偏移为0，仍会处理（用于更新动画数据）")
+                # 不再跳过零偏移，因为可能仍需要更新动画数据
+            
+            # 计算总偏移量（预移动 + 随机偏移）
+            total_offset = pre_move_offset + random_offset
+            print(f"🔧 开始处理物体 '{obj.name}': 预移动 {pre_move_offset:.1f} 帧 + 随机偏移 {random_offset} 帧 = 总偏移 {total_offset:.1f} 帧")
+            
+            # 检查偏移方向是否正确
+            if can_positive and not can_negative and total_offset < 0:
+                print(f"⚠️ 警告: 应该只能正向偏移，但总偏移为负值 {total_offset:.1f}")
+            elif can_negative and not can_positive and total_offset > 0:
+                print(f"⚠️ 警告: 应该只能负向偏移，但总偏移为正值 {total_offset:.1f}")
+            # 对整个动画进行整体偏移（最高效的方法）
+            try:
+                # 保存原始状态
+                original_mode = bpy.context.mode
+                original_active = bpy.context.view_layer.objects.active
+                
+                # 确保对象处于对象模式
+                if bpy.context.mode != 'OBJECT':
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # 设置为活动对象
+                bpy.context.view_layer.objects.active = obj
+                
+                # 确保动画数据没有被锁定
+                if obj.animation_data:
+                    # 在Blender 3.6中，直接设置action即可
+                    obj.animation_data.action = action
+                
+                # 对整个动作进行整体偏移（高效方法）
+                keyframes_modified = 0
+                if action:
+                    # 更新动作的帧范围
+                    action.frame_range = (action.frame_start + total_offset, action.frame_end + total_offset)
+                    
+                    # 对所有动画曲线进行整体偏移
+                    for fc in fcurves:
+                        try:
+                            # 确保曲线没有被锁定
+                            fc.lock = False
+                            fc.mute = False
+                            
+                            # 直接修改每个关键帧的x坐标（时间轴）
+                            for kf in fc.keyframe_points:
+                                kf.co[0] += total_offset
+                            keyframes_modified += len(fc.keyframe_points)
+                        except Exception as e:
+                            print(f"⚠️ 处理曲线 {fc.data_path} 时出错: {e}")
+                            continue
+                
+                # 强制更新动画数据
+                # 在Blender 3.6中，Action对象没有update方法，需要手动更新
+                # 通过重新计算关键帧来触发更新
+                for fc in fcurves:
+                    fc.update()
+                
+                # 恢复原始状态
+                if original_active:
+                    bpy.context.view_layer.objects.active = original_active
+                if original_mode != 'OBJECT':
+                    try:
+                        bpy.ops.object.mode_set(mode=original_mode)
+                    except:
+                        pass  # 如果无法恢复模式，忽略错误
+                
+                print(f"✅ 物体 '{obj.name}': 已修改 {keyframes_modified} 个关键帧")
+                
+                # 确保当前物体的动画轨道没有被锁定
+                for fc in fcurves:
+                    try:
+                        fc.lock = False
+                        fc.mute = False
+                    except:
+                        pass
+                
+                affected_objects += 1
+                
+                # 定期进行垃圾回收，避免内存积累
+                if (i + 1) % 50 == 0:
+                    gc.collect()
+                
+                # 显示进度（每10个物体或最后一个物体显示一次）
+                if (i + 1) % 10 == 0 or (i + 1) == total_objects:
+                    elapsed_time = time.time() - start_time
+                    if pre_move_offset != 0:
+                        offset_info = f"预移动 {pre_move_offset:.1f} 帧 + 随机偏移 {random_offset} 帧"
+                    else:
+                        offset_info = f"偏移 {random_offset} 帧"
+                    
+                    if obj in object_safe_offsets and object_safe_offsets[obj] != 0:
+                        offset_data = object_safe_offsets[obj]
+                        if offset_data['can_positive'] and offset_data['can_negative']:
+                            offset_info += f" (实际范围: ±{offset_data['offset']:.1f})"
+                        elif offset_data['can_positive']:
+                            offset_info += f" (实际范围: +{offset_data['offset']:.1f})"
+                        elif offset_data['can_negative']:
+                            offset_info += f" (实际范围: -{offset_data['offset']:.1f})"
+                    print(f"✅ 进度: {i + 1}/{total_objects} - 物体 '{obj.name}' 已{offset_info} (耗时: {elapsed_time:.2f}秒)")
+                    
+            except Exception as e:
+                print(f"⚠️ 处理物体 '{obj.name}' 时出错: {e}")
+                continue
+        
+        # 完成处理
+        total_time = time.time() - start_time
+        
+        # 确保所有处理过的物体动画轨道没有被锁定
+        print("🔓 检查并解锁动画轨道...")
+        unlocked_curves = 0
+        for obj in selected_objects:
+            if obj.animation_data and obj.animation_data.action:
+                action = obj.animation_data.action
+                for fc in action.fcurves:
+                    try:
+                        if fc.lock:
+                            fc.lock = False
+                            unlocked_curves += 1
+                        if fc.mute:
+                            fc.mute = False
+                            unlocked_curves += 1
+                    except Exception as e:
+                        print(f"⚠️ 解锁曲线 {fc.data_path} 时出错: {e}")
+                        pass
+        
+        if unlocked_curves > 0:
+            print(f"🔓 已解锁 {unlocked_curves} 个动画轨道")
+        else:
+            print("🔓 所有动画轨道都已解锁")
+        
+        if affected_objects > 0:
+            avg_time = total_time / affected_objects
+            self.report({'INFO'}, f"已对 {affected_objects} 个物体的动画进行随机偏移 (总耗时: {total_time:.2f}秒, 平均: {avg_time:.2f}秒/物体)")
+        else:
+            # 提供更详细的错误信息
+            no_animation_count = 0
+            no_overlap_count = 0
+            for obj in selected_objects:
+                if obj.animation_data is None or obj.animation_data.action is None:
+                    no_animation_count += 1
+                elif obj in object_safe_offsets and object_safe_offsets[obj] == 0:
+                    no_overlap_count += 1
+            
+            error_msg = f"所选物体中没有找到可偏移的动画数据"
+            if no_animation_count > 0:
+                error_msg += f" ({no_animation_count} 个物体没有动画数据"
+            if no_overlap_count > 0:
+                if no_animation_count > 0:
+                    error_msg += f", {no_overlap_count} 个物体动画与场景帧范围无重叠"
+                else:
+                    error_msg += f" ({no_overlap_count} 个物体动画与场景帧范围无重叠"
+            if no_animation_count > 0 or no_overlap_count > 0:
+                error_msg += ")"
+            
+            self.report({'WARNING'}, error_msg)
+        
+        return {'FINISHED'}
+
 def register():
     bpy.utils.register_class(ClearScaleAnimation)
     bpy.utils.register_class(ClearAllAnimation)
@@ -523,6 +936,7 @@ def register():
     bpy.utils.register_class(AddFollowPathConstraint)
     bpy.utils.register_class(SetToRestPosition)
     bpy.utils.register_class(SetToPosePosition)
+    bpy.utils.register_class(RandomOffsetAnimation)
 
 def unregister():
     bpy.utils.unregister_class(ClearScaleAnimation)
@@ -535,4 +949,5 @@ def unregister():
     bpy.utils.unregister_class(AddFollowPathConstraint)
     bpy.utils.unregister_class(SetToRestPosition)
     bpy.utils.unregister_class(SetToPosePosition)
+    bpy.utils.unregister_class(RandomOffsetAnimation)
 

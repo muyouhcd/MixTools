@@ -566,6 +566,13 @@ class CustomFunctionsPanel(Panel):
             
             follow_path_box.operator("animation.add_follow_path_constraint", text="添加跟随曲线约束", icon='CONSTRAINT')
             
+            # 动画随机偏移工具
+            random_offset_box = col_animation.box()
+            random_offset_box.label(text="动画随机偏移工具:", icon='MOD_NOISE')
+            
+            # 执行按钮
+            random_offset_box.operator("animation.random_offset_animation", text="随机偏移动画", icon='MOD_NOISE')
+            
             # 骨架操作工具
             armature_tools_box = col_animation.box()
             armature_tools_box.label(text="骨架操作工具:", icon='ARMATURE_DATA')
@@ -1156,6 +1163,8 @@ def register():
         default=True
     )
     
+    
+    
 
 
 def unregister():
@@ -1227,6 +1236,7 @@ def unregister():
         
         # 曲线闭合选项属性
         "curve_closed_option",
+        
 
     ]
     

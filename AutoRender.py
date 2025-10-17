@@ -8,6 +8,13 @@ import time
 
 from bpy.props import BoolProperty, EnumProperty, CollectionProperty# type: ignore
 
+# 尝试导入PIL库
+try:
+    from PIL import Image, ImageOps
+    PIL_IMPORTED = True
+except ImportError:
+    PIL_IMPORTED = False
+
 # 检查Blender版本兼容性
 def is_blender_4_3_or_later():
     """检查是否为Blender 4.3或更高版本"""
@@ -30,11 +37,18 @@ def check_pil_availability():
     """检查PIL库是否可用，只检查一次并缓存结果"""
     global PIL_AVAILABLE
     if PIL_AVAILABLE is None:
-        try:
-            from PIL import Image, ImageOps
-            PIL_AVAILABLE = True
-            print("PIL库已成功导入，边框添加功能可用")
-        except ImportError:
+        if PIL_IMPORTED:
+            try:
+                # 测试ImageOps.expand函数是否可用
+                test_img = Image.new('RGBA', (10, 10), (255, 0, 0, 255))
+                test_bordered = ImageOps.expand(test_img, border=5, fill=(0, 0, 0, 0))
+                PIL_AVAILABLE = True
+                print("PIL库已成功导入，边框添加功能可用")
+            except Exception as e:
+                PIL_AVAILABLE = False
+                print(f"警告: PIL库导入成功但功能测试失败: {e}")
+                print("提示: 请检查Pillow库的安装是否完整")
+        else:
             PIL_AVAILABLE = False
             print("警告: 未能导入PIL库 (Pillow)，边框添加功能将被禁用")
             print("提示: 要启用边框功能，请在Blender的Python环境中安装Pillow库")
@@ -1669,6 +1683,11 @@ class AutoRenderer():
             print("PIL库不可用，跳过图像缩放功能")
             return False
             
+        # 确保PIL库已导入
+        if not PIL_IMPORTED:
+            print("PIL库未导入，无法处理图像")
+            return False
+            
         print(f"开始缩放图像: {image_path}")
         print(f"目标尺寸: {target_width} x {target_height}")
         
@@ -1706,13 +1725,24 @@ class AutoRenderer():
 
     def add_image_border(self, image_path, margin_distance, background_is_transparent):
         """在图像周围添加边框，并根据背景透明度调整边框"""
+        print(f"=== 开始边框添加处理 ===")
+        print(f"图像路径: {image_path}")
+        print(f"边框距离: {margin_distance}像素")
+        print(f"背景透明: {background_is_transparent}")
+        
         # 如果没有设置边框距离，则跳过
         if margin_distance <= 0:
             print(f"边框距离为 {margin_distance}，跳过边框添加")
             return
             
+        # 检查文件是否存在
+        if not os.path.exists(image_path):
+            print(f"错误: 图像文件不存在: {image_path}")
+            return
+            
         # 检查文件格式
         file_extension = os.path.splitext(image_path)[1].lower()
+        print(f"文件扩展名: {file_extension}")
         if file_extension == '.exr':
             print("⚠ 警告: EXR格式不支持PIL边框添加，跳过边框功能")
             print("建议: 使用Blender内置的渲染边框设置或保持原始尺寸")
@@ -1721,6 +1751,11 @@ class AutoRenderer():
         # 检查PIL库是否可用
         if not check_pil_availability():
             print("PIL库不可用，跳过边框添加功能")
+            return
+            
+        # 确保PIL库已导入
+        if not PIL_IMPORTED:
+            print("PIL库未导入，无法处理图像")
             return
             
         print(f"尝试为图像添加边框: {image_path}")
@@ -1733,6 +1768,7 @@ class AutoRenderer():
                 if img.mode != 'RGBA':
                     print(f"图像模式不是RGBA，正在从 {img.mode} 转换为RGBA")
                     img = img.convert('RGBA')
+                    print(f"转换后模式: {img.mode}")
                 
                 # 确定边框填充颜色
                 fill_color = (0, 0, 0, 0) if background_is_transparent else (0, 0, 0)
@@ -1747,6 +1783,7 @@ class AutoRenderer():
                 print(f"正在保存带边框的图像到: {image_path}")
                 img_with_border.save(image_path)
                 print("图像保存成功")
+                print("=== 边框添加完成 ===")
                 
         except FileNotFoundError:
             print(f"错误: 找不到图像文件: {image_path}")
