@@ -478,6 +478,15 @@ class CustomFunctionsPanel(Panel):
             col.prop(context.scene, "random_scale_extent_z", text="Z轴范围")
             random_scale_box.operator("object.mian_random_scale", text="应用随机缩放", icon='ARROW_LEFTRIGHT')
             
+            # 随机旋转
+            random_rotation_box = random_box.box()
+            random_rotation_box.label(text="随机旋转:", icon='DRIVER_ROTATIONAL_DIFFERENCE')
+            col = random_rotation_box.column(align=True)
+            col.prop(context.scene, "random_rotation_extent_x", text="X轴范围(度)")
+            col.prop(context.scene, "random_rotation_extent_y", text="Y轴范围(度)")
+            col.prop(context.scene, "random_rotation_extent_z", text="Z轴范围(度)")
+            random_rotation_box.operator("object.mian_random_rotation", text="应用随机旋转", icon='DRIVER_ROTATIONAL_DIFFERENCE')
+            
             # 对齐集合顶级父级
             align_parent_box = col_rsm.box()
             align_parent_box.label(text="集合对齐:", icon='CON_TRACKTO')
@@ -746,6 +755,23 @@ class CustomFunctionsPanel(Panel):
             row = assembly_asset_box.row()
             row.operator("object.mian_create_assembly_asset", text="创建装配资产", icon='CHECKMARK')
             # row.operator("object.mian_create_asset_library_outline", text="创建分类大纲", icon='OUTLINER_COLLECTION')
+            
+            # 隐藏导入集合管理
+            hidden_collection_box = col_assestoperation.box()
+            hidden_collection_box.label(text="隐藏导入集合管理:", icon='HIDE_OFF')
+            
+            # 操作按钮行
+            hidden_row1 = hidden_collection_box.row(align=True)
+            op1 = hidden_row1.operator("object.mian_manage_hidden_collection", text="显示集合", icon='HIDE_OFF')
+            op1.action = 'SHOW'
+            op2 = hidden_row1.operator("object.mian_manage_hidden_collection", text="隐藏集合", icon='HIDE_ON')
+            op2.action = 'HIDE'
+            
+            hidden_row2 = hidden_collection_box.row(align=True)
+            op3 = hidden_row2.operator("object.mian_manage_hidden_collection", text="显示信息", icon='INFO')
+            op3.action = 'INFO'
+            op4 = hidden_row2.operator("object.mian_manage_hidden_collection", text="清空集合", icon='TRASH')
+            op4.action = 'CLEAR'
 
             # Voxelizer设置
             box_voxelizer = col_assestoperation.box()
@@ -841,18 +867,30 @@ class CustomFunctionsPanel(Panel):
 
                 # 最终图像尺寸设置
                 final_size_col = box_autorender.column(align=True)
-                final_size_col.prop(bpy.context.scene.auto_render_settings, "enable_resize", text="启用图像尺寸后处理调节", icon='FULLSCREEN_ENTER')
-                if bpy.context.scene.auto_render_settings.enable_resize:
-                    final_size_row = final_size_col.row(align=True)
-                    final_size_row.prop(bpy.context.scene.auto_render_settings, "final_width", text="宽度")
-                    final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
-                    final_size_row = final_size_col.row(align=True)
-                    final_size_row.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
+                # 图像尺寸设置（始终显示）
+                final_size_row = final_size_col.row(align=True)
+                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_width", text="宽度")
+                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
                 
-                # 像素边距控制（独立功能，始终可见）
-                pixel_margin_row = final_size_col.row(align=True)
-                pixel_margin_row.prop(bpy.context.scene.auto_render_settings, "pixel_margin", text="像素边距")
-                pixel_margin_row.label(text="(相机会自动调整距离产生指定像素边距)")
+                # 边框距离设置
+                final_size_row = final_size_col.row(align=True)
+                final_size_row.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
+                
+                # 动态显示最大边框距离限制
+                final_width = bpy.context.scene.auto_render_settings.final_width
+                final_height = bpy.context.scene.auto_render_settings.final_height
+                max_margin = min(final_width, final_height) // 2
+                margin_distance = bpy.context.scene.auto_render_settings.margin_distance
+                
+                if margin_distance > max_margin:
+                    warning_row = final_size_col.row(align=True)
+                    warning_row.label(text=f"⚠️ 边框距离过大！最大允许: {max_margin}px", icon='ERROR')
+                else:
+                    info_row = final_size_col.row(align=True)
+                    info_row.label(text=f"最大允许边框距离: {max_margin}px (基于尺寸: {final_width}x{final_height})")
+                
+                final_size_row = final_size_col.row(align=True)
+                final_size_row.label(text="(缩放图像保持边距)")
                 
                 # 渲染对象
                 render_col = box_autorender.column()

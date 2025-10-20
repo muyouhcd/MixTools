@@ -639,6 +639,73 @@ class RandomScale(bpy.types.Operator):
 
         return {'FINISHED'}
 
+# 随机旋转
+bpy.types.Scene.random_rotation_extent_x = bpy.props.FloatProperty(
+    name="X轴旋转范围(度)",
+    description="设置X轴随机旋转的角度范围",
+    default=0.0,
+    min=0.0,
+    max=360.0
+)
+bpy.types.Scene.random_rotation_extent_y = bpy.props.FloatProperty(
+    name="Y轴旋转范围(度)",
+    description="设置Y轴随机旋转的角度范围",
+    default=0.0,
+    min=0.0,
+    max=360.0
+)
+bpy.types.Scene.random_rotation_extent_z = bpy.props.FloatProperty(
+    name="Z轴旋转范围(度)",
+    description="设置Z轴随机旋转的角度范围",
+    default=0.0,
+    min=0.0,
+    max=360.0
+)
+
+class RandomRotation(bpy.types.Operator):
+    bl_idname = "object.mian_random_rotation"
+    bl_label = "随机旋转"
+    bl_description = "对所选物体进行指定轴向的随机旋转"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        import math
+        import mathutils
+        import random
+        
+        # 获取自定义属性的值
+        rotation_extent_x = bpy.context.scene.random_rotation_extent_x
+        rotation_extent_y = bpy.context.scene.random_rotation_extent_y
+        rotation_extent_z = bpy.context.scene.random_rotation_extent_z
+
+        objects = sorted(list(bpy.context.selected_objects),
+                         key=lambda obj: obj.name)
+
+        if not objects:
+            self.report({'WARNING'}, "请先选择要旋转的物体")
+            return {'CANCELLED'}
+
+        # 对每个物体进行随机旋转
+        for obj in objects:
+            # 获取当前旋转值
+            current_rotation = obj.rotation_euler.copy()
+            
+            # 计算随机旋转角度（弧度）
+            random_rotation_x = math.radians(random.uniform(-rotation_extent_x, rotation_extent_x))
+            random_rotation_y = math.radians(random.uniform(-rotation_extent_y, rotation_extent_y))
+            random_rotation_z = math.radians(random.uniform(-rotation_extent_z, rotation_extent_z))
+            
+            # 应用随机旋转
+            new_rotation = (
+                current_rotation[0] + random_rotation_x,
+                current_rotation[1] + random_rotation_y,
+                current_rotation[2] + random_rotation_z
+            )
+            
+            obj.rotation_euler = new_rotation
+
+        self.report({'INFO'}, f"已对 {len(objects)} 个物体应用随机旋转")
+        return {'FINISHED'}
 
 
 # 名称顺序y轴列队
@@ -2458,6 +2525,7 @@ classes = [
     CreateEmptyAtObjectBottom,
     RenameByParent,
     RandomScale,
+    RandomRotation,
     UVObjectMatcherOperator,
     ObjectInstancer,
     GeometryMatcherOperator,
@@ -2546,6 +2614,9 @@ def unregister():
     del bpy.types.Scene.collectionB
     del bpy.types.Scene.collectionA
     del bpy.types.Scene.random_placement_extent
+    del bpy.types.Scene.random_rotation_extent_x
+    del bpy.types.Scene.random_rotation_extent_y
+    del bpy.types.Scene.random_rotation_extent_z
     del bpy.types.Scene.rename_order
     del bpy.types.Scene.export_directory
     del bpy.types.Scene.multiple_object_binding

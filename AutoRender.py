@@ -60,7 +60,7 @@ class AutoRenderer():
                     output_path="./", output_name="", output_format="PNG",
                                          naming_mode='AUTO', focus_each_object=False,
                      focus_only_faces=False, use_compositor=True, auto_keyframe=False, 
-                     enable_resize=False, pixel_margin=0, render_each_object_individually=False,
+                     render_each_object_individually=False,
                      report_callback=None) -> None:
         """
         集合：字符串列表，每个字符串都是一个集合的名称
@@ -91,8 +91,6 @@ class AutoRenderer():
         self.focus_only_faces = focus_only_faces
         self.use_compositor = use_compositor
         self.auto_keyframe = auto_keyframe
-        self.enable_resize = enable_resize
-        self.pixel_margin = pixel_margin
         self.render_each_object_individually = render_each_object_individually
         self.report_callback = report_callback
         
@@ -386,41 +384,11 @@ class AutoRenderer():
     def _calculate_orthographic_scale(self, bbox_size, camera_data):
         """计算正交相机需要的缩放值（独立方法）"""
         try:
-            if self.pixel_margin <= 0:
-                return 0
-            
-            # 全局缓存正交相机计算信息，避免重复打印
-            if not hasattr(AutoRenderer, '_ortho_calc_checked'):
-                print(f"ℹ 计算正交相机缩放: 像素边距={self.pixel_margin}px")
-                
-                # 获取渲染分辨率
-                render_width = bpy.context.scene.render.resolution_x
-                render_height = bpy.context.scene.render.resolution_y
-                print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
-                AutoRenderer._ortho_calc_checked = True
-            
-            # 正交相机：精确的边距计算
+            # 正交相机：基于物体尺寸计算缩放
             max_size = max(bbox_size)
             
-            # 修正的像素到世界单位转换
-            # 正交相机的视野由 ortho_scale 决定
-            # 像素边距应该基于当前的正交缩放来计算
-            current_ortho_scale = camera_data.ortho_scale
-            
-            # 计算像素边距对应的世界边距
-            # 使用更精确的比例：当前缩放 / 渲染分辨率
-            pixel_to_world_ratio = current_ortho_scale / min(render_width, render_height)
-            world_margin = self.pixel_margin * pixel_to_world_ratio
-            
-            # 计算需要的正交缩放
-            required_ortho_scale = max_size + world_margin * 2
-            
-            # 减少详细计算信息的打印频率
-            if not hasattr(self, '_ortho_details_printed'):
-                print(f"ℹ 正交相机缩放计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
-                print(f"ℹ 当前缩放={current_ortho_scale:.2f}, 像素比例={pixel_to_world_ratio:.6f}")
-                print(f"ℹ 世界边距={world_margin:.2f}, 需要缩放={required_ortho_scale:.2f}")
-                self._ortho_details_printed = True
+            # 计算需要的正交缩放（基于物体尺寸，留10%边距）
+            required_ortho_scale = max_size * 1.1
             
             return required_ortho_scale
                 
@@ -431,20 +399,7 @@ class AutoRenderer():
     def _calculate_perspective_distance(self, bbox_size, camera_data):
         """计算透视相机需要的距离值（独立方法）"""
         try:
-            if self.pixel_margin <= 0:
-                return 0
-            
-            # 全局缓存透视相机计算信息，避免重复打印
-            if not hasattr(AutoRenderer, '_perspective_calc_checked'):
-                print(f"ℹ 计算透视相机距离: 像素边距={self.pixel_margin}px")
-                
-                # 获取渲染分辨率
-                render_width = bpy.context.scene.render.resolution_x
-                render_height = bpy.context.scene.render.resolution_y
-                print(f"ℹ 渲染分辨率: {render_width}x{render_height}")
-                AutoRenderer._perspective_calc_checked = True
-            
-            # 透视相机：精确的边距计算
+            # 透视相机：基于物体尺寸计算距离
             max_size = max(bbox_size)
             fov_degrees = 2 * math.degrees(math.atan(16 / camera_data.lens))
             fov_radians = math.radians(fov_degrees)
@@ -452,24 +407,8 @@ class AutoRenderer():
             # 计算基础距离（无边距）
             base_distance = (max_size / 2) / math.tan(fov_radians / 2)
             
-            # 修正的像素边距计算
-            # 基于视野角度和基础距离计算
-            fov_half_radians = fov_radians / 2
-            
-            # 像素边距在世界空间中的对应距离
-            # 使用三角函数关系：tan(fov/2) = (size/2) / distance
-            # 因此：pixel_margin_world = pixel_margin * (max_size/2) / (render_width/2) / tan(fov/2)
-            pixel_margin_world = (self.pixel_margin * (max_size / 2)) / (render_width / 2) / math.tan(fov_half_radians)
-            
-            # 计算带边距的距离
-            required_distance = base_distance + pixel_margin_world
-            
-            # 减少透视相机详细计算信息的打印频率
-            if not hasattr(self, '_perspective_details_printed'):
-                print(f"ℹ 透视相机距离计算: 物体尺寸={max_size:.2f}, 像素边距={self.pixel_margin}px")
-                print(f"ℹ 视野角度={fov_degrees:.2f}°, 基础距离={base_distance:.2f}")
-                print(f"ℹ 像素边距世界距离={pixel_margin_world:.2f}, 需要距离={required_distance:.2f}")
-                self._perspective_details_printed = True
+            # 计算带边距的距离（留10%边距）
+            required_distance = base_distance * 1.1
             
             return required_distance
                 
@@ -693,18 +632,17 @@ class AutoRenderer():
             # 使用标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
             
-            # 如果设置了像素边距，调整正交缩放
-            if self.pixel_margin > 0:
-                # 计算物体的边界框
-                bbox_min, bbox_max = self._calculate_group_bbox(objects)
-                if bbox_min and bbox_max:
-                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                    required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
-                    if required_scale > 0:
-                        camera_data.ortho_scale = required_scale
-                        print(f"ℹ 正交相机：调整缩放到 {required_scale:.2f} (像素边距: {self.pixel_margin}px)")
+            # 调整正交缩放以更好地显示物体
+            # 计算物体的边界框
+            bbox_min, bbox_max = self._calculate_group_bbox(objects)
+            if bbox_min and bbox_max:
+                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
+                if required_scale > 0:
+                    camera_data.ortho_scale = required_scale
+                    print(f"ℹ 正交相机：调整缩放到 {required_scale:.2f}")
             else:
-                print("ℹ 正交相机：保持原始参数，边距通过图像处理添加")
+                print("ℹ 正交相机：保持原始参数")
                 
         except Exception as e:
             print(f"⚠ 正交相机聚焦时出错: {str(e)}")
@@ -717,21 +655,20 @@ class AutoRenderer():
             # 使用标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
             
-            # 如果设置了像素边距，调整相机距离
-            if self.pixel_margin > 0:
-                # 计算物体的边界框
-                bbox_min, bbox_max = self._calculate_group_bbox(objects)
-                if bbox_min and bbox_max:
-                    bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
-                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                    required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
-                    if required_distance > 0:
-                        # 调整相机距离
-                        bbox_center_vec = mathutils.Vector(bbox_center)
-                        direction = (self.cam.location - bbox_center_vec).normalized()
-                        new_position = bbox_center_vec + direction * required_distance
-                        self.cam.location = new_position
-                        print(f"ℹ 透视相机：调整距离到 {required_distance:.2f} (像素边距: {self.pixel_margin}px)")
+            # 调整相机距离以更好地显示物体
+            # 计算物体的边界框
+            bbox_min, bbox_max = self._calculate_group_bbox(objects)
+            if bbox_min and bbox_max:
+                bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
+                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
+                if required_distance > 0:
+                    # 调整相机距离
+                    bbox_center_vec = mathutils.Vector(bbox_center)
+                    direction = (self.cam.location - bbox_center_vec).normalized()
+                    new_position = bbox_center_vec + direction * required_distance
+                    self.cam.location = new_position
+                    print(f"ℹ 透视相机：调整距离到 {required_distance:.2f}")
             else:
                 print(f"ℹ 透视相机：保持原始参数，焦距: {camera_data.lens:.2f}mm")
                 
@@ -746,15 +683,14 @@ class AutoRenderer():
             # 使用标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
             
-            # 如果设置了像素边距，调整正交缩放
-            if self.pixel_margin > 0:
-                bbox_min, bbox_max = self._calculate_object_bbox(obj)
-                if bbox_min and bbox_max:
-                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                    required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
-                    if required_scale > 0:
-                        camera_data.ortho_scale = required_scale
-                        print(f"ℹ 关键帧生成：调整正交缩放到 {required_scale:.2f} (像素边距: {self.pixel_margin}px)")
+            # 调整正交缩放以更好地显示物体
+            bbox_min, bbox_max = self._calculate_object_bbox(obj)
+            if bbox_min and bbox_max:
+                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
+                if required_scale > 0:
+                    camera_data.ortho_scale = required_scale
+                    print(f"ℹ 关键帧生成：调整正交缩放到 {required_scale:.2f}")
             else:
                 print("ℹ 关键帧生成：保持原始正交缩放")
                 
@@ -769,19 +705,18 @@ class AutoRenderer():
             # 使用标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
             
-            # 如果设置了像素边距，调整相机距离
-            if self.pixel_margin > 0:
-                bbox_min, bbox_max = self._calculate_object_bbox(obj)
-                if bbox_min and bbox_max:
-                    bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
-                    bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                    required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
-                    if required_distance > 0:
-                        bbox_center_vec = mathutils.Vector(bbox_center)
-                        direction = (self.cam.location - bbox_center_vec).normalized()
-                        new_position = bbox_center_vec + direction * required_distance
-                        self.cam.location = new_position
-                        print(f"ℹ 关键帧生成：调整相机距离到 {required_distance:.2f} (像素边距: {self.pixel_margin}px)")
+            # 调整相机距离以更好地显示物体
+            bbox_min, bbox_max = self._calculate_object_bbox(obj)
+            if bbox_min and bbox_max:
+                bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
+                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
+                required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
+                if required_distance > 0:
+                    bbox_center_vec = mathutils.Vector(bbox_center)
+                    direction = (self.cam.location - bbox_center_vec).normalized()
+                    new_position = bbox_center_vec + direction * required_distance
+                    self.cam.location = new_position
+                    print(f"ℹ 关键帧生成：调整相机距离到 {required_distance:.2f}")
             else:
                 print(f"ℹ 关键帧生成：保持原始参数，焦距: {camera_data.lens:.2f}mm")
                 
@@ -1128,6 +1063,27 @@ class AutoRenderer():
         background_is_transparent = bpy.context.scene.render.film_transparent
         print(f"渲染背景透明度设置: {background_is_transparent}")
         
+        if background_is_transparent:
+            print("✅ 透明背景已启用")
+        else:
+            print("ℹ 透明背景未启用，边框将使用不透明填充")
+        
+        # 检查边框距离是否超出限制
+        margin_distance = bpy.context.scene.auto_render_settings.margin_distance
+        plugin_width = bpy.context.scene.auto_render_settings.final_width
+        plugin_height = bpy.context.scene.auto_render_settings.final_height
+        
+        # 计算最大允许的边框距离（基于插件设置的渲染尺寸）
+        max_margin = min(plugin_width, plugin_height) // 2
+        
+        if margin_distance > max_margin:
+            error_msg = f"边框距离 {margin_distance}px 超出限制！最大允许值: {max_margin}px (基于渲染尺寸: {plugin_width}x{plugin_height})"
+            print(f"❌ 错误: {error_msg}")
+            self.report_info({'ERROR'}, error_msg)
+            raise ValueError(error_msg)
+        
+        print(f"✅ 边框距离检查通过: {margin_distance}px (最大允许: {max_margin}px)")
+        
         # 确保相机被激活
         print(f"ℹ 确保相机 '{self.cam.name}' 被激活...")
         bpy.context.scene.camera = self.cam
@@ -1297,6 +1253,21 @@ class AutoRenderer():
 
                 # 设置渲染输出路径
                 bpy.context.scene.render.filepath = filepath
+                
+                # 使用插件的尺寸设置进行渲染，忽略工程的渲染尺寸设置
+                plugin_width = bpy.context.scene.auto_render_settings.final_width
+                plugin_height = bpy.context.scene.auto_render_settings.final_height
+                
+                # 保存原始分辨率设置
+                original_width = bpy.context.scene.render.resolution_x
+                original_height = bpy.context.scene.render.resolution_y
+                
+                # 设置插件指定的分辨率
+                bpy.context.scene.render.resolution_x = plugin_width
+                bpy.context.scene.render.resolution_y = plugin_height
+                
+                print(f"🔧 使用插件尺寸设置进行渲染: {plugin_width} x {plugin_height}")
+                print(f"ℹ 原始工程尺寸: {original_width} x {original_height} (已忽略)")
                 
                 # 根据输出格式设置渲染格式
                 if self.output_format in ['EXR', 'EXR_TO_PNG']:
@@ -1471,6 +1442,11 @@ class AutoRenderer():
                 print(save_msg)
                 self.report_info({'INFO'}, save_msg)
                 
+                # 恢复原始分辨率设置
+                bpy.context.scene.render.resolution_x = original_width
+                bpy.context.scene.render.resolution_y = original_height
+                print(f"🔄 已恢复原始分辨率设置: {original_width} x {original_height}")
+                
                 # 恢复原始渲染设置
                 self.restore_render_settings(original_render_settings)
                 
@@ -1511,10 +1487,17 @@ class AutoRenderer():
             # 添加边框并保存图像（在尺寸调节之前）
             try:
                 margin_distance = bpy.context.scene.auto_render_settings.margin_distance
-                print(f"添加边框，边距: {margin_distance}像素")
+                print(f"🔍 调试信息 - 边框距离参数: {margin_distance}")
+                print(f"🔍 调试信息 - 边框距离类型: {type(margin_distance)}")
+                
+                if margin_distance > 0:
+                    print(f"✅ 边框距离大于0，开始添加边框")
+                else:
+                    print(f"⚠️ 边框距离为0或负数，跳过边框添加")
                 
                 # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
                 current_extension = os.path.splitext(filepath)[1].lower()
+                print(f"🔍 调试信息 - 文件扩展名: {current_extension}")
                 if current_extension in ['.png', '.tga']:
                     print(f"ℹ 检测到{current_extension.upper()}格式，支持边框添加")
                     self.add_image_border(filepath, margin_distance, background_is_transparent)
@@ -1528,25 +1511,22 @@ class AutoRenderer():
                 # 边框添加失败不影响主要功能，继续执行
                 print("继续执行，忽略边框添加错误")
             
-            # 图像尺寸调节（在边框添加之后，确保最终尺寸包含边框）
+            # 图像尺寸调节（自动执行）
             try:
-                if self.enable_resize:
-                    final_width = bpy.context.scene.auto_render_settings.final_width
-                    final_height = bpy.context.scene.auto_render_settings.final_height
-                    print(f"开始图像尺寸调节，目标最终尺寸: {final_width} x {final_height}（包含边框）")
-                    
-                    # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
-                    current_extension = os.path.splitext(filepath)[1].lower()
-                    if current_extension in ['.png', '.tga']:
-                        print(f"ℹ 检测到{current_extension.upper()}格式，支持图像尺寸调节")
-                        if self.resize_image(filepath, final_width, final_height):
-                            print("✓ 图像尺寸调节完成，最终尺寸包含边框")
-                        else:
-                            print("⚠ 图像尺寸调节失败")
+                final_width = bpy.context.scene.auto_render_settings.final_width
+                final_height = bpy.context.scene.auto_render_settings.final_height
+                print(f"开始图像尺寸调节，目标最终尺寸: {final_width} x {final_height}（包含边框）")
+                
+                # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
+                current_extension = os.path.splitext(filepath)[1].lower()
+                if current_extension in ['.png', '.tga']:
+                    print(f"ℹ 检测到{current_extension.upper()}格式，支持图像尺寸调节")
+                    if self.resize_image(filepath, final_width, final_height):
+                        print("✓ 图像尺寸调节完成，最终尺寸包含边框")
                     else:
-                        print(f"⚠ 当前文件格式 {current_extension} 不支持图像尺寸调节，跳过")
+                        print("⚠ 图像尺寸调节失败")
                 else:
-                    print("ℹ 图像尺寸调节未启用，跳过")
+                    print(f"⚠ 当前文件格式 {current_extension} 不支持图像尺寸调节，跳过")
             except Exception as e:
                 warning_msg = f"图像尺寸调节失败: {str(e)}"
                 print(warning_msg)
@@ -1770,20 +1750,65 @@ class AutoRenderer():
                     img = img.convert('RGBA')
                     print(f"转换后模式: {img.mode}")
                 
-                # 确定边框填充颜色
-                fill_color = (0, 0, 0, 0) if background_is_transparent else (0, 0, 0)
-                print(f"边框颜色设置为: {fill_color} (RGBA)")
+                # 如果Blender设置了透明背景，确保图像背景真正透明
+                if background_is_transparent:
+                    print("🔧 处理透明背景：移除图像中的不透明背景")
+                    # 将纯黑色背景转换为透明
+                    data = img.getdata()
+                    new_data = []
+                    for item in data:
+                        # 如果像素是纯黑色 (0,0,0) 或接近黑色，将其设为透明
+                        if item[0] <= 10 and item[1] <= 10 and item[2] <= 10:
+                            new_data.append((0, 0, 0, 0))  # 透明
+                        else:
+                            new_data.append(item)
+                    img.putdata(new_data)
+                    print("✅ 已移除黑色背景，设为透明")
                 
-                # 使用PIL的ImageOps.expand来扩展边框
-                print(f"正在添加边框，宽度: {margin_distance}")
-                img_with_border = ImageOps.expand(img, border=margin_distance, fill=fill_color)
-                print(f"边框添加成功，新尺寸: {img_with_border.size}")
+                # 确定边框填充颜色
+                # 根据Blender的透明背景设置来决定边框填充颜色
+                if background_is_transparent:
+                    fill_color = (0, 0, 0, 0)  # 透明填充
+                    print(f"边框颜色设置为: {fill_color} (RGBA) - 透明背景模式")
+                else:
+                    fill_color = (0, 0, 0, 255)  # 不透明黑色填充
+                    print(f"边框颜色设置为: {fill_color} (RGBA) - 不透明背景模式")
+                
+                # 实现图像缩放，让物体与边框的距离为指定像素
+                print(f"正在缩放图像，使物体与边框距离为: {margin_distance}像素")
+                
+                # 计算缩放后的尺寸
+                width, height = img.size
+                new_width = width - (margin_distance * 2)
+                new_height = height - (margin_distance * 2)
+                
+                # 确保缩放后的尺寸有效
+                if new_width <= 0 or new_height <= 0:
+                    print(f"⚠ 警告: 边框距离 {margin_distance} 过大，无法进行缩放")
+                    print(f"图像尺寸: {width}x{height}, 缩放后尺寸: {new_width}x{new_height}")
+                    return
+                
+                print(f"原始尺寸: {width}x{height}, 缩放后尺寸: {new_width}x{new_height}")
+                
+                # 缩放图像
+                img_scaled = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                print(f"图像缩放完成，新尺寸: {img_scaled.size}")
+                
+                # 创建新的画布，保持原始尺寸
+                canvas = Image.new('RGBA', (width, height), fill_color)
+                
+                # 将缩放后的图像居中放置
+                paste_x = margin_distance
+                paste_y = margin_distance
+                canvas.paste(img_scaled, (paste_x, paste_y), img_scaled if img_scaled.mode == 'RGBA' else None)
+                
+                print(f"图像已居中放置，位置: ({paste_x}, {paste_y})")
                 
                 # 保存修改后的图像
-                print(f"正在保存带边框的图像到: {image_path}")
-                img_with_border.save(image_path)
+                print(f"正在保存缩放后的图像到: {image_path}")
+                canvas.save(image_path)
                 print("图像保存成功")
-                print("=== 边框添加完成 ===")
+                print("=== 图像缩放边框添加完成 ===")
                 
         except FileNotFoundError:
             print(f"错误: 找不到图像文件: {image_path}")
@@ -2251,12 +2276,29 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         description="Enable to focus camera on each object before rendering",
         default=False
     ) # type: ignore
+    def update_margin_distance(self, context):
+        """检查边框距离是否超出限制，如果超出则自动调整"""
+        # 使用插件的尺寸设置而不是Blender的渲染分辨率
+        plugin_width = self.final_width
+        plugin_height = self.final_height
+        
+        # 计算最大允许的边框距离（图像最小尺寸的一半）
+        max_margin = min(plugin_width, plugin_height) // 2
+        
+        # 如果当前值超过最大值，则自动调整
+        if self.margin_distance > max_margin:
+            old_value = self.margin_distance
+            self.margin_distance = max_margin
+            print(f"⚠️ 边框距离已自动调整为最大值: {max_margin}px (基于插件尺寸: {plugin_width}x{plugin_height})")
+            print(f"   原值: {old_value}px -> 新值: {self.margin_distance}px")
+    
     margin_distance: bpy.props.IntProperty(
         name="Margin Distance (px)",
-        description="Margin distance between object and frame border in pixels",
+        description="物体与边框的距离，通过缩放图像来保持指定像素边距",
         default=0,  # Default margin value in pixels
         min=0,
-        max=1000
+        max=10000,  # 支持8K分辨率 (7680x4320)
+        update=update_margin_distance
     ) # type: ignore
     focus_only_faces: bpy.props.BoolProperty(
         name="Focus Only Objects with Faces",
@@ -2275,12 +2317,25 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
     ) # type: ignore
     
     # 图像尺寸调节
+    def update_final_dimensions(self, context):
+        """当最终尺寸改变时，检查并自动调整边框距离"""
+        # 计算最大允许的边框距离
+        max_margin = min(self.final_width, self.final_height) // 2
+        
+        # 如果当前边框距离超过最大值，则自动调整
+        if self.margin_distance > max_margin:
+            old_value = self.margin_distance
+            self.margin_distance = max_margin
+            print(f"⚠️ 边框距离已自动调整为最大值: {max_margin}px (基于新尺寸: {self.final_width}x{self.final_height})")
+            print(f"   原值: {old_value}px -> 新值: {self.margin_distance}px")
+    
     final_width: bpy.props.IntProperty(
         name="Final Width",
         description="Final output image width in pixels. The rendered image will be scaled to this size.",
         default=1920,
         min=1,
-        max=10000
+        max=10000,
+        update=update_final_dimensions
     ) # type: ignore
     
     final_height: bpy.props.IntProperty(
@@ -2288,23 +2343,11 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         description="Final output image height in pixels. The rendered image will be scaled to this size.",
         default=1080,
         min=1,
-        max=10000
+        max=10000,
+        update=update_final_dimensions
     ) # type: ignore
     
-    enable_resize: bpy.props.BoolProperty(
-        name="Enable Image Resize",
-        description="Enable to resize the final output image to the specified dimensions.",
-        default=False
-    ) # type: ignore
     
-    # 像素边距控制
-    pixel_margin: bpy.props.IntProperty(
-        name="像素边距",
-        description="相机与物体的像素边距，相机会自动调整距离以产生指定的像素边距",
-        default=0,
-        min=0,
-        max=1000
-    ) # type: ignore
     
     # 增强透视相机聚焦功能已移除
 
@@ -2393,8 +2436,7 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
                                         output_format=output_format, naming_mode=auto_render_settings.naming_mode,
                                         focus_each_object=focus_each_object,
                                         focus_only_faces=focus_only_faces, use_compositor=use_compositor, 
-                                        auto_keyframe=auto_keyframe, enable_resize=auto_render_settings.enable_resize,
-                                        pixel_margin=auto_render_settings.pixel_margin,
+                                        auto_keyframe=auto_keyframe,
                                         report_callback=self.report)
             
             print("开始执行渲染...")
@@ -2511,8 +2553,6 @@ class AUTO_RENDER_OT_GenerateKeyframesOnly(bpy.types.Operator):
                                         focus_only_faces=auto_render_settings.focus_only_faces,
                                         auto_keyframe=True,  # 强制启用关键帧
                                         naming_mode=auto_render_settings.naming_mode,
-                                        enable_resize=auto_render_settings.enable_resize,
-                                        pixel_margin=auto_render_settings.pixel_margin,
                                         report_callback=self.report)
             
             # 仅生成关键帧
