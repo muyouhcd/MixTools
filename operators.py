@@ -717,14 +717,14 @@ bpy.types.Scene.use_bounding_box = bpy.props.BoolProperty(
 bpy.types.Scene.queue_up_distance = bpy.props.FloatProperty(
     name="距离",
     description="列队移动的距离",
-    default=5
+    default=1
 )
 bpy.types.Scene.queue_up_axis = bpy.props.EnumProperty(
     name="轴向",
     items=[("X", "X轴", "在X轴上排队"),
            ("Y", "Y轴", "在Y轴上排队"),
            ("Z", "Z轴", "在Z轴上排队")],
-    default="Y"
+    default="X"
 )
 class QueueUp(bpy.types.Operator):
     bl_idname = "object.mian_queue_up"
