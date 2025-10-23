@@ -1133,6 +1133,11 @@ def register():
         description="启用套装替换模式，将同套装的物体一起替换",
         default=True
     )
+    bpy.types.Scene.enable_replacement_diagnostics = bpy.props.BoolProperty(
+        name="替换诊断",
+        description="启用替换过程诊断日志，用于排查物体消失问题",
+        default=False
+    )
     
 
 def unregister():

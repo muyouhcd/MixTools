@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import StringProperty, FloatProperty, BoolProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, PropertyGroup
-from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness, ReplaceMaterialOperator, ReplaceMaterialByKeywordOperator, ApplyAllMaterialStrengths
+from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness, ReplaceMaterialOperator, ReplaceMaterialByKeywordOperator
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 
 # 材质属性组
@@ -240,23 +240,31 @@ class CustomFunctionsPanel(Panel):
             material_operations_box = col_meterialoperation.box()
             material_operations_box.label(text="材质节点操作:", icon='NODETREE')
             
-            row1 = material_operations_box.row(align=True)
+            # Alpha相关操作统一归拢
+            alpha_box = material_operations_box.box()
+            alpha_box.label(text="Alpha通道操作:", icon='NODE_COMPOSITING')
+            
+            row1 = alpha_box.row(align=True)
             row1.operator("object.set_texture_alpha_packing", text="设置Alpha通道打包", icon='PACKAGE')
-            row1.operator("object.set_texture_interpolation", text="硬边缘采样", icon='SNAP_INCREMENT')
+            row1.operator("object.alpha_node_connector", text="连接Alpha", icon='NODE_COMPOSITING')
             
-            row2 = material_operations_box.row(align=True)
-            row2.operator("object.alpha_node_connector", text="连接Alpha", icon='NODE_COMPOSITING')
+            row2 = alpha_box.row(align=True)
             row2.operator("object.alpha_node_disconnector", text="断开Alpha", icon='TRACKING_REFINE_BACKWARDS')
+            row2.operator("object.alpha_to_skin", text="Alpha设为肤色", icon='OUTLINER_OB_ARMATURE')
             
-            row3 = material_operations_box.row(align=True)
-            row3.operator("object.alpha_to_skin", text="Alpha设为肤色", icon='OUTLINER_OB_ARMATURE')
+            row3 = alpha_box.row(align=True)
             row3.operator("object.set_material_alpha_clip", text="设置Alpha裁剪模式", icon='CLIPUV_HLT')
+            row3.operator("object.set_material_alpha_blend", text="设置Alpha混合模式", icon='SNAP_VOLUME')
             
-            row4 = material_operations_box.row(align=True)
-            row4.operator("object.set_material_alpha_blend", text="设置Alpha混合模式", icon='SNAP_VOLUME')
+            # 其他材质操作
+            other_box = material_operations_box.box()
+            other_box.label(text="其他材质操作:", icon='MATERIAL')
+            
+            row4 = other_box.row(align=True)
+            row4.operator("object.set_texture_interpolation", text="硬边缘采样", icon='SNAP_INCREMENT')
             row4.operator("object.set_material_opaque", text="设置Opaque模式", icon='MATERIAL')
             
-            row5 = material_operations_box.row(align=True)
+            row5 = other_box.row(align=True)
             row5.operator("object.set_shadow_invisible", text="设置选中物体阴影不可见", icon='GHOST_ENABLED')
             row5.operator("object.set_shadow_visible", text="设置选中物体阴影可见", icon='GHOST_DISABLED')
 
