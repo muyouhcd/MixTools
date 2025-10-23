@@ -1217,6 +1217,52 @@ class SetMaterialOpaqueMode(bpy.types.Operator):
         self.report({'INFO'}, f"已将 {changed_count} 个材质设置为Opaque模式")
         return {'FINISHED'}
 
+# 一键执行所有材质强度调整
+class ApplyAllMaterialStrengths(bpy.types.Operator):
+    bl_idname = "object.apply_all_material_strengths"
+    bl_label = "一键执行所有材质强度调整"
+    bl_description = "一次性应用所有材质强度设置（发光、粗糙度、金属度、高光、光泽度）"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        scene = context.scene
+        
+        # 获取当前场景中的强度值
+        emission_strength = scene.emission_strength
+        roughness_strength = scene.roughness_strength
+        metallic_strength = scene.metallic_strength
+        specular_strength = scene.specular_strength
+        specular_tint_strength = scene.specular_tint_strength
+        
+        # 创建各个操作符的实例
+        emission_op = SetEmissionStrength()
+        roughness_op = SetMaterialRoughness()
+        metallic_op = SetMaterialMetallic()
+        specular_op = SetMaterialSpecular()
+        specular_tint_op = SetMaterialSpecularTint()
+        
+        # 设置操作符的参数
+        emission_op.strength = emission_strength
+        roughness_op.roughness = roughness_strength
+        metallic_op.metallic = metallic_strength
+        specular_op.specular = specular_strength
+        specular_tint_op.specular_tint = specular_tint_strength
+        
+        # 执行所有操作
+        try:
+            emission_op.execute(context)
+            roughness_op.execute(context)
+            metallic_op.execute(context)
+            specular_op.execute(context)
+            specular_tint_op.execute(context)
+            
+            self.report({'INFO'}, f"已应用所有材质强度设置：发光={emission_strength:.2f}, 粗糙度={roughness_strength:.2f}, 金属度={metallic_strength:.2f}, 高光={specular_strength:.2f}, 光泽度={specular_tint_strength:.2f}")
+            return {'FINISHED'}
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"执行材质强度调整时出错: {str(e)}")
+            return {'CANCELLED'}
+
 def register():
     # 注册操作符类
     classes = [
@@ -1244,7 +1290,8 @@ def register():
         ReplaceMaterialByKeywordOperator,
         SplitMeshByMaterialOperator,
         SetTextureAlphaPacking,
-        SetMaterialOpaqueMode
+        SetMaterialOpaqueMode,
+        ApplyAllMaterialStrengths
     ]
     
     for cls in classes:
@@ -1256,6 +1303,7 @@ def register():
 def unregister():
     # 注销操作符类（反向顺序）
     classes = [
+        ApplyAllMaterialStrengths,
         SetMaterialOpaqueMode,
         SplitMeshByMaterialOperator,
         ReplaceMaterialByKeywordOperator,
