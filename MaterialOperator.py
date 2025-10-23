@@ -30,9 +30,9 @@ bpy.types.Scene.metallic_strength = bpy.props.FloatProperty(
 bpy.types.Scene.specular_strength = bpy.props.FloatProperty(
     name="强度",
     description="设置高光强度",
-    default=0.5,
+    default=0.0,
     min=0.0,
-    max=2.0
+    max=1.0
         )
 
 bpy.types.Scene.specular_tint_strength = bpy.props.FloatProperty(
@@ -1234,27 +1234,13 @@ class ApplyAllMaterialStrengths(bpy.types.Operator):
         specular_strength = scene.specular_strength
         specular_tint_strength = scene.specular_tint_strength
         
-        # 创建各个操作符的实例
-        emission_op = SetEmissionStrength()
-        roughness_op = SetMaterialRoughness()
-        metallic_op = SetMaterialMetallic()
-        specular_op = SetMaterialSpecular()
-        specular_tint_op = SetMaterialSpecularTint()
-        
-        # 设置操作符的参数
-        emission_op.strength = emission_strength
-        roughness_op.roughness = roughness_strength
-        metallic_op.metallic = metallic_strength
-        specular_op.specular = specular_strength
-        specular_tint_op.specular_tint = specular_tint_strength
-        
-        # 执行所有操作
         try:
-            emission_op.execute(context)
-            roughness_op.execute(context)
-            metallic_op.execute(context)
-            specular_op.execute(context)
-            specular_tint_op.execute(context)
+            # 直接调用各个操作符的核心方法
+            self.apply_emission_strength(context, emission_strength)
+            self.apply_roughness_strength(context, roughness_strength)
+            self.apply_metallic_strength(context, metallic_strength)
+            self.apply_specular_strength(context, specular_strength)
+            self.apply_specular_tint_strength(context, specular_tint_strength)
             
             self.report({'INFO'}, f"已应用所有材质强度设置：发光={emission_strength:.2f}, 粗糙度={roughness_strength:.2f}, 金属度={metallic_strength:.2f}, 高光={specular_strength:.2f}, 光泽度={specular_tint_strength:.2f}")
             return {'FINISHED'}
@@ -1262,6 +1248,62 @@ class ApplyAllMaterialStrengths(bpy.types.Operator):
         except Exception as e:
             self.report({'ERROR'}, f"执行材质强度调整时出错: {str(e)}")
             return {'CANCELLED'}
+    
+    def apply_emission_strength(self, context, strength):
+        """应用发光强度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'EMISSION':
+                                node.inputs['Strength'].default_value = strength
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Emission Strength'].default_value = strength
+    
+    def apply_roughness_strength(self, context, roughness):
+        """应用粗糙度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Roughness'].default_value = roughness
+    
+    def apply_metallic_strength(self, context, metallic):
+        """应用金属度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Metallic'].default_value = metallic
+    
+    def apply_specular_strength(self, context, specular):
+        """应用高光强度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Specular'].default_value = specular
+    
+    def apply_specular_tint_strength(self, context, specular_tint):
+        """应用光泽度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                # 确保使用正确的输入名称
+                                if 'Specular Tint' in node.inputs:
+                                    node.inputs['Specular Tint'].default_value = specular_tint
+                                elif 'Specular Tint Weight' in node.inputs:
+                                    node.inputs['Specular Tint Weight'].default_value = specular_tint
 
 def register():
     # 注册操作符类
