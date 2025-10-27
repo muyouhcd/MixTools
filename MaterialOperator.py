@@ -1305,6 +1305,142 @@ class ApplyAllMaterialStrengths(bpy.types.Operator):
                                 elif 'Specular Tint Weight' in node.inputs:
                                     node.inputs['Specular Tint Weight'].default_value = specular_tint
 
+# 一键调整体素模型材质
+class ApplyVoxelModelMaterial(bpy.types.Operator):
+    bl_idname = "object.apply_voxel_model_material"
+    bl_label = "一键调整体素模型材质"
+    bl_description = "一键调整体素模型材质：先调整材质强度，再设置Alpha通道打包，最后设置硬边缘采样"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def execute(self, context):
+        try:
+            # 步骤1：执行一键调整材质强度
+            self.report({'INFO'}, "步骤1: 调整材质强度...")
+            self.apply_all_material_strengths(context)
+            
+            # 步骤2：设置Alpha通道打包
+            self.report({'INFO'}, "步骤2: 设置Alpha通道打包...")
+            self.apply_alpha_packing(context)
+            
+            # 步骤3：设置硬边缘采样
+            self.report({'INFO'}, "步骤3: 设置硬边缘采样...")
+            self.apply_hard_edge_sampling(context)
+            
+            self.report({'INFO'}, "体素模型材质调整完成！")
+            return {'FINISHED'}
+            
+        except Exception as e:
+            self.report({'ERROR'}, f"调整体素模型材质时出错: {str(e)}")
+            return {'CANCELLED'}
+    
+    def apply_all_material_strengths(self, context):
+        """应用所有材质强度设置"""
+        # 直接调用现有的ApplyAllMaterialStrengths操作符的核心方法
+        scene = context.scene
+        
+        # 获取当前场景中的强度值
+        emission_strength = scene.emission_strength
+        roughness_strength = scene.roughness_strength
+        metallic_strength = scene.metallic_strength
+        specular_strength = scene.specular_strength
+        specular_tint_strength = scene.specular_tint_strength
+        
+        # 直接应用各种材质强度（复制ApplyAllMaterialStrengths的逻辑）
+        self._apply_emission_strength(context, emission_strength)
+        self._apply_roughness_strength(context, roughness_strength)
+        self._apply_metallic_strength(context, metallic_strength)
+        self._apply_specular_strength(context, specular_strength)
+        self._apply_specular_tint_strength(context, specular_tint_strength)
+    
+    def _apply_emission_strength(self, context, strength):
+        """应用发光强度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'EMISSION':
+                                node.inputs['Strength'].default_value = strength
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Emission Strength'].default_value = strength
+    
+    def _apply_roughness_strength(self, context, roughness):
+        """应用粗糙度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Roughness'].default_value = roughness
+    
+    def _apply_metallic_strength(self, context, metallic):
+        """应用金属度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Metallic'].default_value = metallic
+    
+    def _apply_specular_strength(self, context, specular):
+        """应用高光强度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                node.inputs['Specular'].default_value = specular
+    
+    def _apply_specular_tint_strength(self, context, specular_tint):
+        """应用光泽度"""
+        for obj in context.selected_objects:
+            if obj.type == 'MESH' and obj.data.materials:
+                for mat in obj.data.materials:
+                    if mat and mat.use_nodes:
+                        for node in mat.node_tree.nodes:
+                            if node.type == 'BSDF_PRINCIPLED':
+                                # 确保使用正确的输入名称
+                                if 'Specular Tint' in node.inputs:
+                                    node.inputs['Specular Tint'].default_value = specular_tint
+                                elif 'Specular Tint Weight' in node.inputs:
+                                    node.inputs['Specular Tint Weight'].default_value = specular_tint
+    
+    def apply_alpha_packing(self, context):
+        """设置Alpha通道打包"""
+        selected_objects = context.selected_objects
+        changed_count = 0
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                for slot in obj.material_slots:
+                    material = slot.material
+                    if material and material.use_nodes:
+                        for node in material.node_tree.nodes:
+                            if node.type == 'TEX_IMAGE' and node.image:
+                                node.image.alpha_mode = 'CHANNEL_PACKED'
+                                changed_count += 1
+    
+    def apply_hard_edge_sampling(self, context):
+        """设置硬边缘采样"""
+        selected_objects = context.selected_objects
+        
+        for obj in selected_objects:
+            if obj.type == 'MESH':
+                mat_slots = obj.material_slots
+                
+                for ms in mat_slots:
+                    mat = ms.material
+                    
+                    if mat and mat.node_tree:
+                        node_tree = mat.node_tree
+                        
+                        for node in node_tree.nodes:
+                            if node.type == 'TEX_IMAGE':
+                                node.interpolation = 'Closest'
+
 def register():
     # 注册操作符类
     classes = [
@@ -1333,7 +1469,8 @@ def register():
         SplitMeshByMaterialOperator,
         SetTextureAlphaPacking,
         SetMaterialOpaqueMode,
-        ApplyAllMaterialStrengths
+        ApplyAllMaterialStrengths,
+        ApplyVoxelModelMaterial
     ]
     
     for cls in classes:
@@ -1345,6 +1482,7 @@ def register():
 def unregister():
     # 注销操作符类（反向顺序）
     classes = [
+        ApplyVoxelModelMaterial,
         ApplyAllMaterialStrengths,
         SetMaterialOpaqueMode,
         SplitMeshByMaterialOperator,

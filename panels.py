@@ -1,7 +1,7 @@
 import bpy
 from bpy.props import StringProperty, FloatProperty, BoolProperty, EnumProperty, PointerProperty, CollectionProperty
 from bpy.types import Panel, PropertyGroup
-from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness, ReplaceMaterialOperator, ReplaceMaterialByKeywordOperator
+from .MaterialOperator import SetEmissionStrength, SetMaterialRoughness, ReplaceMaterialOperator, ReplaceMaterialByKeywordOperator, ApplyVoxelModelMaterial
 from .renderconfig import BATCH_RESOLUTION_OT_ExecuteButton
 
 # 材质属性组
@@ -209,6 +209,11 @@ class CustomFunctionsPanel(Panel):
                                    icon='TRIA_DOWN' if context.scene.meterialoperation_expand else 'TRIA_RIGHT')
 
         if context.scene.meterialoperation_expand:
+            # 体素模型材质一键调整
+            voxel_material_box = col_meterialoperation.box()
+            voxel_material_box.label(text="体素模型材质工具:", icon='CUBE')
+            voxel_material_box.operator("object.apply_voxel_model_material", text="一键调整体素模型材质", icon='SHADERFX')
+            
             # 材质强度调整
             emission_box = col_meterialoperation.box()
             emission_box.label(text="材质强度调整:", icon='MATERIAL')
@@ -545,9 +550,6 @@ class CustomFunctionsPanel(Panel):
                           icon='TRIA_DOWN' if context.scene.animation_tools_expand else 'TRIA_RIGHT')
         
         if scene.animation_tools_expand:
-
-            
-
 
             # 动画清理工具
             animation_tools_box = col_animation.box()
