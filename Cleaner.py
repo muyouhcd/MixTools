@@ -7,21 +7,7 @@ class UVCleaner(bpy.types.Operator):
     bl_idname = "object.uv_cleaner"
     bl_label = "UV清理"
     
-    def apply_transforms_recursive(self, obj):
-        obj.select_set(True)
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        obj.select_set(False)
-
-        if obj.children:
-            for child in obj.children:
-                self.apply_transforms_recursive(child)
-
     def execute(self, context):
-        # print("开始处理顶点")
-        # bpy.ops.object.vox_operation()
-        # print("开始处理碰撞")
-        # bpy.ops.object.mian_parent_byboundingbox()
         def validate_and_fix_uvs():
             for mesh in bpy.data.meshes:
                 for uv_layer in mesh.uv_layers:
@@ -39,7 +25,7 @@ class UVCleaner(bpy.types.Operator):
         self.report({'INFO'}, "UV已清理完成")
         return {'FINISHED'}
 
-# Call the function to validate and fix UVs
+
 class OBJECT_OT_clean_meshes_without_faces(bpy.types.Operator):
     """清理没有面的物体"""
     bl_idname = "object.clean_meshes_without_faces"
@@ -122,9 +108,7 @@ class UNUSED_MATERIAL_SLOTS_OT_Remove(bpy.types.Operator):
                 used_material_slots = [obj.material_slots[index].material for index in sorted(used_material_indices)]
 
                 for _ in range(len(obj.material_slots)):
-
                     bpy.ops.object.material_slot_remove()
-                    # bpy.ops.object.material_slot_remove({'object': obj})
 
                 for material in used_material_slots:
                     obj.data.materials.append(material)
@@ -135,9 +119,9 @@ class UNUSED_MATERIAL_SLOTS_OT_Remove(bpy.types.Operator):
 
         return {'FINISHED'}
 
-#清理无子集空物体
+
 class OBJECT_OT_clean_empty(bpy.types.Operator):
-    """My Object Empty Deleting Script"""
+    """清理无子集空物体"""
     bl_idname = "object.clean_empty"
     bl_label = "清除无子集空物体"
     bl_options = {'REGISTER', 'UNDO'}

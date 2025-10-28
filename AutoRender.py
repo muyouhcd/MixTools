@@ -556,7 +556,6 @@ class AutoRenderer():
             
             # 获取相机数据
             camera_data = self.cam.data
-            margin = bpy.context.scene.auto_render_settings.margin_distance
             
             # 计算物体的边界框
             bbox_min, bbox_max = self._calculate_object_bbox(obj)
@@ -571,11 +570,11 @@ class AutoRenderer():
             print(f"ℹ 物体边界框: 中心={bbox_center}, 尺寸={bbox_size}")
             
             if camera_data.type == 'ORTHO':
-                # 正交相机：不调整参数，边距通过图像处理添加
-                print("ℹ 正交相机：保持原始参数，边距通过图像处理添加")
+                # 正交相机：不调整参数
+                print("ℹ 正交相机：保持原始参数")
             else:
                 # 透视相机：只调整距离，不改变朝向和焦距
-                self._adjust_perspective_camera_position_only(bbox_center, bbox_size, margin)
+                self._adjust_perspective_camera_position_only(bbox_center, bbox_size, 0)
             
             print("✓ 相机参数调整完成")
             
@@ -1068,22 +1067,6 @@ class AutoRenderer():
         else:
             print("ℹ 透明背景未启用，边框将使用不透明填充")
         
-        # 检查边框距离是否超出限制
-        margin_distance = bpy.context.scene.auto_render_settings.margin_distance
-        plugin_width = bpy.context.scene.auto_render_settings.final_width
-        plugin_height = bpy.context.scene.auto_render_settings.final_height
-        
-        # 计算最大允许的边框距离（基于插件设置的渲染尺寸）
-        max_margin = min(plugin_width, plugin_height) // 2
-        
-        if margin_distance > max_margin:
-            error_msg = f"边框距离 {margin_distance}px 超出限制！最大允许值: {max_margin}px (基于渲染尺寸: {plugin_width}x{plugin_height})"
-            print(f"❌ 错误: {error_msg}")
-            self.report_info({'ERROR'}, error_msg)
-            raise ValueError(error_msg)
-        
-        print(f"✅ 边框距离检查通过: {margin_distance}px (最大允许: {max_margin}px)")
-        
         # 确保相机被激活
         print(f"ℹ 确保相机 '{self.cam.name}' 被激活...")
         bpy.context.scene.camera = self.cam
@@ -1254,20 +1237,19 @@ class AutoRenderer():
                 # 设置渲染输出路径
                 bpy.context.scene.render.filepath = filepath
                 
-                # 使用插件的尺寸设置进行渲染，忽略工程的渲染尺寸设置
-                plugin_width = bpy.context.scene.auto_render_settings.final_width
-                plugin_height = bpy.context.scene.auto_render_settings.final_height
+                # 使用最终尺寸作为渲染尺寸
+                final_width = bpy.context.scene.auto_render_settings.final_width
+                final_height = bpy.context.scene.auto_render_settings.final_height
                 
                 # 保存原始分辨率设置
                 original_width = bpy.context.scene.render.resolution_x
                 original_height = bpy.context.scene.render.resolution_y
                 
-                # 设置插件指定的分辨率
-                bpy.context.scene.render.resolution_x = plugin_width
-                bpy.context.scene.render.resolution_y = plugin_height
+                # 设置渲染分辨率为最终尺寸
+                bpy.context.scene.render.resolution_x = final_width
+                bpy.context.scene.render.resolution_y = final_height
                 
-                print(f"🔧 使用插件尺寸设置进行渲染: {plugin_width} x {plugin_height}")
-                print(f"ℹ 原始工程尺寸: {original_width} x {original_height} (已忽略)")
+                print(f"🔧 设置渲染分辨率为最终尺寸: {final_width} x {final_height}")
                 
                 # 根据输出格式设置渲染格式
                 if self.output_format in ['EXR', 'EXR_TO_PNG']:
@@ -1483,46 +1465,19 @@ class AutoRenderer():
                 # 转换失败不影响主要功能，继续执行
                 print("继续执行，忽略转换错误")
             
-            # 图像尺寸调节（优先处理）
-            # 添加边框并保存图像（在尺寸调节之前）
-            try:
-                margin_distance = bpy.context.scene.auto_render_settings.margin_distance
-                print(f"🔍 调试信息 - 边框距离参数: {margin_distance}")
-                print(f"🔍 调试信息 - 边框距离类型: {type(margin_distance)}")
-                
-                if margin_distance > 0:
-                    print(f"✅ 边框距离大于0，开始添加边框")
-                else:
-                    print(f"⚠️ 边框距离为0或负数，跳过边框添加")
-                
-                # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
-                current_extension = os.path.splitext(filepath)[1].lower()
-                print(f"🔍 调试信息 - 文件扩展名: {current_extension}")
-                if current_extension in ['.png', '.tga']:
-                    print(f"ℹ 检测到{current_extension.upper()}格式，支持边框添加")
-                    self.add_image_border(filepath, margin_distance, background_is_transparent)
-                    print("边框添加成功")
-                else:
-                    print(f"⚠ 当前文件格式 {current_extension} 不支持边框添加，跳过")
-            except Exception as e:
-                warning_msg = f"添加边框失败: {str(e)}"
-                print(warning_msg)
-                self.report_info({'WARNING'}, warning_msg)
-                # 边框添加失败不影响主要功能，继续执行
-                print("继续执行，忽略边框添加错误")
-            
-            # 图像尺寸调节（自动执行）
+            # 图像尺寸调节（先处理尺寸）
             try:
                 final_width = bpy.context.scene.auto_render_settings.final_width
                 final_height = bpy.context.scene.auto_render_settings.final_height
-                print(f"开始图像尺寸调节，目标最终尺寸: {final_width} x {final_height}（包含边框）")
+                
+                print(f"开始图像尺寸调节，目标最终尺寸: {final_width} x {final_height}")
                 
                 # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
                 current_extension = os.path.splitext(filepath)[1].lower()
                 if current_extension in ['.png', '.tga']:
                     print(f"ℹ 检测到{current_extension.upper()}格式，支持图像尺寸调节")
                     if self.resize_image(filepath, final_width, final_height):
-                        print("✓ 图像尺寸调节完成，最终尺寸包含边框")
+                        print("✓ 图像尺寸调节完成")
                     else:
                         print("⚠ 图像尺寸调节失败")
                 else:
@@ -1533,7 +1488,7 @@ class AutoRenderer():
                 self.report_info({'WARNING'}, warning_msg)
                 # 尺寸调节失败不影响主要功能，继续执行
                 print("继续执行，忽略尺寸调节错误")
-
+            
             # 恢复集合内其他物体的原始渲染可见性
             print("恢复原始渲染可见性...")
             for other_obj, visibility in original_hide_render.items():
@@ -1702,121 +1657,6 @@ class AutoRenderer():
             import traceback
             traceback.print_exc()
             return False
-
-    def add_image_border(self, image_path, margin_distance, background_is_transparent):
-        """在图像周围添加边框，并根据背景透明度调整边框"""
-        print(f"=== 开始边框添加处理 ===")
-        print(f"图像路径: {image_path}")
-        print(f"边框距离: {margin_distance}像素")
-        print(f"背景透明: {background_is_transparent}")
-        
-        # 如果没有设置边框距离，则跳过
-        if margin_distance <= 0:
-            print(f"边框距离为 {margin_distance}，跳过边框添加")
-            return
-            
-        # 检查文件是否存在
-        if not os.path.exists(image_path):
-            print(f"错误: 图像文件不存在: {image_path}")
-            return
-            
-        # 检查文件格式
-        file_extension = os.path.splitext(image_path)[1].lower()
-        print(f"文件扩展名: {file_extension}")
-        if file_extension == '.exr':
-            print("⚠ 警告: EXR格式不支持PIL边框添加，跳过边框功能")
-            print("建议: 使用Blender内置的渲染边框设置或保持原始尺寸")
-            return
-            
-        # 检查PIL库是否可用
-        if not check_pil_availability():
-            print("PIL库不可用，跳过边框添加功能")
-            return
-            
-        # 确保PIL库已导入
-        if not PIL_IMPORTED:
-            print("PIL库未导入，无法处理图像")
-            return
-            
-        print(f"尝试为图像添加边框: {image_path}")
-        
-        try:
-            with Image.open(image_path) as img:
-                print(f"成功打开图像，尺寸: {img.size}, 模式: {img.mode}")
-                
-                # 确保图像是RGBA模式以支持透明度
-                if img.mode != 'RGBA':
-                    print(f"图像模式不是RGBA，正在从 {img.mode} 转换为RGBA")
-                    img = img.convert('RGBA')
-                    print(f"转换后模式: {img.mode}")
-                
-                # 如果Blender设置了透明背景，确保图像背景真正透明
-                if background_is_transparent:
-                    print("🔧 处理透明背景：移除图像中的不透明背景")
-                    # 将纯黑色背景转换为透明
-                    data = img.getdata()
-                    new_data = []
-                    for item in data:
-                        # 如果像素是纯黑色 (0,0,0) 或接近黑色，将其设为透明
-                        if item[0] <= 10 and item[1] <= 10 and item[2] <= 10:
-                            new_data.append((0, 0, 0, 0))  # 透明
-                        else:
-                            new_data.append(item)
-                    img.putdata(new_data)
-                    print("✅ 已移除黑色背景，设为透明")
-                
-                # 确定边框填充颜色
-                # 根据Blender的透明背景设置来决定边框填充颜色
-                if background_is_transparent:
-                    fill_color = (0, 0, 0, 0)  # 透明填充
-                    print(f"边框颜色设置为: {fill_color} (RGBA) - 透明背景模式")
-                else:
-                    fill_color = (0, 0, 0, 255)  # 不透明黑色填充
-                    print(f"边框颜色设置为: {fill_color} (RGBA) - 不透明背景模式")
-                
-                # 实现图像缩放，让物体与边框的距离为指定像素
-                print(f"正在缩放图像，使物体与边框距离为: {margin_distance}像素")
-                
-                # 计算缩放后的尺寸
-                width, height = img.size
-                new_width = width - (margin_distance * 2)
-                new_height = height - (margin_distance * 2)
-                
-                # 确保缩放后的尺寸有效
-                if new_width <= 0 or new_height <= 0:
-                    print(f"⚠ 警告: 边框距离 {margin_distance} 过大，无法进行缩放")
-                    print(f"图像尺寸: {width}x{height}, 缩放后尺寸: {new_width}x{new_height}")
-                    return
-                
-                print(f"原始尺寸: {width}x{height}, 缩放后尺寸: {new_width}x{new_height}")
-                
-                # 缩放图像
-                img_scaled = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                print(f"图像缩放完成，新尺寸: {img_scaled.size}")
-                
-                # 创建新的画布，保持原始尺寸
-                canvas = Image.new('RGBA', (width, height), fill_color)
-                
-                # 将缩放后的图像居中放置
-                paste_x = margin_distance
-                paste_y = margin_distance
-                canvas.paste(img_scaled, (paste_x, paste_y), img_scaled if img_scaled.mode == 'RGBA' else None)
-                
-                print(f"图像已居中放置，位置: ({paste_x}, {paste_y})")
-                
-                # 保存修改后的图像
-                print(f"正在保存缩放后的图像到: {image_path}")
-                canvas.save(image_path)
-                print("图像保存成功")
-                print("=== 图像缩放边框添加完成 ===")
-                
-        except FileNotFoundError:
-            print(f"错误: 找不到图像文件: {image_path}")
-            return
-        except Exception as e:
-            print(f"添加边框时发生错误: {type(e).__name__}: {str(e)}")
-            traceback.print_exc()
-            return
 
     def auto_render(self):
         """
@@ -2276,30 +2116,6 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         description="Enable to focus camera on each object before rendering",
         default=False
     ) # type: ignore
-    def update_margin_distance(self, context):
-        """检查边框距离是否超出限制，如果超出则自动调整"""
-        # 使用插件的尺寸设置而不是Blender的渲染分辨率
-        plugin_width = self.final_width
-        plugin_height = self.final_height
-        
-        # 计算最大允许的边框距离（图像最小尺寸的一半）
-        max_margin = min(plugin_width, plugin_height) // 2
-        
-        # 如果当前值超过最大值，则自动调整
-        if self.margin_distance > max_margin:
-            old_value = self.margin_distance
-            self.margin_distance = max_margin
-            print(f"⚠️ 边框距离已自动调整为最大值: {max_margin}px (基于插件尺寸: {plugin_width}x{plugin_height})")
-            print(f"   原值: {old_value}px -> 新值: {self.margin_distance}px")
-    
-    margin_distance: bpy.props.IntProperty(
-        name="Margin Distance (px)",
-        description="物体与边框的距离，通过缩放图像来保持指定像素边距",
-        default=0,  # Default margin value in pixels
-        min=0,
-        max=10000,  # 支持8K分辨率 (7680x4320)
-        update=update_margin_distance
-    ) # type: ignore
     focus_only_faces: bpy.props.BoolProperty(
         name="Focus Only Objects with Faces",
         description="When enabled, only focus on objects that have faces, ignoring empty objects, points, and lines. This is useful when parent objects are empty and you want to focus on the actual visible geometry.",
@@ -2318,16 +2134,8 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
     
     # 图像尺寸调节
     def update_final_dimensions(self, context):
-        """当最终尺寸改变时，检查并自动调整边框距离"""
-        # 计算最大允许的边框距离
-        max_margin = min(self.final_width, self.final_height) // 2
-        
-        # 如果当前边框距离超过最大值，则自动调整
-        if self.margin_distance > max_margin:
-            old_value = self.margin_distance
-            self.margin_distance = max_margin
-            print(f"⚠️ 边框距离已自动调整为最大值: {max_margin}px (基于新尺寸: {self.final_width}x{self.final_height})")
-            print(f"   原值: {old_value}px -> 新值: {self.margin_distance}px")
+        """当最终尺寸改变时的回调"""
+        pass
     
     final_width: bpy.props.IntProperty(
         name="Final Width",
@@ -2371,7 +2179,6 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
         print(f"聚焦到每个物体: {auto_render_settings.focus_each_object}")
         print(f"仅聚焦有面的物体: {auto_render_settings.focus_only_faces}")
         print(f"使用合成器: {auto_render_settings.use_compositor}")
-        print(f"边框距离: {auto_render_settings.margin_distance}")
         print(f"自动关键帧: {auto_render_settings.auto_keyframe}")
 
         try:

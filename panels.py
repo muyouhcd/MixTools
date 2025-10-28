@@ -884,26 +884,6 @@ class CustomFunctionsPanel(Panel):
                 final_size_row.prop(bpy.context.scene.auto_render_settings, "final_width", text="宽度")
                 final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
                 
-                # 边框距离设置
-                final_size_row = final_size_col.row(align=True)
-                final_size_row.prop(bpy.context.scene.auto_render_settings, "margin_distance", text="边框距离")
-                
-                # 动态显示最大边框距离限制
-                final_width = bpy.context.scene.auto_render_settings.final_width
-                final_height = bpy.context.scene.auto_render_settings.final_height
-                max_margin = min(final_width, final_height) // 2
-                margin_distance = bpy.context.scene.auto_render_settings.margin_distance
-                
-                if margin_distance > max_margin:
-                    warning_row = final_size_col.row(align=True)
-                    warning_row.label(text=f"⚠️ 边框距离过大！最大允许: {max_margin}px", icon='ERROR')
-                else:
-                    info_row = final_size_col.row(align=True)
-                    info_row.label(text=f"最大允许边框距离: {max_margin}px (基于尺寸: {final_width}x{final_height})")
-                
-                final_size_row = final_size_col.row(align=True)
-                final_size_row.label(text="(缩放图像保持边距)")
-                
                 # 渲染对象
                 render_col = box_autorender.column()
                 render_row = render_col.row(align=True)
