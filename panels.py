@@ -872,18 +872,7 @@ class CustomFunctionsPanel(Panel):
                 elif bpy.context.scene.auto_render_settings.output_format == 'EXR_TO_PNG':
                     exr_to_png_info = output_col.box()
                     exr_to_png_info.label(text="EXR→PNG模式特性:", icon='INFO')
-                    exr_to_png_info.label(text="• 先渲染为EXR，完美支持透明通道")
-                    exr_to_png_info.label(text="• 自动转换为PNG，解决alpha硬裁切问题")
-                    exr_to_png_info.label(text="• 支持图像尺寸调节和边框添加")
-                    exr_to_png_info.label(text="• 最终输出为PNG格式")
 
-                # 最终图像尺寸设置
-                final_size_col = box_autorender.column(align=True)
-                # 图像尺寸设置（始终显示）
-                final_size_row = final_size_col.row(align=True)
-                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_width", text="宽度")
-                final_size_row.prop(bpy.context.scene.auto_render_settings, "final_height", text="高度")
-                
                 # 渲染对象
                 render_col = box_autorender.column()
                 render_row = render_col.row(align=True)
@@ -895,9 +884,8 @@ class CustomFunctionsPanel(Panel):
                 # 功能选项 - 放在一排
                 options_row = camera_col.row()
                 options_row.prop(bpy.context.scene.auto_render_settings, "focus_each_object", text="聚焦到物体")
-                options_row.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦有面")
+                options_row.prop(bpy.context.scene.auto_render_settings, "focus_only_faces", text="仅聚焦可渲染")
                 options_row.prop(bpy.context.scene.auto_render_settings, "auto_keyframe", text="自动关键帧")
-                options_row.prop(bpy.context.scene.auto_render_settings, "use_compositor", text="合成器效果")
                 
                 # 透视相机增强聚焦选项
                 if bpy.context.scene.auto_render_settings.focus_each_object:

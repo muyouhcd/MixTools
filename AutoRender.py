@@ -59,7 +59,7 @@ class AutoRenderer():
     def __init__(self, collections: list, camera_name="Camera", 
                     output_path="./", output_name="", output_format="PNG",
                                          naming_mode='AUTO', focus_each_object=False,
-                     focus_only_faces=False, use_compositor=True, auto_keyframe=False, 
+                     focus_only_faces=False, auto_keyframe=False, 
                      render_each_object_individually=False,
                      report_callback=None) -> None:
         """
@@ -89,7 +89,6 @@ class AutoRenderer():
         self.naming_mode = naming_mode
         self.focus_each_object = focus_each_object
         self.focus_only_faces = focus_only_faces
-        self.use_compositor = use_compositor
         self.auto_keyframe = auto_keyframe
         self.render_each_object_individually = render_each_object_individually
         self.report_callback = report_callback
@@ -103,82 +102,6 @@ class AutoRenderer():
         # 渲染状态标志
         self.is_rendering = False
         self.intended_collection = None
-        
-    def convert_exr_to_png(self, exr_filepath):
-        """将EXR文件转换为PNG格式"""
-        try:
-            print(f"开始将EXR转换为PNG: {exr_filepath}")
-            
-            # 检查EXR文件是否存在
-            if not os.path.exists(exr_filepath):
-                print(f"❌ EXR文件不存在: {exr_filepath}")
-                return False
-            
-            # 生成PNG文件路径
-            png_filepath = exr_filepath.replace('.exr', '.png')
-            print(f"PNG输出路径: {png_filepath}")
-            
-            # 使用Blender内置的图像处理功能进行转换
-            try:
-                # 加载EXR图像
-                exr_image = bpy.data.images.load(exr_filepath, check_existing=False)
-                print(f"✓ EXR图像加载成功: {exr_image.name}")
-                
-                # 设置PNG格式
-                exr_image.file_format = 'PNG'
-                exr_image.filepath_raw = png_filepath
-                
-                # 保存为PNG
-                exr_image.save()
-                print(f"✓ PNG图像保存成功: {png_filepath}")
-                
-                # 清理内存中的图像
-                bpy.data.images.remove(exr_image)
-                
-                # 删除原始EXR文件
-                if os.path.exists(exr_filepath):
-                    os.remove(exr_filepath)
-                    print(f"✓ 原始EXR文件已删除: {exr_filepath}")
-                
-                return True
-                
-            except Exception as e:
-                print(f"⚠ Blender内置转换失败: {str(e)}")
-                print("尝试使用PIL库进行转换...")
-                
-                # 回退到PIL库转换
-                if check_pil_availability():
-                    try:
-                        from PIL import Image
-                        
-                        with Image.open(exr_filepath) as img:
-                            # 确保图像是RGBA模式
-                            if img.mode != 'RGBA':
-                                img = img.convert('RGBA')
-                            
-                            # 保存为PNG
-                            img.save(png_filepath, 'PNG', optimize=True)
-                            print(f"✓ PIL转换成功: {png_filepath}")
-                            
-                            # 删除原始EXR文件
-                            if os.path.exists(exr_filepath):
-                                os.remove(exr_filepath)
-                                print(f"✓ 原始EXR文件已删除: {exr_filepath}")
-                            
-                            return True
-                            
-                    except Exception as pil_error:
-                        print(f"❌ PIL转换也失败: {str(pil_error)}")
-                        return False
-                else:
-                    print("❌ PIL库不可用，无法进行转换")
-                    return False
-                    
-        except Exception as e:
-            print(f"❌ EXR转PNG过程中发生错误: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
         
     def generate_filename(self, top_parent_name, object_name):
         """根据命名模式生成文件名"""
@@ -1202,87 +1125,25 @@ class AutoRenderer():
                 filename = self.generate_filename(top_parent_name, objects[0].name)
                 
                 # 根据输出格式确定文件扩展名和路径
-                if self.output_format == 'EXR_TO_PNG':
-                    # EXR→PNG模式：先渲染为EXR，然后转换
-                    temp_extension = 'exr'
-                    final_extension = 'png'
-                    is_exr_to_png_mode = True
-                elif self.output_format == 'EXR':
-                    file_extension = 'exr'
-                    is_exr_to_png_mode = False
-                else:
-                    file_extension = self.output_format.lower()
-                    is_exr_to_png_mode = False
-                
-                # 生成临时文件路径（用于渲染）
-                if is_exr_to_png_mode:
-                    temp_filepath = os.path.join(self.output_path, "{}.{}".format(filename, temp_extension))
-                    final_filepath = os.path.join(self.output_path, "{}.{}".format(filename, final_extension))
-                    filepath = temp_filepath  # 渲染时使用临时EXR路径
-                else:
-                    filepath = os.path.join(self.output_path, "{}.{}".format(filename, file_extension))
+                file_extension = self.output_format.lower()
+                filepath = os.path.join(self.output_path, "{}.{}".format(filename, file_extension))
                 
                 print(f"命名模式: {self.naming_mode}")
                 print(f"顶级父级名称: {top_parent_name}")
                 print(f"物体名称: {objects[0].name}")
                 print(f"生成的文件名: {filename}")
                 print(f"输出格式: {self.output_format}")
-                if is_exr_to_png_mode:
-                    print(f"临时EXR路径: {temp_filepath}")
-                    print(f"最终PNG路径: {final_filepath}")
-                else:
-                    print(f"输出路径: {filepath}")
+                print(f"输出路径: {filepath}")
                 print(f"准备保存渲染结果到: {filepath}")
 
                 # 设置渲染输出路径
                 bpy.context.scene.render.filepath = filepath
                 
-                # 使用最终尺寸作为渲染尺寸
-                final_width = bpy.context.scene.auto_render_settings.final_width
-                final_height = bpy.context.scene.auto_render_settings.final_height
-                
-                # 保存原始分辨率设置
-                original_width = bpy.context.scene.render.resolution_x
-                original_height = bpy.context.scene.render.resolution_y
-                
-                # 设置渲染分辨率为最终尺寸
-                bpy.context.scene.render.resolution_x = final_width
-                bpy.context.scene.render.resolution_y = final_height
-                
-                print(f"🔧 设置渲染分辨率为最终尺寸: {final_width} x {final_height}")
+                # 使用 Blender 的默认渲染尺寸，不进行任何修改
+                print(f"🔧 使用 Blender 默认渲染尺寸: {bpy.context.scene.render.resolution_x} x {bpy.context.scene.render.resolution_y}")
                 
                 # 根据输出格式设置渲染格式
-                if self.output_format in ['EXR', 'EXR_TO_PNG']:
-                    if self.output_format == 'EXR_TO_PNG':
-                        print("ℹ 检测到EXR→PNG模式，先渲染为EXR...")
-                    else:
-                        print("ℹ 检测到EXR格式，应用特殊设置...")
-                    
-                    # 设置EXR格式的渲染设置
-                    bpy.context.scene.render.image_settings.file_format = 'OPEN_EXR'
-                    bpy.context.scene.render.image_settings.exr_codec = 'ZIP'  # 使用ZIP压缩
-                    # 检查是否有use_zbuffer属性（Blender 4.3+移除了此属性）
-                    if has_use_zbuffer_attribute():
-                        bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
-                    else:
-                        print("ℹ Blender 4.3+: use_zbuffer属性已移除，跳过Z缓冲设置")
-                    bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
-                    print("✓ EXR格式设置完成")
-                    
-                elif self.output_format == 'TIFF':
-                    print("ℹ 检测到TIFF格式，应用TIFF设置...")
-                    # 设置TIFF格式的渲染设置
-                    bpy.context.scene.render.image_settings.file_format = 'TIFF'
-                    bpy.context.scene.render.image_settings.tiff_codec = 'DEFLATE'  # 使用DEFLATE压缩
-                    # 检查是否有use_zbuffer属性（Blender 4.3+移除了此属性）
-                    if has_use_zbuffer_attribute():
-                        bpy.context.scene.render.image_settings.use_zbuffer = True  # 启用Z缓冲
-                    else:
-                        print("ℹ Blender 4.3+: use_zbuffer属性已移除，跳过Z缓冲设置")
-                    bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
-                    print("✓ TIFF格式设置完成")
-                    
-                elif self.output_format == 'PNG':
+                if self.output_format == 'PNG':
                     print("ℹ 检测到PNG格式，应用PNG设置...")
                     # 设置PNG格式的渲染设置
                     bpy.context.scene.render.image_settings.file_format = 'PNG'
@@ -1293,21 +1154,6 @@ class AutoRenderer():
                         print("ℹ Blender 4.3+: use_zbuffer属性已移除，跳过Z缓冲设置")
                     bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
                     print("✓ PNG格式设置完成")
-                    
-                elif self.output_format == 'JPEG':
-                    print("ℹ 检测到JPEG格式，应用JPEG设置...")
-                    # 设置JPEG格式的渲染设置
-                    bpy.context.scene.render.image_settings.file_format = 'JPEG'
-                    bpy.context.scene.render.image_settings.quality = 95  # 设置高质量
-                    bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
-                    print("✓ JPEG格式设置完成")
-                    
-                elif self.output_format == 'BMP':
-                    print("ℹ 检测到BMP格式，应用BMP设置...")
-                    # 设置BMP格式的渲染设置
-                    bpy.context.scene.render.image_settings.file_format = 'BMP'
-                    bpy.context.scene.render.image_settings.use_preview = False  # 禁用预览
-                    print("✓ BMP格式设置完成")
                     
                 elif self.output_format == 'TARGA':
                     print("ℹ 检测到TGA格式，应用TGA设置...")
@@ -1332,102 +1178,83 @@ class AutoRenderer():
                 print(f"  - 合成器节点: {compositor_status['compositor_nodes']}")
                 
                 # 验证合成器设置
-                is_valid = False
-                validation_message = ""
-                if self.use_compositor:
-                    # 显示详细的合成器调试信息
-                    self.debug_compositor_nodes()
-                    
-                    is_valid, validation_message = self.validate_compositor_setup()
-                    print(f"合成器验证结果: {'✓' if is_valid else '⚠'} {validation_message}")
+                # 显示详细的合成器调试信息
+                self.debug_compositor_nodes()
                 
-                # 检查是否启用了合成器渲染
-                if self.use_compositor:
-                    if (compositor_status['use_nodes'] and 
-                        compositor_status['node_tree_exists'] and
-                        compositor_status['node_tree_type'] == 'COMPOSITING' and
-                        compositor_status['total_nodes'] > 0 and
-                        is_valid):
-                        
-                        print("✓ 检测到有效的合成器节点树，使用合成器渲染以包含辉光等效果")
-                        
-                        # 确保合成器设置正确
-                        bpy.context.scene.render.use_compositing = True
-                        bpy.context.scene.render.use_sequencer = False
-                        
-                        # 使用合成器渲染，包含所有节点效果
-                        # 注意：write_still=True 会自动保存到指定路径，不需要再次保存
-                        bpy.ops.render.render(write_still=True, use_viewport=False)
-                        print("✓ 合成器渲染完成，包含辉光等效果")
-                        
-                        # 验证渲染结果
-                        if os.path.exists(filepath):
-                            print(f"✓ 渲染文件已保存: {filepath}")
-                            # 检查文件大小，确保不是空文件
-                            file_size = os.path.getsize(filepath)
-                            print(f"  - 文件大小: {file_size} 字节")
-                            if file_size < 1000:
-                                print("⚠ 警告: 文件大小过小，可能渲染失败")
-                        else:
-                            print("⚠ 警告: 渲染文件未找到")
-                            
+                is_valid, validation_message = self.validate_compositor_setup()
+                print(f"合成器验证结果: {'✓' if is_valid else '⚠'} {validation_message}")
+                
+                # 始终使用合成器渲染
+                if (compositor_status['use_nodes'] and 
+                    compositor_status['node_tree_exists'] and
+                    compositor_status['node_tree_type'] == 'COMPOSITING' and
+                    compositor_status['total_nodes'] > 0 and
+                    is_valid):
+                    
+                    print("✓ 检测到有效的合成器节点树，使用合成器渲染以包含辉光等效果")
+                    
+                    # 确保合成器设置正确
+                    bpy.context.scene.render.use_compositing = True
+                    bpy.context.scene.render.use_sequencer = False
+                    
+                    # 使用合成器渲染，包含所有节点效果
+                    # 注意：write_still=True 会自动保存到指定路径，不需要再次保存
+                    bpy.ops.render.render(write_still=True, use_viewport=False)
+                    print("✓ 合成器渲染完成，包含辉光等效果")
+                    
+                    # 验证渲染结果
+                    if os.path.exists(filepath):
+                        print(f"✓ 渲染文件已保存: {filepath}")
+                        # 检查文件大小，确保不是空文件
+                        file_size = os.path.getsize(filepath)
+                        print(f"  - 文件大小: {file_size} 字节")
+                        if file_size < 1000:
+                            print("⚠ 警告: 文件大小过小，可能渲染失败")
                     else:
-                        print("⚠ 未检测到有效的合成器节点树，尝试强制启用...")
+                        print("⚠ 警告: 渲染文件未找到")
                         
-                        # 尝试强制启用合成器
-                        try:
-                            self.force_enable_compositor()
+                else:
+                    print("⚠ 未检测到有效的合成器节点树，尝试强制启用...")
+                    
+                    # 尝试强制启用合成器
+                    try:
+                        self.force_enable_compositor()
+                        
+                        # 重新验证
+                        is_valid, validation_message = self.validate_compositor_setup()
+                        print(f"强制启用后验证结果: {'✓' if is_valid else '⚠'} {validation_message}")
+                        
+                        if is_valid:
+                            print("✓ 强制启用成功，使用合成器渲染")
+                            bpy.ops.render.render(write_still=True, use_viewport=False)
+                            print("✓ 合成器渲染完成，包含辉光等效果")
                             
-                            # 重新验证
-                            is_valid, validation_message = self.validate_compositor_setup()
-                            print(f"强制启用后验证结果: {'✓' if is_valid else '⚠'} {validation_message}")
-                            
-                            if is_valid:
-                                print("✓ 强制启用成功，使用合成器渲染")
-                                bpy.ops.render.render(write_still=True, use_viewport=False)
-                                print("✓ 合成器渲染完成，包含辉光等效果")
-                                
-                                # 验证渲染结果
-                                if os.path.exists(filepath):
-                                    print(f"✓ 渲染文件已保存: {filepath}")
-                                    file_size = os.path.getsize(filepath)
-                                    print(f"  - 文件大小: {file_size} 字节")
-                                    if file_size < 1000:
-                                        print("⚠ 警告: 文件大小过小，可能渲染失败")
-                                else:
-                                    print("⚠ 警告: 渲染文件未找到")
+                            # 验证渲染结果
+                            if os.path.exists(filepath):
+                                print(f"✓ 渲染文件已保存: {filepath}")
+                                file_size = os.path.getsize(filepath)
+                                print(f"  - 文件大小: {file_size} 字节")
+                                if file_size < 1000:
+                                    print("⚠ 警告: 文件大小过小，可能渲染失败")
                             else:
-                                print("⚠ 强制启用失败，回退到标准渲染")
-                                bpy.context.scene.render.use_compositing = False
-                                bpy.ops.render.render(write_still=True)
-                                print("✓ 标准渲染完成")
-                                
-                        except Exception as e:
-                            print(f"⚠ 强制启用合成器时出错: {str(e)}")
-                            print("回退到标准渲染")
+                                print("⚠ 警告: 渲染文件未找到")
+                        else:
+                            print("⚠ 强制启用失败，回退到标准渲染")
                             bpy.context.scene.render.use_compositing = False
                             bpy.ops.render.render(write_still=True)
                             print("✓ 标准渲染完成")
                             
-                else:
-                    print("ℹ 用户选择不使用合成器渲染，使用标准渲染")
-                    
-                    # 确保合成器被禁用
-                    bpy.context.scene.render.use_compositing = False
-                    
-                    # 标准渲染
-                    bpy.ops.render.render(write_still=True)
-                    print("✓ 标准渲染完成")
+                    except Exception as e:
+                        print(f"⚠ 强制启用合成器时出错: {str(e)}")
+                        print("回退到标准渲染")
+                        bpy.context.scene.render.use_compositing = False
+                        bpy.ops.render.render(write_still=True)
+                        print("✓ 标准渲染完成")
                 
                 print("渲染操作完成")
                 save_msg = f"已保存: {filepath}"
                 print(save_msg)
                 self.report_info({'INFO'}, save_msg)
-                
-                # 恢复原始分辨率设置
-                bpy.context.scene.render.resolution_x = original_width
-                bpy.context.scene.render.resolution_y = original_height
-                print(f"🔄 已恢复原始分辨率设置: {original_width} x {original_height}")
                 
                 # 恢复原始渲染设置
                 self.restore_render_settings(original_render_settings)
@@ -1445,49 +1272,7 @@ class AutoRenderer():
             # 注意：渲染结果已经通过 write_still=True 自动保存到指定路径
             # 不需要再次保存，避免覆盖合成器效果
             
-            # EXR→PNG转换（如果启用）
-            try:
-                if self.output_format == 'EXR_TO_PNG' and os.path.exists(filepath):
-                    print("🔄 开始EXR→PNG转换...")
-                    if self.convert_exr_to_png(filepath):
-                        print("✓ EXR→PNG转换完成")
-                        # 更新文件路径为最终的PNG文件
-                        filepath = filepath.replace('.exr', '.png')
-                        print(f"最终输出文件: {filepath}")
-                    else:
-                        print("⚠ EXR→PNG转换失败，保留原始EXR文件")
-                else:
-                    print("ℹ EXR→PNG转换未启用，跳过")
-            except Exception as e:
-                warning_msg = f"EXR→PNG转换失败: {str(e)}"
-                print(warning_msg)
-                self.report_info({'WARNING'}, warning_msg)
-                # 转换失败不影响主要功能，继续执行
-                print("继续执行，忽略转换错误")
-            
-            # 图像尺寸调节（先处理尺寸）
-            try:
-                final_width = bpy.context.scene.auto_render_settings.final_width
-                final_height = bpy.context.scene.auto_render_settings.final_height
-                
-                print(f"开始图像尺寸调节，目标最终尺寸: {final_width} x {final_height}")
-                
-                # 检查文件格式，EXR→PNG模式现在应该已经是PNG了
-                current_extension = os.path.splitext(filepath)[1].lower()
-                if current_extension in ['.png', '.tga']:
-                    print(f"ℹ 检测到{current_extension.upper()}格式，支持图像尺寸调节")
-                    if self.resize_image(filepath, final_width, final_height):
-                        print("✓ 图像尺寸调节完成")
-                    else:
-                        print("⚠ 图像尺寸调节失败")
-                else:
-                    print(f"⚠ 当前文件格式 {current_extension} 不支持图像尺寸调节，跳过")
-            except Exception as e:
-                warning_msg = f"图像尺寸调节失败: {str(e)}"
-                print(warning_msg)
-                self.report_info({'WARNING'}, warning_msg)
-                # 尺寸调节失败不影响主要功能，继续执行
-                print("继续执行，忽略尺寸调节错误")
+            # 移除所有后处理，直接使用 Blender 的默认渲染输出
             
             # 恢复集合内其他物体的原始渲染可见性
             print("恢复原始渲染可见性...")
@@ -1610,53 +1395,6 @@ class AutoRenderer():
         bpy.context.scene.frame_start = 1
         bpy.context.scene.frame_end = frame_counter - 1
         print(f"已设置场景帧范围: {bpy.context.scene.frame_start} - {bpy.context.scene.frame_end}")
-
-    def resize_image(self, image_path, target_width, target_height):
-        """将图像缩放至指定尺寸"""
-        # 检查PIL库是否可用
-        if not check_pil_availability():
-            print("PIL库不可用，跳过图像缩放功能")
-            return False
-            
-        # 确保PIL库已导入
-        if not PIL_IMPORTED:
-            print("PIL库未导入，无法处理图像")
-            return False
-            
-        print(f"开始缩放图像: {image_path}")
-        print(f"目标尺寸: {target_width} x {target_height}")
-        
-        # 检查文件格式
-        file_extension = os.path.splitext(image_path)[1].lower()
-        if file_extension == '.exr':
-            print("⚠ 警告: EXR格式不支持PIL缩放，跳过图像尺寸调节")
-            print("建议: 使用Blender内置的渲染尺寸设置或保持原始尺寸")
-            return False
-            
-        try:
-            with Image.open(image_path) as img:
-                original_size = img.size
-                print(f"原始尺寸: {original_size[0]} x {original_size[1]}")
-                
-                # 检查是否需要缩放
-                if original_size[0] == target_width and original_size[1] == target_height:
-                    print("图像尺寸已符合要求，无需缩放")
-                    return True
-                
-                # 使用LANCZOS重采样进行高质量缩放
-                resized_img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
-                print(f"缩放完成，新尺寸: {resized_img.size}")
-                
-                # 保存缩放后的图像
-                resized_img.save(image_path, quality=95)
-                print("缩放后的图像已保存")
-                return True
-                
-        except Exception as e:
-            print(f"图像缩放时发生错误: {type(e).__name__}: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
 
     def auto_render(self):
         """
@@ -2036,11 +1774,6 @@ class AutoRenderer():
             return False
 
 
-def get_all_cameras(self, context):
-    return [(obj.name, obj.name, obj.name) for obj in bpy.context.scene.objects if obj.type == 'CAMERA']
-
-def get_all_collections(self, context):
-    return [(collection.name, collection.name, collection.name) for collection in bpy.data.collections]
 
 class AUTO_RENDER_OneClick(bpy.types.Operator):
     bl_idname = "auto_render.oneclick"
@@ -2091,26 +1824,20 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         description="Image format of the rendered images",
         items=[
             ('PNG', 'PNG', 'PNG - 支持透明通道，文件较小'),
-            ('JPEG', 'JPEG', 'JPEG - 压缩率高，不支持透明'),
-            ('BMP', 'BMP', 'BMP - 无压缩，文件较大'),
-            ('TIFF', 'TIFF', 'TIFF - 高质量，支持透明'),
-            ('TARGA', 'TGA', 'TGA - 支持透明通道，无压缩，适合游戏开发'),
-            ('EXR', 'EXR', 'EXR - 高动态范围，完美支持透明和32位色彩'),
-            ('EXR_TO_PNG', 'EXR→PNG', 'EXR→PNG - 先渲染EXR再转换为PNG，完美解决alpha硬裁切问题')
+            ('TARGA', 'TGA', 'TGA - 支持透明通道，无压缩，适合游戏开发')
         ]
     ) # type: ignore
-    collections: bpy.props.EnumProperty(
+    collections: bpy.props.PointerProperty(
         name="Collections",
         description="Choose a collection to be rendered",
-        default=None,
-        items=get_all_collections
+        type=bpy.types.Collection
     ) # type: ignore
-    cameras: bpy.props.EnumProperty(
+    cameras: bpy.props.PointerProperty(
         name="Cameras",
         description="Camera to be used for rendering",
-        default=None,
-        items=get_all_cameras
-    ) # type: ignore # type: ignore
+        type=bpy.types.Object,
+        poll=lambda self, obj: obj.type == 'CAMERA'
+    ) # type: ignore
     focus_each_object: bpy.props.BoolProperty(
         name="Focus Each Object",
         description="Enable to focus camera on each object before rendering",
@@ -2121,43 +1848,12 @@ class AutoRenderSettings(bpy.types.PropertyGroup):
         description="When enabled, only focus on objects that have faces, ignoring empty objects, points, and lines. This is useful when parent objects are empty and you want to focus on the actual visible geometry.",
         default=False
     ) # type: ignore
-    use_compositor: bpy.props.BoolProperty(
-        name="Use Compositor",
-        description="Enable to include compositor effects (glow, color correction, etc.) in the rendered images. This will apply all nodes in the compositor including glow effects.",
-        default=True
-    ) # type: ignore
     auto_keyframe: bpy.props.BoolProperty(
         name="Auto Keyframe Camera",
         description="Enable to automatically keyframe the camera's position, rotation, and focal length when focusing on objects.",
         default=False
     ) # type: ignore
     
-    # 图像尺寸调节
-    def update_final_dimensions(self, context):
-        """当最终尺寸改变时的回调"""
-        pass
-    
-    final_width: bpy.props.IntProperty(
-        name="Final Width",
-        description="Final output image width in pixels. The rendered image will be scaled to this size.",
-        default=1920,
-        min=1,
-        max=10000,
-        update=update_final_dimensions
-    ) # type: ignore
-    
-    final_height: bpy.props.IntProperty(
-        name="Final Height",
-        description="Final output image height in pixels. The rendered image will be scaled to this size.",
-        default=1080,
-        min=1,
-        max=10000,
-        update=update_final_dimensions
-    ) # type: ignore
-    
-    
-    
-    # 增强透视相机聚焦功能已移除
 
 class AUTO_RENDER_OT_Execute(bpy.types.Operator):
     bl_idname = "auto_render.execute"
@@ -2178,24 +1874,26 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
         print(f"选中的相机: {auto_render_settings.cameras}")
         print(f"聚焦到每个物体: {auto_render_settings.focus_each_object}")
         print(f"仅聚焦有面的物体: {auto_render_settings.focus_only_faces}")
-        print(f"使用合成器: {auto_render_settings.use_compositor}")
         print(f"自动关键帧: {auto_render_settings.auto_keyframe}")
+        print(f"合成器效果: 始终启用（可通过Blender的合成器开关控制）")
 
         try:
-            # 获取集合名称
-            collection_name = auto_render_settings.collections
-            if not collection_name:
+            # 获取集合和相机
+            collection = auto_render_settings.collections
+            if not collection:
                 print("错误: 未选择任何集合")
                 self.report({'ERROR'}, "请选择一个要渲染的集合")
                 return {'CANCELLED'}
+            collection_name = collection.name
             print(f"准备渲染集合: {collection_name}")
 
-            # 获取相机名称
-            camera_name = auto_render_settings.cameras
-            if not camera_name:
+            # 获取相机
+            camera = auto_render_settings.cameras
+            if not camera:
                 print("错误: 未选择任何相机")
                 self.report({'ERROR'}, "请选择一个用于渲染的相机")
                 return {'CANCELLED'}
+            camera_name = camera.name
             print(f"使用相机: {camera_name}")
 
             # 检查相机是否存在
@@ -2233,7 +1931,6 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
             output_format = auto_render_settings.output_format
             focus_each_object = auto_render_settings.focus_each_object
             focus_only_faces = auto_render_settings.focus_only_faces
-            use_compositor = auto_render_settings.use_compositor
             auto_keyframe = auto_render_settings.auto_keyframe
 
             print("创建AutoRenderer实例...")
@@ -2242,7 +1939,7 @@ class AUTO_RENDER_OT_Execute(bpy.types.Operator):
                                         output_path=output_path, output_name=output_name,
                                         output_format=output_format, naming_mode=auto_render_settings.naming_mode,
                                         focus_each_object=focus_each_object,
-                                        focus_only_faces=focus_only_faces, use_compositor=use_compositor, 
+                                        focus_only_faces=focus_only_faces, 
                                         auto_keyframe=auto_keyframe,
                                         report_callback=self.report)
             
@@ -2283,15 +1980,14 @@ class AUTO_RENDER_OT_ClearCameraKeyframes(bpy.types.Operator):
         auto_render_settings = scene.auto_render_settings
         
         # 获取当前场景的相机
-        camera_name = auto_render_settings.cameras
-        if not camera_name:
+        camera = auto_render_settings.cameras
+        if not camera:
             self.report({'ERROR'}, "请先选择一个相机")
             return {'CANCELLED'}
         
-        # 获取相机对象
-        camera = bpy.data.objects.get(camera_name)
-        if not camera or camera.type != 'CAMERA':
-            self.report({'ERROR'}, f"找不到相机对象: {camera_name}")
+        camera_name = camera.name
+        if camera.type != 'CAMERA':
+            self.report({'ERROR'}, f"相机对象类型错误: {camera_name}")
             return {'CANCELLED'}
         
         try:
@@ -2322,17 +2018,20 @@ class AUTO_RENDER_OT_GenerateKeyframesOnly(bpy.types.Operator):
         scene = context.scene
         auto_render_settings = scene.auto_render_settings
         
-        # 获取集合名称
-        collection_name = auto_render_settings.collections
-        if not collection_name:
+        # 获取集合和相机
+        collection = auto_render_settings.collections
+        if not collection:
             self.report({'ERROR'}, "请先选择一个要处理的集合")
             return {'CANCELLED'}
         
-        # 获取相机名称
-        camera_name = auto_render_settings.cameras
-        if not camera_name:
+        collection_name = collection.name
+        
+        camera = auto_render_settings.cameras
+        if not camera:
             self.report({'ERROR'}, "请先选择一个相机")
             return {'CANCELLED'}
+        
+        camera_name = camera.name
         
         # 检查相机是否存在
         cam = bpy.data.objects.get(camera_name)
