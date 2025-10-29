@@ -1,12 +1,10 @@
 import bpy
 import mathutils
 import math
-from bpy import context as C
 import os
 import traceback
 import time
 
-from bpy.props import BoolProperty, EnumProperty, CollectionProperty# type: ignore
 
 # 尝试导入PIL库
 try:
@@ -14,21 +12,6 @@ try:
     PIL_IMPORTED = True
 except ImportError:
     PIL_IMPORTED = False
-
-# 检查Blender版本兼容性
-def is_blender_4_3_or_later():
-    """检查是否为Blender 4.3或更高版本"""
-    version = bpy.app.version
-    return version >= (4, 3, 0)
-
-def has_use_zbuffer_attribute():
-    """检查ImageFormatSettings是否有use_zbuffer属性"""
-    try:
-        # 尝试访问use_zbuffer属性
-        bpy.context.scene.render.image_settings.use_zbuffer
-        return True
-    except AttributeError:
-        return False
 
 # PIL库可用性标志，延迟检查
 PIL_AVAILABLE = None
@@ -55,12 +38,26 @@ def check_pil_availability():
             print("可以通过Blender的Python或系统命令行运行: pip install Pillow")
     return PIL_AVAILABLE
 
+# 检查Blender版本兼容性
+def is_blender_4_3_or_later():
+    """检查是否为Blender 4.3或更高版本"""
+    version = bpy.app.version
+    return version >= (4, 3, 0)
+
+def has_use_zbuffer_attribute():
+    """检查ImageFormatSettings是否有use_zbuffer属性"""
+    try:
+        # 尝试访问use_zbuffer属性
+        bpy.context.scene.render.image_settings.use_zbuffer
+        return True
+    except AttributeError:
+        return False
+
 class AutoRenderer():
     def __init__(self, collections: list, camera_name="Camera", 
                     output_path="./", output_name="", output_format="PNG",
                                          naming_mode='AUTO', focus_each_object=False,
                      focus_only_faces=False, auto_keyframe=False, 
-                     render_each_object_individually=False,
                      report_callback=None) -> None:
         """
         集合：字符串列表，每个字符串都是一个集合的名称
@@ -90,7 +87,6 @@ class AutoRenderer():
         self.focus_each_object = focus_each_object
         self.focus_only_faces = focus_only_faces
         self.auto_keyframe = auto_keyframe
-        self.render_each_object_individually = render_each_object_individually
         self.report_callback = report_callback
         
         # 包围盒缓存，避免重复计算
@@ -305,34 +301,29 @@ class AutoRenderer():
                         break
     
     def _calculate_orthographic_scale(self, bbox_size, camera_data):
-        """计算正交相机需要的缩放值（独立方法）"""
+        """计算正交相机需要的缩放值（简化版）"""
         try:
-            # 正交相机：基于物体尺寸计算缩放
+            # 简单的缩放计算：直接使用最大尺寸
             max_size = max(bbox_size)
             
-            # 计算需要的正交缩放（基于物体尺寸，留10%边距）
-            required_ortho_scale = max_size * 1.1
-            
-            return required_ortho_scale
+            print(f"ℹ 正交缩放计算: 最大尺寸={max_size:.2f}, 缩放={max_size:.2f}")
+            return max_size
                 
         except Exception as e:
             print(f"⚠ 计算正交相机缩放时出错: {str(e)}")
             return 0
     
     def _calculate_perspective_distance(self, bbox_size, camera_data):
-        """计算透视相机需要的距离值（独立方法）"""
+        """计算透视相机需要的距离值（简化版）"""
         try:
-            # 透视相机：基于物体尺寸计算距离
             max_size = max(bbox_size)
             fov_degrees = 2 * math.degrees(math.atan(16 / camera_data.lens))
             fov_radians = math.radians(fov_degrees)
             
-            # 计算基础距离（无边距）
-            base_distance = (max_size / 2) / math.tan(fov_radians / 2)
+            # 计算基础距离（刚好框住物体）
+            required_distance = (max_size / 2) / math.tan(fov_radians / 2)
             
-            # 计算带边距的距离（留10%边距）
-            required_distance = base_distance * 1.1
-            
+            print(f"ℹ 透视距离计算: 物体尺寸={max_size:.2f}, 距离={required_distance:.2f}")
             return required_distance
                 
         except Exception as e:
@@ -547,52 +538,25 @@ class AutoRenderer():
             return None, None
     
     def _focus_orthographic_camera(self, objects, camera_data):
-        """正交相机聚焦逻辑（完全独立）"""
+        """正交相机聚焦逻辑（简化版）"""
         try:
             print("ℹ 执行正交相机聚焦策略")
             
-            # 使用标准聚焦方法
+            # 直接使用Blender的标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
-            
-            # 调整正交缩放以更好地显示物体
-            # 计算物体的边界框
-            bbox_min, bbox_max = self._calculate_group_bbox(objects)
-            if bbox_min and bbox_max:
-                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
-                if required_scale > 0:
-                    camera_data.ortho_scale = required_scale
-                    print(f"ℹ 正交相机：调整缩放到 {required_scale:.2f}")
-            else:
-                print("ℹ 正交相机：保持原始参数")
+            print("ℹ 正交相机：使用标准聚焦方法")
                 
         except Exception as e:
             print(f"⚠ 正交相机聚焦时出错: {str(e)}")
     
     def _focus_perspective_camera(self, objects, camera_data):
-        """透视相机聚焦逻辑（完全独立）"""
+        """透视相机聚焦逻辑（简化版）"""
         try:
             print("ℹ 执行透视相机聚焦策略")
             
-            # 使用标准聚焦方法
+            # 直接使用Blender的标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
-            
-            # 调整相机距离以更好地显示物体
-            # 计算物体的边界框
-            bbox_min, bbox_max = self._calculate_group_bbox(objects)
-            if bbox_min and bbox_max:
-                bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
-                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
-                if required_distance > 0:
-                    # 调整相机距离
-                    bbox_center_vec = mathutils.Vector(bbox_center)
-                    direction = (self.cam.location - bbox_center_vec).normalized()
-                    new_position = bbox_center_vec + direction * required_distance
-                    self.cam.location = new_position
-                    print(f"ℹ 透视相机：调整距离到 {required_distance:.2f}")
-            else:
-                print(f"ℹ 透视相机：保持原始参数，焦距: {camera_data.lens:.2f}mm")
+            print(f"ℹ 透视相机：使用标准聚焦方法，焦距: {camera_data.lens:.2f}mm")
                 
         except Exception as e:
             print(f"⚠ 透视相机聚焦时出错: {str(e)}")
