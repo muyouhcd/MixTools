@@ -242,20 +242,13 @@ class AutoRenderer():
                     self._current_frame_printed = True
         
         # 自动激活选中的相机
-        # 全局缓存相机激活状态，避免重复打印
-        if not hasattr(AutoRenderer, '_camera_activated') or AutoRenderer._camera_activated != self.cam.name:
-            print(f"ℹ 自动激活相机: {self.cam.name}")
-            AutoRenderer._camera_activated = self.cam.name
+        print(f"ℹ 自动激活相机: {self.cam.name}")
         bpy.context.scene.camera = self.cam
         
         # 检查相机类型并应用相应的聚焦策略
         camera_data = self.cam.data
         is_orthographic = camera_data.type == 'ORTHO'
-        
-        # 全局缓存相机类型，避免重复打印
-        if not hasattr(AutoRenderer, '_camera_type_checked') or AutoRenderer._camera_type_checked != is_orthographic:
-            print(f"ℹ 相机类型: {'正交相机' if is_orthographic else '透视相机'}")
-            AutoRenderer._camera_type_checked = is_orthographic
+        print(f"ℹ 相机类型: {'正交相机' if is_orthographic else '透视相机'}")
         
         # 将视图切换到相机视图
         for area in bpy.context.screen.areas:
@@ -271,32 +264,19 @@ class AutoRenderer():
                         else:
                             self._focus_perspective_camera(objects, camera_data)
                         
-                        # 不再需要恢复动画数据，因为我们没有禁用它们
-                        # 减少聚焦完成的打印频率
-                        if not hasattr(self, '_focus_completed_printed'):
-                            print(f"ℹ 相机聚焦完成，保持动画数据有效")
-                            self._focus_completed_printed = True
+                        print("ℹ 相机聚焦完成")
                         
                         # 验证相机位置是否正确对准物体
-                        # 减少验证打印频率
-                        if not hasattr(self, '_position_verified'):
-                            print("ℹ 验证相机位置...")
-                            if self.verify_camera_position(objects):
-                                print("✓ 相机位置验证通过")
-                            else:
-                                print("⚠ 相机位置验证失败，可能需要手动调整")
-                            self._position_verified = True
+                        print("ℹ 验证相机位置...")
+                        if self.verify_camera_position(objects):
+                            print("✓ 相机位置验证通过")
+                        else:
+                            print("⚠ 相机位置验证失败，可能需要手动调整")
                         
                         # 自动关键帧：记录相机位置和旋转
-                        # 减少关键帧检查的打印频率
-                        if not hasattr(self, '_keyframe_checked'):
-                            print(f"检查是否需要添加关键帧: self.auto_keyframe = {self.auto_keyframe}")
-                            if self.auto_keyframe:
-                                print("✓ 启用自动关键帧，开始添加关键帧...")
-                                self.auto_keyframe_camera()
-                            else:
-                                print("⚠ 自动关键帧未启用")
-                            self._keyframe_checked = True
+                        if self.auto_keyframe:
+                            print(f"✓ 启用自动关键帧，开始添加关键帧...")
+                            self.auto_keyframe_camera()
                         
                         break
     
@@ -562,49 +542,25 @@ class AutoRenderer():
             print(f"⚠ 透视相机聚焦时出错: {str(e)}")
     
     def _focus_orthographic_camera_for_keyframe(self, obj, camera_data):
-        """正交相机关键帧聚焦逻辑（独立方法）"""
+        """正交相机关键帧聚焦逻辑（简化版）"""
         try:
             print(f"ℹ 正交相机关键帧聚焦: {obj.name}")
             
-            # 使用标准聚焦方法
+            # 直接使用Blender的标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
-            
-            # 调整正交缩放以更好地显示物体
-            bbox_min, bbox_max = self._calculate_object_bbox(obj)
-            if bbox_min and bbox_max:
-                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                required_scale = self._calculate_orthographic_scale(bbox_size, camera_data)
-                if required_scale > 0:
-                    camera_data.ortho_scale = required_scale
-                    print(f"ℹ 关键帧生成：调整正交缩放到 {required_scale:.2f}")
-            else:
-                print("ℹ 关键帧生成：保持原始正交缩放")
+            print("ℹ 关键帧生成：使用标准聚焦方法")
                 
         except Exception as e:
             print(f"⚠ 正交相机关键帧聚焦时出错: {str(e)}")
     
     def _focus_perspective_camera_for_keyframe(self, obj, camera_data):
-        """透视相机关键帧聚焦逻辑（独立方法）"""
+        """透视相机关键帧聚焦逻辑（简化版）"""
         try:
             print(f"ℹ 透视相机关键帧聚焦: {obj.name}")
             
-            # 使用标准聚焦方法
+            # 直接使用Blender的标准聚焦方法
             bpy.ops.view3d.camera_to_view_selected()
-            
-            # 调整相机距离以更好地显示物体
-            bbox_min, bbox_max = self._calculate_object_bbox(obj)
-            if bbox_min and bbox_max:
-                bbox_center = [(bbox_min[i] + bbox_max[i]) / 2 for i in range(3)]
-                bbox_size = [bbox_max[i] - bbox_min[i] for i in range(3)]
-                required_distance = self._calculate_perspective_distance(bbox_size, camera_data)
-                if required_distance > 0:
-                    bbox_center_vec = mathutils.Vector(bbox_center)
-                    direction = (self.cam.location - bbox_center_vec).normalized()
-                    new_position = bbox_center_vec + direction * required_distance
-                    self.cam.location = new_position
-                    print(f"ℹ 关键帧生成：调整相机距离到 {required_distance:.2f}")
-            else:
-                print(f"ℹ 关键帧生成：保持原始参数，焦距: {camera_data.lens:.2f}mm")
+            print(f"ℹ 关键帧生成：使用标准聚焦方法，焦距: {camera_data.lens:.2f}mm")
                 
         except Exception as e:
             print(f"⚠ 透视相机关键帧聚焦时出错: {str(e)}")
