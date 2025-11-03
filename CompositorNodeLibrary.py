@@ -75,20 +75,16 @@ def get_compositor_nodes_json_path():
         except Exception as e:
             print(f"警告: 无法创建NodeJson文件夹: {e}")
             return ''
-    
     return node_json_dir
 
 def ensure_node_json_directories():
     """确保NodeJson文件夹存在（使用与RigJson相同的结构：addons/MixTools/NodeJson）"""
     directories_created = []
-    
     # 使用与get_compositor_nodes_json_path()相同的逻辑
     file_path = os.path.normpath(os.path.dirname(__file__))
-    
     # 逆向查找直到找到 "addons" 文件夹
     while os.path.basename(file_path) != "addons" and os.path.dirname(file_path) != file_path:
         file_path = os.path.dirname(file_path)
-    
     # 确认已经找到 "addons" 文件夹
     if os.path.basename(file_path) == "addons":
         # 添加相对路径到 MixTools\NodeJson
@@ -1736,7 +1732,7 @@ class COMPOSITOR_OT_save_shader_nodes(bpy.types.Operator):
         if not selected_nodes:
             self.report({'ERROR'}, "请先选中要保存的材质节点")
             return {'CANCELLED'}
-        
+            
         json_dir = get_compositor_nodes_json_path()
         if json_dir:
             # 文件名包含节点类型

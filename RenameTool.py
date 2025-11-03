@@ -771,6 +771,53 @@ class AutoRenameCarForRigCar(bpy.types.Operator):
 
         return {"FINISHED"} 
 
+#批量更改子级名称为顶级父级，忽略隐藏物体
+class RenameByParent(bpy.types.Operator):
+    bl_idname = "object.mian_rename_by_parent"
+    bl_label = "更改所选物体为其顶级名称"
+    bl_description = "将所选子物体的名称更改为其顶级父物体的名称"
+
+    def execute(self, context):
+
+        def rename_selected_objects_with_sequential_suffixes():
+            def get_sequential_suffix(name_base, current_number):
+                return f"{name_base}.{current_number:03d}"
+
+            # 获取所有已选择的物体
+            all_objects = bpy.data.objects
+            selected_objects = bpy.context.selected_objects
+
+            # 遍历所有已选择的物体
+            for obj in selected_objects:
+                # 检查物体是否有父级，并获得物体的顶级父级
+                if obj.parent is None:
+                    continue
+                top_parent = obj.parent
+                while top_parent.parent is not None:
+                    top_parent = top_parent.parent
+
+                # 检查物体是否在视口中隐藏，如果是，则跳过
+                if obj.hide_viewport:
+                    continue
+
+                # 移除顶级父级物体名称的数字后缀
+                top_parent_name_no_suffix = top_parent.name.split('.')[0]
+                top_parent.name = top_parent_name_no_suffix
+
+                # 获取顶级父级物体的直接子物体
+                direct_children = [
+                    child for child in selected_objects if child.parent == top_parent]
+
+                # 为顶级父级物体的直接子物体分配连贯的数字后缀
+                for index, child in enumerate(direct_children, start=1):
+                    new_name = get_sequential_suffix(
+                        top_parent_name_no_suffix, index)
+                    child.name = new_name
+
+        # 在 Blender 中执行该函数
+        rename_selected_objects_with_sequential_suffixes()
+        return {"FINISHED"}
+
 
 def register():     
     bpy.utils.register_class(RenameTextureOrign)
@@ -784,6 +831,7 @@ def register():
     bpy.utils.register_class(RenameSelectedObjects)
     bpy.utils.register_class(AutoRenameCar)
     bpy.utils.register_class(AutoRenameCarForRigCar)
+    bpy.utils.register_class(RenameByParent)
 
 def unregister():
     bpy.utils.unregister_class(RenameTextureOrign)
@@ -797,5 +845,6 @@ def unregister():
     bpy.utils.unregister_class(RenameSelectedObjects)
     bpy.utils.unregister_class(AutoRenameCar)
     bpy.utils.unregister_class(AutoRenameCarForRigCar)
+    bpy.utils.unregister_class(RenameByParent)
 
 
