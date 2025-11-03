@@ -647,6 +647,48 @@ class CustomFunctionsPanel(Panel):
             
             curve_tools_box.operator("object.simplify_curve_to_endpoints", text="曲线精简到端点", icon='IPO_LINEAR')
 
+# 节点工具
+        col_node_tools = layout.column()
+        col_node_tools.prop(scene, "node_tools_expand", text="节点工具", emboss=False,
+                           icon='TRIA_DOWN' if context.scene.node_tools_expand else 'TRIA_RIGHT')
+        
+        if scene.node_tools_expand:
+            # 自动刷新文件列表
+            from .CompositorNodeLibrary import update_compositor_json_file_list
+            try:
+                update_compositor_json_file_list(context)
+            except:
+                pass  # 如果属性尚未注册，忽略错误
+            # 节点工具面板
+            node_tools_box = col_node_tools.box()
+            node_tools_box.label(text="节点库:", icon='NODETREE')
+            
+            # 保存节点按钮区域
+            save_row = node_tools_box.row(align=True)
+            save_row.operator("compositor.save_compositor_nodes", text="合成节点", icon='RENDERLAYERS')
+            save_row.operator("compositor.save_shader_nodes", text="材质节点", icon='MATERIAL')
+            save_row.operator("compositor.save_geometry_nodes", text="几何节点", icon='MODIFIER')
+            
+            # 文件列表和加载
+            node_tools_box.separator()
+            node_tools_box.label(text="节点库文件列表:", icon='FILE_TEXT')
+            
+            # 使用自定义template_list显示文件列表（带节点类型标识）
+            node_tools_box.template_list(
+                "COMPOSITOR_UL_json_file_list", 
+                "compositor_json_files", 
+                context.scene, 
+                "compositor_json_file_list", 
+                context.scene, 
+                "compositor_json_file_index"
+            )
+            
+            # 操作按钮行
+            list_buttons_row = node_tools_box.row(align=True)
+            list_buttons_row.operator("compositor.refresh_file_list", text="刷新列表", icon='FILE_REFRESH')
+            list_buttons_row.operator("compositor.load_nodes_from_list", text="加载选中节点", icon='IMPORT')
+            list_buttons_row.operator("compositor.delete_json_file", text="删除文件", icon='TRASH')
+
 
 # 导入导出操作
         col_inout = layout.column()
@@ -1050,6 +1092,7 @@ def register():
     bpy.types.Scene.light_tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.animation_tools_expand = bpy.props.BoolProperty(default=False)
     bpy.types.Scene.curve_tools_expand = bpy.props.BoolProperty(default=False)
+    bpy.types.Scene.node_tools_expand = bpy.props.BoolProperty(default=False)
 
     
     # 灯光关联工具参数

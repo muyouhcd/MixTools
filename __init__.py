@@ -524,6 +524,7 @@ from . import AutoHideClean
 from . import BoneConverter
 from . import AssetMarker
 from . import EmptySizeSetter
+from . import CompositorNodeLibrary
 
 def register():
     """插件注册函数 - 支持降级模式"""
@@ -586,6 +587,7 @@ def register_full_mode():
         BoneConverter.register()
         AssetMarker.register()
         EmptySizeSetter.register()
+        CompositorNodeLibrary.register()
         
         # 最后注册UI面板
         panels.register()
@@ -646,7 +648,8 @@ def register_limited_mode():
             (AutoHideClean, "AutoHideClean"),
             (BoneConverter, "BoneConverter"),
             (AssetMarker, "AssetMarker"),
-            (EmptySizeSetter, "EmptySizeSetter")
+            (EmptySizeSetter, "EmptySizeSetter"),
+            (CompositorNodeLibrary, "CompositorNodeLibrary")
         ]
         
         # 尝试注册AutoRender模块（即使PIL不可用，也要注册UI属性）
@@ -741,6 +744,7 @@ def unregister():
         BoneConverter.unregister()
         AssetMarker.unregister()
         EmptySizeSetter.unregister()
+        CompositorNodeLibrary.unregister()
         
         # 最后注销基础模块
         operators.unregister()

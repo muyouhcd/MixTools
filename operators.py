@@ -594,25 +594,7 @@ class RandomPlacement(bpy.types.Operator):
 
         return {'FINISHED'}
 
-# 置乱缩放
-bpy.types.Scene.random_scale_extent_x = bpy.props.FloatVectorProperty(
-    name="X轴缩放范围(min, max)",
-    description="设置X轴随机缩放的范围",
-    default=(1, 1),
-    size=2
-)
-bpy.types.Scene.random_scale_extent_y = bpy.props.FloatVectorProperty(
-    name="Y轴缩放范围(min, max)",
-    description="设置Y轴随机缩放的范围",
-    default=(1, 1),
-    size=2
-)
-bpy.types.Scene.random_scale_extent_z = bpy.props.FloatVectorProperty(
-    name="Z轴缩放范围(min, max)",
-    description="设置Z轴随机缩放的范围",
-    default=(1, 1),
-    size=2
-)
+# 置乱缩放属性注册已移至 register() 函数中
 class RandomScale(bpy.types.Operator):
     bl_idname = "object.mian_random_scale"
     bl_label = "随机缩放"
@@ -639,28 +621,7 @@ class RandomScale(bpy.types.Operator):
 
         return {'FINISHED'}
 
-# 随机旋转
-bpy.types.Scene.random_rotation_extent_x = bpy.props.FloatProperty(
-    name="X轴旋转范围(度)",
-    description="设置X轴随机旋转的角度范围",
-    default=0.0,
-    min=0.0,
-    max=360.0
-)
-bpy.types.Scene.random_rotation_extent_y = bpy.props.FloatProperty(
-    name="Y轴旋转范围(度)",
-    description="设置Y轴随机旋转的角度范围",
-    default=0.0,
-    min=0.0,
-    max=360.0
-)
-bpy.types.Scene.random_rotation_extent_z = bpy.props.FloatProperty(
-    name="Z轴旋转范围(度)",
-    description="设置Z轴随机旋转的角度范围",
-    default=0.0,
-    min=0.0,
-    max=360.0
-)
+# 随机旋转属性注册已移至 register() 函数中
 
 class RandomRotation(bpy.types.Operator):
     bl_idname = "object.mian_random_rotation"
@@ -2558,6 +2519,49 @@ def register():
         default=(10, 10, 10),
         size=3
     )
+    
+    # 随机缩放属性
+    bpy.types.Scene.random_scale_extent_x = bpy.props.FloatVectorProperty(
+        name="X轴缩放范围(min, max)",
+        description="设置X轴随机缩放的范围",
+        default=(1, 1),
+        size=2
+    )
+    bpy.types.Scene.random_scale_extent_y = bpy.props.FloatVectorProperty(
+        name="Y轴缩放范围(min, max)",
+        description="设置Y轴随机缩放的范围",
+        default=(1, 1),
+        size=2
+    )
+    bpy.types.Scene.random_scale_extent_z = bpy.props.FloatVectorProperty(
+        name="Z轴缩放范围(min, max)",
+        description="设置Z轴随机缩放的范围",
+        default=(1, 1),
+        size=2
+    )
+    
+    # 随机旋转属性
+    bpy.types.Scene.random_rotation_extent_x = bpy.props.FloatProperty(
+        name="X轴旋转范围(度)",
+        description="设置X轴随机旋转的角度范围",
+        default=0.0,
+        min=0.0,
+        max=360.0
+    )
+    bpy.types.Scene.random_rotation_extent_y = bpy.props.FloatProperty(
+        name="Y轴旋转范围(度)",
+        description="设置Y轴随机旋转的角度范围",
+        default=0.0,
+        min=0.0,
+        max=360.0
+    )
+    bpy.types.Scene.random_rotation_extent_z = bpy.props.FloatProperty(
+        name="Z轴旋转范围(度)",
+        description="设置Z轴随机旋转的角度范围",
+        default=0.0,
+        min=0.0,
+        max=360.0
+    )
 
     bpy.types.Scene.multiple_object_binding = bpy.props.BoolProperty(
         name="Multiple Object Binding",
@@ -2614,6 +2618,9 @@ def unregister():
     del bpy.types.Scene.collectionB
     del bpy.types.Scene.collectionA
     del bpy.types.Scene.random_placement_extent
+    del bpy.types.Scene.random_scale_extent_x
+    del bpy.types.Scene.random_scale_extent_y
+    del bpy.types.Scene.random_scale_extent_z
     del bpy.types.Scene.random_rotation_extent_x
     del bpy.types.Scene.random_rotation_extent_y
     del bpy.types.Scene.random_rotation_extent_z
