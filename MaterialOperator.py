@@ -935,9 +935,10 @@ class ReplaceMaterialOperator(bpy.types.Operator):
             return {'CANCELLED'}
             
         # 检查目标材质是否在源材质列表中
-        if context.scene.target_material in context.scene.source_materials:
-            self.report({'WARNING'}, "目标材质不能是源材质之一")
-            return {'CANCELLED'}
+        for item in context.scene.source_materials:
+            if item.material == context.scene.target_material:
+                self.report({'WARNING'}, "目标材质不能是源材质之一")
+                return {'CANCELLED'}
             
         replaced_count = 0
         affected_objects = 0
@@ -951,10 +952,13 @@ class ReplaceMaterialOperator(bpy.types.Operator):
             
             # 遍历物体的所有材质槽
             for slot in obj.material_slots:
-                if slot.material in context.scene.source_materials:
-                    slot.material = context.scene.target_material
-                    replaced_count += 1
-                    material_changed = True
+                # 检查材质是否在源材质列表中
+                for item in context.scene.source_materials:
+                    if item.material == slot.material:
+                        slot.material = context.scene.target_material
+                        replaced_count += 1
+                        material_changed = True
+                        break
             
             if material_changed:
                 affected_objects += 1
