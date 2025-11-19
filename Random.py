@@ -73,6 +73,13 @@ class RandomRotation(bpy.types.Operator):
 
         # 对每个物体进行随机旋转
         for obj in objects:
+            # 保存原始旋转模式
+            original_rotation_mode = obj.rotation_mode
+            
+            # 确保使用欧拉角模式
+            if obj.rotation_mode != 'XYZ':
+                obj.rotation_mode = 'XYZ'
+            
             # 获取当前旋转值
             current_rotation = obj.rotation_euler.copy()
             
@@ -82,13 +89,16 @@ class RandomRotation(bpy.types.Operator):
             random_rotation_z = math.radians(random.uniform(-rotation_extent_z, rotation_extent_z))
             
             # 应用随机旋转
-            new_rotation = (
+            new_rotation = mathutils.Euler((
                 current_rotation[0] + random_rotation_x,
                 current_rotation[1] + random_rotation_y,
                 current_rotation[2] + random_rotation_z
-            )
+            ), 'XYZ')
             
             obj.rotation_euler = new_rotation
+            
+            # 恢复原始旋转模式（如果需要）
+            # obj.rotation_mode = original_rotation_mode
 
         self.report({'INFO'}, f"已对 {len(objects)} 个物体应用随机旋转")
         return {'FINISHED'}
