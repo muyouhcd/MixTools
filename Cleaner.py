@@ -2,6 +2,7 @@ import bpy
 import os
 import math
 import hashlib
+from mathutils import Vector, kdtree
 
 
 class UVCleaner(bpy.types.Operator):
@@ -484,6 +485,189 @@ class ClearAnimationData(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class RemoveDuplicateMeshesByVertex(bpy.types.Operator):
+    """检测所选物体中mesh顶点重合度，达到阈值则删除其中一个"""
+    bl_idname = "object.remove_duplicate_meshes_by_vertex"
+    bl_label = "删除重合度高的Mesh物体"
+    bl_description = "检测所选物体中两个mesh如果顶点重合度达到阈值就将其中一个删除"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def get_current_vertices(self, obj):
+        """获取物体在当前状态下的顶点坐标（世界空间，反映当前实际位置）"""
+        if obj.type != 'MESH':
+            return []
+        
+        mesh = obj.data
+        # 使用世界矩阵获取当前状态下的顶点位置
+        # 这样能反映物体在世界空间中的实际位置（包括位置、旋转、缩放）
+        world_matrix = obj.matrix_world
+        vertices = []
+        
+        for vert in mesh.vertices:
+            # 使用世界矩阵变换顶点坐标，得到当前状态下的实际位置
+            world_pos = world_matrix @ vert.co
+            vertices.append(world_pos)
+        
+        return vertices
+    
+    def calculate_vertex_overlap_by_distance(self, vertices1, vertices2, distance_threshold):
+        """
+        计算两个顶点列表在距离范围内的重合情况
+        返回匹配的顶点数量
+        """
+        if len(vertices1) == 0 or len(vertices2) == 0:
+            return 0
+        
+        # 使用KDTree快速查找匹配的顶点
+        kd = kdtree.KDTree(len(vertices2))
+        for i, v in enumerate(vertices2):
+            kd.insert(v, i)
+        kd.balance()
+        
+        # 计算有多少顶点1的顶点在距离范围内匹配到顶点2的顶点
+        matched_count = 0
+        matched_indices = set()
+        
+        for v1 in vertices1:
+            # 查找最近的顶点
+            co, index, dist = kd.find(v1)
+            if dist <= distance_threshold and index not in matched_indices:
+                matched_count += 1
+                matched_indices.add(index)
+        
+        return matched_count
+    
+    def execute(self, context):
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        if len(selected_objects) < 2:
+            self.report({'WARNING'}, "至少需要选择2个mesh物体")
+            return {'CANCELLED'}
+        
+        # 获取距离阈值（世界空间单位）
+        distance_threshold = context.scene.mesh_vertex_distance_threshold
+        
+        # 获取重合度阈值（百分比）- 用于判断是否删除
+        overlap_threshold_percentage = context.scene.mesh_vertex_overlap_threshold
+        
+        # 存储要删除的物体
+        objects_to_delete = []
+        processed_pairs = set()
+        
+        # 更新视图层确保矩阵是最新的
+        context.view_layer.update()
+        
+        # 性能优化：预先计算所有物体的当前状态坐标（避免重复计算）
+        vertices_cache = {}
+        for obj in selected_objects:
+            vertices_cache[obj] = self.get_current_vertices(obj)
+        
+        # 显示进度条
+        total_pairs = len(selected_objects) * (len(selected_objects) - 1) // 2
+        context.window_manager.progress_begin(0, total_pairs)
+        
+        try:
+            progress_index = 0
+            # 比较所有物体对
+            for i, obj1 in enumerate(selected_objects):
+                # 检查对象是否仍然有效
+                try:
+                    if obj1 is None or obj1.name not in bpy.data.objects:
+                        continue
+                except (ReferenceError, RuntimeError):
+                    continue
+                
+                if obj1 in objects_to_delete:
+                    continue
+                
+                vertices1 = vertices_cache.get(obj1)
+                if not vertices1 or len(vertices1) == 0:
+                    continue
+                
+                for j, obj2 in enumerate(selected_objects[i+1:], start=i+1):
+                    # 检查对象是否仍然有效
+                    try:
+                        if obj2 is None or obj2.name not in bpy.data.objects:
+                            continue
+                    except (ReferenceError, RuntimeError):
+                        continue
+                    
+                    if obj2 in objects_to_delete:
+                        continue
+                    
+                    # 避免重复比较
+                    pair_key = tuple(sorted([id(obj1), id(obj2)]))
+                    if pair_key in processed_pairs:
+                        continue
+                    processed_pairs.add(pair_key)
+                    
+                    # 更新进度
+                    progress_index += 1
+                    context.window_manager.progress_update(progress_index)
+                    
+                    vertices2 = vertices_cache.get(obj2)
+                    if not vertices2 or len(vertices2) == 0:
+                        continue
+                    
+                    # 计算在距离范围内匹配的顶点数量
+                    matched_count = self.calculate_vertex_overlap_by_distance(
+                        vertices1, vertices2, distance_threshold
+                    )
+                    
+                    # 计算重合度百分比
+                    min_vertex_count = min(len(vertices1), len(vertices2))
+                    if min_vertex_count == 0:
+                        continue
+                    
+                    overlap_percentage = (matched_count / min_vertex_count) * 100.0
+                    
+                    # 如果重合度达到阈值，标记其中一个删除
+                    if overlap_percentage >= overlap_threshold_percentage:
+                        # 优先删除顶点数较少的，如果相同则删除第二个
+                        if len(vertices2) < len(vertices1):
+                            if obj2 not in objects_to_delete:
+                                objects_to_delete.append(obj2)
+                        elif len(vertices1) < len(vertices2):
+                            if obj1 not in objects_to_delete:
+                                objects_to_delete.append(obj1)
+                        else:
+                            # 顶点数相同，删除第二个（保持第一个）
+                            if obj2 not in objects_to_delete:
+                                objects_to_delete.append(obj2)
+        
+        finally:
+            context.window_manager.progress_end()
+        
+        # 删除标记的物体（使用更安全的方式）
+        deleted_count = 0
+        objects_to_delete_names = set()  # 用于跟踪已删除的物体名称
+        
+        for obj in objects_to_delete:
+            try:
+                # 检查对象是否仍然有效
+                if obj is None:
+                    continue
+                
+                # 尝试访问对象名称，如果对象已被删除会抛出异常
+                obj_name = obj.name
+                
+                # 检查对象是否仍在场景中
+                if obj_name in bpy.data.objects and obj_name not in objects_to_delete_names:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                    objects_to_delete_names.add(obj_name)
+                    deleted_count += 1
+            except (ReferenceError, RuntimeError):
+                # 对象已被删除或无效，跳过
+                continue
+        
+        if deleted_count > 0:
+            self.report({'INFO'}, f"删除了 {deleted_count} 个重合度达到 {overlap_threshold_percentage}% 的mesh物体（距离阈值: {distance_threshold:.4f}）")
+        else:
+            self.report({'INFO'}, f"未发现重合度达到 {overlap_threshold_percentage}% 的mesh物体（距离阈值: {distance_threshold:.4f}）")
+        
+        return {'FINISHED'}
+
+
 def register():
     bpy.utils.register_class(IMAGE_OT_RemoveBrokenImages)
     bpy.utils.register_class(UVCleaner)
@@ -498,6 +682,7 @@ def register():
     bpy.utils.register_class(RemoveInstanceDuplicatesOperator)
     bpy.utils.register_class(CleanSense)
     bpy.utils.register_class(ClearAnimationData)
+    bpy.utils.register_class(RemoveDuplicateMeshesByVertex)
 
 def unregister():
     bpy.utils.unregister_class(IMAGE_OT_RemoveBrokenImages)
@@ -513,6 +698,7 @@ def unregister():
     bpy.utils.unregister_class(RemoveInstanceDuplicatesOperator)
     bpy.utils.unregister_class(CleanSense)
     bpy.utils.unregister_class(ClearAnimationData)
+    bpy.utils.unregister_class(RemoveDuplicateMeshesByVertex)
 
 if __name__ == "__main__":
      register()

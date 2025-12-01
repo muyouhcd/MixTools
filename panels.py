@@ -89,6 +89,17 @@ class CustomFunctionsPanel(Panel):
             clean_box.operator("object.uv_cleaner", text="清理UV非法数据", icon='UV')
             clean_box.operator("image.remove_broken", text="清理丢失图像", icon='IMAGE_DATA')
             
+            # Mesh重合度检测与清理
+            mesh_overlap_box = clean_box.box()
+            mesh_overlap_box.label(text="Mesh重合度检测:", icon='MESH_DATA')
+            mesh_overlap_box.label(text="检测所选mesh顶点在距离范围内的重合情况", icon='INFO')
+            mesh_overlap_box.label(text="忽略旋转缩放，只考虑当前位置", icon='INFO')
+            distance_row = mesh_overlap_box.row(align=True)
+            distance_row.prop(scene, "mesh_vertex_distance_threshold", text="距离范围")
+            overlap_row = mesh_overlap_box.row(align=True)
+            overlap_row.prop(scene, "mesh_vertex_overlap_threshold", text="重合度阈值(%)", slider=True)
+            mesh_overlap_box.operator("object.remove_duplicate_meshes_by_vertex", text="检测并删除重合Mesh", icon='TRASH')
+            
             # 顶点组清理工具
             vertex_group_clean_box = clean_box.box()
             vertex_group_clean_box.label(text="顶点组清理:", icon='GROUP_VERTEX')
@@ -1252,6 +1263,27 @@ def register():
         description="选择作为父级的物体"
     )
     
+    # Mesh顶点重合度阈值属性
+    bpy.types.Scene.mesh_vertex_overlap_threshold = bpy.props.FloatProperty(
+        name="重合度阈值",
+        description="Mesh顶点重合度阈值（百分比），达到此值将删除其中一个物体",
+        default=100.0,
+        min=0.0,
+        max=100.0,
+        precision=1
+    )
+    
+    # Mesh顶点距离阈值属性
+    bpy.types.Scene.mesh_vertex_distance_threshold = bpy.props.FloatProperty(
+        name="距离范围",
+        description="判断顶点重合的距离范围（世界空间单位），在此范围内的顶点算作重合",
+        default=0.01,
+        min=0.0001,
+        max=10.0,
+        precision=4,
+        step=0.01
+    )
+    
     # 移除重复帧工具属性
     bpy.types.Scene.duplicate_frames_detection_mode = bpy.props.EnumProperty(
         name="检测模式",
@@ -1348,6 +1380,12 @@ def unregister():
         
         # 批量快速parenting父级物体属性
         "batch_parent_object",
+        
+        # Mesh顶点重合度阈值属性
+        "mesh_vertex_overlap_threshold",
+        
+        # Mesh顶点距离阈值属性
+        "mesh_vertex_distance_threshold",
 
     ]
     
