@@ -203,6 +203,13 @@ class CustomFunctionsPanel(Panel):
             empty_box.prop(scene, "multiple_object_binding", text="为多个物体创建共同父级")
             empty_box.operator("object.mian_create_empty_at_bottom", text="创建空物体父级", icon='EMPTY_ARROWS')
 
+            # 批量快速parenting
+            batch_parent_box = col_BindOperation.box()
+            batch_parent_box.label(text="批量快速Parenting:", icon='LINKED')
+            batch_parent_box.label(text="拖入父级物体，选择子物体后点击运行", icon='INFO')
+            batch_parent_box.prop(scene, "batch_parent_object", text="父级物体", icon='OBJECT_DATA')
+            batch_parent_box.operator("object.batch_parent_operator", text="运行", icon='PLAY')
+
 # 材质操作
         col_meterialoperation = layout.column()
         col_meterialoperation.prop(scene, "meterialoperation_expand", text="材质与纹理工具", emboss=False,
@@ -1238,6 +1245,13 @@ def register():
         default=True
     )
     
+    # 批量快速parenting父级物体属性
+    bpy.types.Scene.batch_parent_object = bpy.props.PointerProperty(
+        type=bpy.types.Object,
+        name="父级物体",
+        description="选择作为父级的物体"
+    )
+    
     # 移除重复帧工具属性
     bpy.types.Scene.duplicate_frames_detection_mode = bpy.props.EnumProperty(
         name="检测模式",
@@ -1332,6 +1346,8 @@ def unregister():
         # 曲线闭合选项属性
         "curve_closed_option",
         
+        # 批量快速parenting父级物体属性
+        "batch_parent_object",
 
     ]
     

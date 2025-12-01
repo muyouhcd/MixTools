@@ -1146,6 +1146,51 @@ class OBJECT_OT_SetParentButton(bpy.types.Operator):
     def execute(self, context):
         set_nearest_parent_for_collection(self, context)
         return {'FINISHED'}
+
+# 批量快速parenting操作符
+class OBJECT_OT_BatchParentOperator(bpy.types.Operator):
+    bl_idname = "object.batch_parent_operator"
+    bl_label = "批量快速Parenting"
+    bl_description = "将所选物体批量设置为指定父级物体的子集，优化大量物体层级设置性能"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        # 获取父级物体
+        parent = context.scene.batch_parent_object
+        
+        if parent is None:
+            self.report({'ERROR'}, "未选择父级物体")
+            return {'CANCELLED'}
+        
+        # 过滤出所有真正需要绑定的子物体
+        selected_objects = context.selected_objects
+        children = [o for o in selected_objects if o != parent]
+        
+        if len(children) == 0:
+            self.report({'WARNING'}, "没有选择需要绑定的子物体")
+            return {'CANCELLED'}
+        
+        # 更新视图层
+        context.view_layer.update()
+        
+        # 显示进度条
+        context.window_manager.progress_begin(0, len(children))
+        
+        try:
+            # 一次性parenting（关闭undo可再提速，但为了用户体验保留）
+            for i, child in enumerate(children):
+                child.parent = parent
+                child.matrix_parent_inverse = parent.matrix_world.inverted()
+                context.window_manager.progress_update(i + 1)
+            
+            # 把父级设为活动物体，方便后续操作
+            context.view_layer.objects.active = parent
+            
+            self.report({'INFO'}, f"已完成：{len(children)} 个物体已绑定到 '{parent.name}'")
+        finally:
+            context.window_manager.progress_end()
+        
+        return {'FINISHED'}
     
 #按照集合对齐顶级父级
 class OBJECT_OT_AlignOperator(bpy.types.Operator):
@@ -1933,6 +1978,7 @@ classes = [
     MoveOutsideOperator,
     FixSizeOperator,
     OBJECT_OT_SetParentButton,
+    OBJECT_OT_BatchParentOperator,
     OBJECT_OT_move_to_surface,
     SCENE_OT_add_sorted_scenes_to_sequencer,
     SCENE_OT_sort_scenes,
