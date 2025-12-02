@@ -668,6 +668,242 @@ class RemoveDuplicateMeshesByVertex(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class RemovePlanarMeshes(bpy.types.Operator):
+    """检测所选物体中所有顶点如果处于一个平面则删除该物体"""
+    bl_idname = "object.remove_planar_meshes"
+    bl_label = "删除平面Mesh物体"
+    bl_description = "检测所选物体中所有顶点如果处于一个平面则删除该物体"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def get_world_vertices(self, obj):
+        """获取物体在世界空间中的顶点坐标"""
+        if obj.type != 'MESH':
+            return []
+        
+        mesh = obj.data
+        world_matrix = obj.matrix_world
+        vertices = []
+        
+        for vert in mesh.vertices:
+            world_pos = world_matrix @ vert.co
+            vertices.append(world_pos)
+        
+        return vertices
+    
+    def calculate_best_fit_plane(self, vertices):
+        """
+        计算最佳拟合平面
+        返回平面法向量和平面上的一个点
+        使用最小二乘法：通过计算协方差矩阵的最小特征值对应的特征向量
+        """
+        if len(vertices) < 3:
+            return None, None
+        
+        # 计算顶点中心
+        center = Vector((0, 0, 0))
+        for v in vertices:
+            center += v
+        center /= len(vertices)
+        
+        # 构建协方差矩阵
+        cov_xx = cov_xy = cov_xz = 0.0
+        cov_yy = cov_yz = cov_zz = 0.0
+        
+        for v in vertices:
+            diff = v - center
+            cov_xx += diff.x * diff.x
+            cov_xy += diff.x * diff.y
+            cov_xz += diff.x * diff.z
+            cov_yy += diff.y * diff.y
+            cov_yz += diff.y * diff.z
+            cov_zz += diff.z * diff.z
+        
+        # 归一化
+        n = len(vertices)
+        cov_xx /= n
+        cov_xy /= n
+        cov_xz /= n
+        cov_yy /= n
+        cov_yz /= n
+        cov_zz /= n
+        
+        # 构建协方差矩阵
+        # 对于平面，最小特征值应该接近0，对应的特征向量就是法向量
+        # 使用简化的方法：计算主方向
+        
+        # 方法1：尝试使用三个不共线的点计算法向量
+        normal = None
+        for i in range(min(3, len(vertices))):
+            for j in range(i+1, min(4, len(vertices))):
+                v0 = vertices[i] - center
+                v1 = vertices[j] - center
+                if v0.length > 0.0001 and v1.length > 0.0001:
+                    test_normal = v0.cross(v1)
+                    if test_normal.length > 0.0001:
+                        test_normal.normalize()
+                        # 验证这个法向量是否合理（所有点到平面的距离应该很小）
+                        max_dist = max(abs((v - center).dot(test_normal)) for v in vertices)
+                        if normal is None or max_dist < 0.1:  # 如果距离很小，说明是好的法向量
+                            normal = test_normal
+                            if max_dist < 0.01:  # 如果已经很好了，直接返回
+                                return normal, center
+        
+        if normal is None or normal.length < 0.0001:
+            # 如果无法计算，使用PCA方法
+            return self.calculate_plane_normal_pca(vertices, center)
+        
+        return normal, center
+    
+    def calculate_plane_normal_pca(self, vertices, center):
+        """
+        使用PCA方法计算平面法向量
+        对于平面，最小主成分方向就是法向量
+        简化版本：计算方差最小的方向
+        """
+        if len(vertices) < 3:
+            return None, None
+        
+        # 计算各方向的方差
+        var_x = var_y = var_z = 0.0
+        for v in vertices:
+            diff = v - center
+            var_x += diff.x * diff.x
+            var_y += diff.y * diff.y
+            var_z += diff.z * diff.z
+        
+        n = len(vertices)
+        var_x /= n
+        var_y /= n
+        var_z /= n
+        
+        # 找到方差最小的方向作为法向量的初始估计
+        if var_x < var_y and var_x < var_z:
+            normal = Vector((1, 0, 0))
+        elif var_y < var_z:
+            normal = Vector((0, 1, 0))
+        else:
+            normal = Vector((0, 0, 1))
+        
+        # 使用迭代方法优化法向量
+        # 通过最小化所有点到平面的距离
+        best_normal = normal
+        min_max_dist = float('inf')
+        
+        # 尝试多个可能的方向，选择使最大距离最小的方向
+        test_directions = [
+            Vector((1, 0, 0)), Vector((0, 1, 0)), Vector((0, 0, 1)),
+            Vector((1, 1, 0)).normalized() if Vector((1, 1, 0)).length > 0 else Vector((1, 0, 0)),
+            Vector((1, 0, 1)).normalized() if Vector((1, 0, 1)).length > 0 else Vector((1, 0, 0)),
+            Vector((0, 1, 1)).normalized() if Vector((0, 1, 1)).length > 0 else Vector((0, 1, 0))
+        ]
+        
+        for test_normal in test_directions:
+            if test_normal.length < 0.0001:
+                continue
+            test_normal.normalize()
+            max_dist = 0.0
+            for v in vertices:
+                dist = abs((v - center).dot(test_normal))
+                max_dist = max(max_dist, dist)
+            
+            if max_dist < min_max_dist:
+                min_max_dist = max_dist
+                best_normal = test_normal
+        
+        return best_normal, center
+    
+    def is_planar(self, vertices, distance_threshold):
+        """
+        检测所有顶点是否在一个平面上
+        返回True如果所有顶点到平面的距离都在阈值内
+        """
+        if len(vertices) < 3:
+            return False
+        
+        # 计算最佳拟合平面
+        normal, point_on_plane = self.calculate_best_fit_plane(vertices)
+        
+        if normal is None or point_on_plane is None:
+            return False
+        
+        # 计算所有顶点到平面的距离
+        max_distance = 0.0
+        for v in vertices:
+            # 点到平面的距离 = |(v - point) · normal|
+            distance = abs((v - point_on_plane).dot(normal))
+            max_distance = max(max_distance, distance)
+        
+        # 如果最大距离在阈值内，说明是平面
+        return max_distance <= distance_threshold
+    
+    def execute(self, context):
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        if len(selected_objects) == 0:
+            self.report({'WARNING'}, "至少需要选择1个mesh物体")
+            return {'CANCELLED'}
+        
+        # 获取距离阈值
+        distance_threshold = context.scene.planar_mesh_distance_threshold
+        
+        # 更新视图层确保矩阵是最新的
+        context.view_layer.update()
+        
+        # 存储要删除的物体
+        objects_to_delete = []
+        
+        # 显示进度条
+        context.window_manager.progress_begin(0, len(selected_objects))
+        
+        try:
+            for i, obj in enumerate(selected_objects):
+                # 更新进度
+                context.window_manager.progress_update(i + 1)
+                
+                # 检查对象是否仍然有效
+                try:
+                    if obj is None or obj.name not in bpy.data.objects:
+                        continue
+                except (ReferenceError, RuntimeError):
+                    continue
+                
+                # 获取顶点
+                vertices = self.get_world_vertices(obj)
+                
+                if len(vertices) < 3:
+                    # 顶点数少于3个，可能是退化物体，也删除
+                    objects_to_delete.append(obj)
+                    continue
+                
+                # 检测是否是平面
+                if self.is_planar(vertices, distance_threshold):
+                    objects_to_delete.append(obj)
+        
+        finally:
+            context.window_manager.progress_end()
+        
+        # 删除标记的物体
+        deleted_count = 0
+        for obj in objects_to_delete:
+            try:
+                if obj is None:
+                    continue
+                
+                obj_name = obj.name
+                if obj_name in bpy.data.objects:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                    deleted_count += 1
+            except (ReferenceError, RuntimeError):
+                continue
+        
+        if deleted_count > 0:
+            self.report({'INFO'}, f"删除了 {deleted_count} 个平面mesh物体（距离阈值: {distance_threshold:.4f}）")
+        else:
+            self.report({'INFO'}, f"未发现平面mesh物体（距离阈值: {distance_threshold:.4f}）")
+        
+        return {'FINISHED'}
+
+
 def register():
     bpy.utils.register_class(IMAGE_OT_RemoveBrokenImages)
     bpy.utils.register_class(UVCleaner)
@@ -683,6 +919,7 @@ def register():
     bpy.utils.register_class(CleanSense)
     bpy.utils.register_class(ClearAnimationData)
     bpy.utils.register_class(RemoveDuplicateMeshesByVertex)
+    bpy.utils.register_class(RemovePlanarMeshes)
 
 def unregister():
     bpy.utils.unregister_class(IMAGE_OT_RemoveBrokenImages)
@@ -699,6 +936,7 @@ def unregister():
     bpy.utils.unregister_class(CleanSense)
     bpy.utils.unregister_class(ClearAnimationData)
     bpy.utils.unregister_class(RemoveDuplicateMeshesByVertex)
+    bpy.utils.unregister_class(RemovePlanarMeshes)
 
 if __name__ == "__main__":
      register()

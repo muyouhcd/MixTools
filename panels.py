@@ -100,6 +100,14 @@ class CustomFunctionsPanel(Panel):
             overlap_row.prop(scene, "mesh_vertex_overlap_threshold", text="重合度阈值(%)", slider=True)
             mesh_overlap_box.operator("object.remove_duplicate_meshes_by_vertex", text="检测并删除重合Mesh", icon='TRASH')
             
+            # 平面Mesh检测与清理
+            planar_box = clean_box.box()
+            planar_box.label(text="平面Mesh检测:", icon='MESH_PLANE')
+            planar_box.label(text="检测所选mesh所有顶点是否在一个平面上", icon='INFO')
+            planar_row = planar_box.row(align=True)
+            planar_row.prop(scene, "planar_mesh_distance_threshold", text="距离阈值")
+            planar_box.operator("object.remove_planar_meshes", text="检测并删除平面Mesh", icon='TRASH')
+            
             # 顶点组清理工具
             vertex_group_clean_box = clean_box.box()
             vertex_group_clean_box.label(text="顶点组清理:", icon='GROUP_VERTEX')
@@ -1284,6 +1292,17 @@ def register():
         step=0.01
     )
     
+    # 平面Mesh距离阈值属性
+    bpy.types.Scene.planar_mesh_distance_threshold = bpy.props.FloatProperty(
+        name="距离阈值",
+        description="判断所有顶点是否在一个平面的距离阈值（世界空间单位），所有顶点到平面的距离都在此范围内则认为是平面",
+        default=0.01,
+        min=0.0001,
+        max=10.0,
+        precision=4,
+        step=0.01
+    )
+    
     # 移除重复帧工具属性
     bpy.types.Scene.duplicate_frames_detection_mode = bpy.props.EnumProperty(
         name="检测模式",
@@ -1386,6 +1405,9 @@ def unregister():
         
         # Mesh顶点距离阈值属性
         "mesh_vertex_distance_threshold",
+        
+        # 平面Mesh距离阈值属性
+        "planar_mesh_distance_threshold",
 
     ]
     
