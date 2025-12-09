@@ -527,6 +527,7 @@ from . import EmptySizeSetter
 from . import CompositorNodeLibrary
 from . import CurveOperators
 from . import Random
+from . import MeshEditer
 
 def register():
     """插件注册函数 - 支持降级模式"""
@@ -592,6 +593,7 @@ def register_full_mode():
         CompositorNodeLibrary.register()
         CurveOperators.register()
         Random.register()
+        MeshEditer.register()
         
         # 最后注册UI面板
         panels.register()
@@ -655,7 +657,8 @@ def register_limited_mode():
             (EmptySizeSetter, "EmptySizeSetter"),
             (CompositorNodeLibrary, "CompositorNodeLibrary"),
             (CurveOperators, "CurveOperators"),
-            (Random, "Random")
+            (Random, "Random"),
+            (MeshEditer, "MeshEditer")
         ]
         
         # 尝试注册AutoRender模块（即使PIL不可用，也要注册UI属性）
@@ -753,6 +756,7 @@ def unregister():
         CompositorNodeLibrary.unregister()
         CurveOperators.unregister()
         Random.unregister()
+        MeshEditer.unregister()
         
         # 最后注销基础模块
         operators.unregister()

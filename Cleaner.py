@@ -904,6 +904,290 @@ class RemovePlanarMeshes(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class RemoveIdenticalMeshesByShape(bpy.types.Operator):
+    """检测所选物体中形状一模一样的物体，保留其中一个删除另一个，只比较原点距离在限制内的物体"""
+    bl_idname = "object.remove_identical_meshes_by_shape"
+    bl_label = "删除形状相同的Mesh物体"
+    bl_description = "检测所选物体中形状一模一样的物体，保留其中一个删除另一个，只比较原点距离在限制内的物体"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def get_mesh_geometry_hash(self, obj, vertex_tolerance=0.001):
+        """
+        获取mesh的几何形状标识（忽略位置、旋转、缩放）
+        使用局部坐标生成哈希值
+        改进：对顶点进行排序，使哈希不受顶点顺序影响
+        添加容差：对顶点坐标进行量化，容忍小的偏移
+        """
+        if obj.type != 'MESH':
+            return None
+        
+        mesh = obj.data
+        
+        # 如果mesh没有顶点，返回None
+        if len(mesh.vertices) == 0:
+            return None
+        
+        # 量化函数：将坐标舍入到容差精度
+        def quantize(value, tolerance):
+            if tolerance <= 0:
+                return value
+            return round(value / tolerance) * tolerance
+        
+        # 收集顶点坐标，进行量化并排序（使哈希不受顶点顺序影响）
+        vertices = []
+        for v in mesh.vertices:
+            # 对坐标进行量化，容忍小的偏移
+            qx = quantize(v.co.x, vertex_tolerance)
+            qy = quantize(v.co.y, vertex_tolerance)
+            qz = quantize(v.co.z, vertex_tolerance)
+            vertices.append((qx, qy, qz))
+        vertices.sort()  # 按x, y, z排序
+        
+        # 收集边并排序
+        edges = [(min(e.vertices[0], e.vertices[1]), max(e.vertices[0], e.vertices[1])) for e in mesh.edges]
+        edges.sort()
+        
+        # 收集面并排序（每个面的顶点索引排序）
+        polygons = []
+        for p in mesh.polygons:
+            sorted_verts = sorted(p.vertices)
+            polygons.append(tuple(sorted_verts))
+        polygons.sort()
+        
+        # 将排序后的数据拼接成字符串，用于哈希生成
+        # 使用量化后的坐标，精度根据容差调整
+        precision = max(6, -int(math.log10(vertex_tolerance)) + 2) if vertex_tolerance > 0 else 8
+        vertex_data = "".join([f"{v[0]:.{precision}f},{v[1]:.{precision}f},{v[2]:.{precision}f}" for v in vertices])
+        edge_data = "".join([f"{e[0]},{e[1]}" for e in edges])
+        polygon_data = "".join([str(p) for p in polygons])
+        
+        # 添加顶点数、边数、面数作为额外标识
+        counts = f"v{len(vertices)}e{len(edges)}p{len(polygons)}"
+        
+        # 创建哈希值，唯一标识该物体的网格几何形状
+        data = counts + vertex_data + edge_data + polygon_data
+        mesh_hash = hashlib.md5(data.encode('utf-8')).hexdigest()
+        
+        return mesh_hash
+    
+    def get_origin_distance(self, obj1, obj2):
+        """计算两个物体原点在世界坐标中的距离"""
+        loc1 = obj1.location
+        loc2 = obj2.location
+        return (loc1 - loc2).length
+    
+    def get_top_parent(self, obj):
+        """获取物体的顶级父级"""
+        while obj.parent:
+            obj = obj.parent
+        return obj
+    
+    def should_keep_obj1(self, obj1, obj2):
+        """
+        判断应该保留obj1还是obj2
+        优先保留处于同一顶级父级下的物体（对于所有选取的物体）
+        返回True表示保留obj1，False表示保留obj2
+        """
+        top_parent1 = self.get_top_parent(obj1)
+        top_parent2 = self.get_top_parent(obj2)
+        
+        # 判断obj1是否在顶级父级下（有父级）
+        obj1_has_parent = (top_parent1 != obj1)
+        # 判断obj2是否在顶级父级下（有父级）
+        obj2_has_parent = (top_parent2 != obj2)
+        
+        # 优先保留在顶级父级下的物体
+        # 如果obj1在顶级父级下，obj2不在，保留obj1
+        if obj1_has_parent and not obj2_has_parent:
+            return True
+        
+        # 如果obj2在顶级父级下，obj1不在，保留obj2
+        if obj2_has_parent and not obj1_has_parent:
+            return False
+        
+        # 如果两个都在顶级父级下
+        if obj1_has_parent and obj2_has_parent:
+            # 如果是同一个顶级父级，保留第一个
+            if top_parent1 == top_parent2:
+                return True
+            # 如果是不同的顶级父级，保留第一个（也可以根据其他规则选择）
+            else:
+                return True
+        
+        # 如果两个都不在顶级父级下（都是孤立的），保留第一个
+        if not obj1_has_parent and not obj2_has_parent:
+            return True
+        
+        # 默认保留第一个
+        return True
+    
+    def execute(self, context):
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        if len(selected_objects) < 2:
+            self.report({'WARNING'}, "至少需要选择2个mesh物体")
+            return {'CANCELLED'}
+        
+        # 获取原点距离限制和顶点位置容差
+        origin_distance_limit = context.scene.identical_mesh_origin_distance_limit
+        vertex_tolerance = context.scene.identical_mesh_vertex_tolerance
+        
+        # 更新视图层确保矩阵是最新的
+        context.view_layer.update()
+        
+        # 存储要删除的物体
+        objects_to_delete = []
+        processed_pairs = set()
+        
+        # 统计信息
+        identical_shapes_found = 0  # 找到的形状相同的物体对数
+        skipped_by_distance = 0  # 因距离限制跳过的数量
+        
+        # 显示进度条
+        total_pairs = len(selected_objects) * (len(selected_objects) - 1) // 2
+        context.window_manager.progress_begin(0, total_pairs)
+        
+        try:
+            progress_index = 0
+            # 预先计算所有物体的几何哈希（避免重复计算）
+            geometry_hash_cache = {}
+            mesh_data_cache = {}  # 缓存mesh数据块，用于检测共享mesh的情况
+            
+            for obj in selected_objects:
+                try:
+                    if obj is None or obj.name not in bpy.data.objects:
+                        continue
+                except (ReferenceError, RuntimeError):
+                    continue
+                
+                # 计算几何哈希（使用顶点容差）
+                mesh_hash = self.get_mesh_geometry_hash(obj, vertex_tolerance)
+                geometry_hash_cache[obj] = mesh_hash
+                
+                # 如果两个物体共享同一个mesh数据块，它们的几何形状肯定相同
+                if obj.data:
+                    mesh_data_cache[obj] = obj.data
+            
+            # 比较所有物体对
+            for i, obj1 in enumerate(selected_objects):
+                # 检查对象是否仍然有效
+                try:
+                    if obj1 is None or obj1.name not in bpy.data.objects:
+                        continue
+                except (ReferenceError, RuntimeError):
+                    continue
+                
+                if obj1 in objects_to_delete:
+                    continue
+                
+                hash1 = geometry_hash_cache.get(obj1)
+                if hash1 is None:
+                    continue
+                
+                for j, obj2 in enumerate(selected_objects[i+1:], start=i+1):
+                    # 检查对象是否仍然有效
+                    try:
+                        if obj2 is None or obj2.name not in bpy.data.objects:
+                            continue
+                    except (ReferenceError, RuntimeError):
+                        continue
+                    
+                    if obj2 in objects_to_delete:
+                        continue
+                    
+                    # 避免重复比较
+                    pair_key = tuple(sorted([id(obj1), id(obj2)]))
+                    if pair_key in processed_pairs:
+                        continue
+                    processed_pairs.add(pair_key)
+                    
+                    # 更新进度
+                    progress_index += 1
+                    context.window_manager.progress_update(progress_index)
+                    
+                    # 先比较几何形状（忽略原点距离，先检测mesh结构是否相同）
+                    # 检查是否共享同一个mesh数据块（这种情况几何形状肯定相同）
+                    mesh1_data = mesh_data_cache.get(obj1)
+                    mesh2_data = mesh_data_cache.get(obj2)
+                    shapes_identical = False
+                    
+                    if mesh1_data and mesh2_data and mesh1_data == mesh2_data:
+                        # 共享同一个mesh数据块，形状相同
+                        shapes_identical = True
+                    else:
+                        # 比较几何哈希
+                        hash2 = geometry_hash_cache.get(obj2)
+                        if hash2 is None:
+                            continue
+                        
+                        # 如果几何形状相同
+                        if hash1 == hash2:
+                            shapes_identical = True
+                    
+                    # 如果几何形状相同，再检查原点距离
+                    if shapes_identical:
+                        identical_shapes_found += 1
+                        # 检查原点距离（只对形状相同的物体应用距离限制）
+                        origin_distance = self.get_origin_distance(obj1, obj2)
+                        if origin_distance > origin_distance_limit:
+                            # 形状相同但距离太远，跳过删除（但记录统计）
+                            skipped_by_distance += 1
+                            continue
+                        
+                        # 判断应该保留哪个物体（优先保留处于同一顶级父级下的物体）
+                        if self.should_keep_obj1(obj1, obj2):
+                            # 保留obj1，删除obj2
+                            if obj2 not in objects_to_delete:
+                                objects_to_delete.append(obj2)
+                        else:
+                            # 保留obj2，删除obj1
+                            if obj1 not in objects_to_delete:
+                                objects_to_delete.append(obj1)
+                                # 如果obj1被标记删除，需要跳出内层循环
+                                break
+        
+        finally:
+            context.window_manager.progress_end()
+        
+        # 删除标记的物体
+        deleted_count = 0
+        objects_to_delete_names = set()
+        
+        for obj in objects_to_delete:
+            try:
+                if obj is None:
+                    continue
+                
+                obj_name = obj.name
+                if obj_name in bpy.data.objects and obj_name not in objects_to_delete_names:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+                    objects_to_delete_names.add(obj_name)
+                    deleted_count += 1
+            except (ReferenceError, RuntimeError):
+                continue
+        
+        # 统计信息
+        total_compared = len(processed_pairs)
+        
+        if deleted_count > 0:
+            self.report({'INFO'}, f"删除了 {deleted_count} 个形状相同的mesh物体（原点距离限制: {origin_distance_limit:.4f}）")
+            if skipped_by_distance > 0:
+                self.report({'INFO'}, f"提示：还有 {skipped_by_distance} 对形状相同但原点距离超过限制的物体未删除，可增大'原点距离限制'值")
+        else:
+            # 提供更详细的反馈
+            if total_compared == 0:
+                self.report({'WARNING'}, f"没有进行任何比较，请检查选择的物体")
+            else:
+                if identical_shapes_found > 0:
+                    self.report({'INFO'}, f"发现 {identical_shapes_found} 对形状相同的物体，但都因原点距离超过限制（{origin_distance_limit:.4f}）而未删除")
+                    self.report({'INFO'}, f"提示：请增大'原点距离限制'值以删除这些物体")
+                else:
+                    self.report({'INFO'}, f"未发现形状相同的mesh物体（比较了 {total_compared} 对物体，原点距离限制: {origin_distance_limit:.4f}）")
+                    self.report({'INFO'}, f"提示：如果形状相同但未检测到，可能是几何形状有细微差异")
+        
+        return {'FINISHED'}
+
+
 def register():
     bpy.utils.register_class(IMAGE_OT_RemoveBrokenImages)
     bpy.utils.register_class(UVCleaner)
@@ -920,6 +1204,7 @@ def register():
     bpy.utils.register_class(ClearAnimationData)
     bpy.utils.register_class(RemoveDuplicateMeshesByVertex)
     bpy.utils.register_class(RemovePlanarMeshes)
+    bpy.utils.register_class(RemoveIdenticalMeshesByShape)
 
 def unregister():
     bpy.utils.unregister_class(IMAGE_OT_RemoveBrokenImages)
@@ -937,6 +1222,7 @@ def unregister():
     bpy.utils.unregister_class(ClearAnimationData)
     bpy.utils.unregister_class(RemoveDuplicateMeshesByVertex)
     bpy.utils.unregister_class(RemovePlanarMeshes)
+    bpy.utils.unregister_class(RemoveIdenticalMeshesByShape)
 
 if __name__ == "__main__":
      register()

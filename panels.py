@@ -62,6 +62,17 @@ class CustomFunctionsPanel(Panel):
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='UNLINKED')
             edit_box.operator("object.mian_correct_rotation", text="矫正旋转", icon='CON_ROTLIMIT')
             
+            # 网格切分工具
+            mesh_cut_box = col_edit_tools.box()
+            mesh_cut_box.label(text="网格切分工具:", icon='MOD_BOOLEAN')
+            mesh_cut_box.label(text="从顶视图（Z轴视角）进行网格状切分", icon='INFO')
+            mesh_cut_box.label(text="根据物体包围盒尺寸按段数切分", icon='INFO')
+            cut_segments_row1 = mesh_cut_box.row(align=True)
+            cut_segments_row1.prop(context.scene, "mesh_grid_cut_x_segments", text="X方向段数")
+            cut_segments_row2 = mesh_cut_box.row(align=True)
+            cut_segments_row2.prop(context.scene, "mesh_grid_cut_y_segments", text="Y方向段数")
+            mesh_cut_box.operator("object.mesh_grid_cut_top_view", text="执行顶视图网格切分", icon='MOD_BOOLEAN')
+            
             # 合并工具
             merge_box = col_edit_tools.box()
             merge_box.label(text="合并工具:", icon='SNAP_MIDPOINT')
@@ -107,6 +118,17 @@ class CustomFunctionsPanel(Panel):
             planar_row = planar_box.row(align=True)
             planar_row.prop(scene, "planar_mesh_distance_threshold", text="距离阈值")
             planar_box.operator("object.remove_planar_meshes", text="检测并删除平面Mesh", icon='TRASH')
+            
+            # 形状相同Mesh检测与清理
+            identical_shape_box = clean_box.box()
+            identical_shape_box.label(text="形状相同Mesh检测:", icon='MESH_DATA')
+            identical_shape_box.label(text="检测形状一模一样的物体，忽略旋转缩放", icon='INFO')
+            identical_shape_box.label(text="只比较原点距离在限制内的物体", icon='INFO')
+            identical_row1 = identical_shape_box.row(align=True)
+            identical_row1.prop(scene, "identical_mesh_origin_distance_limit", text="原点距离限制")
+            identical_row2 = identical_shape_box.row(align=True)
+            identical_row2.prop(scene, "identical_mesh_vertex_tolerance", text="顶点位置容差")
+            identical_shape_box.operator("object.remove_identical_meshes_by_shape", text="检测并删除形状相同Mesh", icon='TRASH')
             
             # 顶点组清理工具
             vertex_group_clean_box = clean_box.box()
@@ -1257,6 +1279,22 @@ def register():
         maxlen=100,
     )
     
+    # 网格切分工具属性
+    bpy.types.Scene.mesh_grid_cut_x_segments = bpy.props.IntProperty(
+        name="X方向段数",
+        description="X方向切分的段数（将包围盒X范围分成多少段）",
+        default=2,
+        min=1,
+        max=100
+    )
+    bpy.types.Scene.mesh_grid_cut_y_segments = bpy.props.IntProperty(
+        name="Y方向段数",
+        description="Y方向切分的段数（将包围盒Y范围分成多少段）",
+        default=2,
+        min=1,
+        max=100
+    )
+    
     # 曲线闭合选项属性
     bpy.types.Scene.curve_closed_option = bpy.props.BoolProperty(
         name="创建闭合曲线",
@@ -1301,6 +1339,28 @@ def register():
         max=10.0,
         precision=4,
         step=0.01
+    )
+    
+    # 形状相同Mesh原点距离限制属性
+    bpy.types.Scene.identical_mesh_origin_distance_limit = bpy.props.FloatProperty(
+        name="原点距离限制",
+        description="只比较原点在世界坐标中距离在此限制内的物体（世界空间单位）",
+        default=1.0,
+        min=0.001,
+        max=100.0,
+        precision=4,
+        step=0.1
+    )
+    
+    # 形状相同Mesh顶点位置容差属性
+    bpy.types.Scene.identical_mesh_vertex_tolerance = bpy.props.FloatProperty(
+        name="顶点位置容差",
+        description="判断顶点位置是否相同的容差（局部坐标单位），在此范围内的顶点位置差异会被忽略",
+        default=0.001,
+        min=0.0001,
+        max=1.0,
+        precision=6,
+        step=0.0001
     )
     
     # 移除重复帧工具属性
@@ -1394,6 +1454,10 @@ def unregister():
         # 批量顶点组工具属性
         "vertex_group_name",
         
+        # 网格切分工具属性
+        "mesh_grid_cut_x_segments",
+        "mesh_grid_cut_y_segments",
+        
         # 曲线闭合选项属性
         "curve_closed_option",
         
@@ -1408,6 +1472,12 @@ def unregister():
         
         # 平面Mesh距离阈值属性
         "planar_mesh_distance_threshold",
+        
+        # 形状相同Mesh原点距离限制属性
+        "identical_mesh_origin_distance_limit",
+        
+        # 形状相同Mesh顶点位置容差属性
+        "identical_mesh_vertex_tolerance",
 
     ]
     
