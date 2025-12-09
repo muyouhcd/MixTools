@@ -74,14 +74,14 @@ class CustomFunctionsPanel(Panel):
             cut_segments_row2.prop(context.scene, "mesh_grid_cut_y_segments", text="Y方向段数")
             mesh_cut_box.operator("object.mesh_grid_cut_top_view", text="执行顶视图网格切分", icon='MOD_BOOLEAN')
             
-            # 锁边精简工具
-            edge_lock_box = col_edit_tools.box()
-            edge_lock_box.label(text="锁边精简工具:", icon='MOD_DECIM')
-            edge_lock_box.label(text="将非边缘顶点加入inner顶点组，添加精简修改器", icon='INFO')
-            edge_lock_box.label(text="只精简内部顶点，保留边缘部分", icon='INFO')
-            decimate_ratio_row = edge_lock_box.row(align=True)
+            # 精简工具
+            decimate_box = col_edit_tools.box()
+            decimate_box.label(text="Mesh精简工具:", icon='MOD_DECIM')
+            decimate_ratio_row = decimate_box.row(align=True)
             decimate_ratio_row.prop(context.scene, "edge_lock_decimate_ratio", text="精简比率", slider=True)
-            edge_lock_box.operator("object.edge_lock_decimate", text="执行锁边精简", icon='MOD_DECIM')
+            decimate_box.operator("object.simple_decimate", text="普通精简", icon='MOD_DECIM')
+            decimate_box.operator("object.edge_lock_decimate", text="锁边精简", icon='MOD_DECIM')
+            decimate_box.operator("object.corner_lock_decimate", text="锁角精简", icon='MOD_DECIM')
             
             # 合并工具
             merge_box = col_edit_tools.box()

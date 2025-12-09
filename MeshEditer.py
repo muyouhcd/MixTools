@@ -225,39 +225,57 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                     expected_x_size = original_x_size / x_segments
                     expected_y_size = original_y_size / y_segments
                     
-                    # 过滤掉太小的物体（小碎片）
-                    # 使用更严格的判断标准，删除切分时产生的小碎片
+                    # 获取原始物体的面数（用于动态调整过滤阈值）
+                    original_face_count = len(obj.data.polygons)
+                    original_vertex_count = len(obj.data.vertices)
+                    
+                    # 根据原始模型的面数动态调整过滤阈值
+                    # 低面数模型：每个切分块的面数也会少，需要更宽松的判断
+                    # 高面数模型：可以使用更严格的判断
+                    if original_face_count < 100:
+                        # 低面数模型：更宽松的判断
+                        min_vertex_threshold = 3  # 至少3个顶点
+                        min_face_threshold = 0    # 只要有面就保留
+                        volume_threshold_ratio = 0.01  # 1%的体积阈值
+                        size_threshold_ratio = 0.01     # 1%的尺寸阈值
+                    elif original_face_count < 1000:
+                        # 中等面数模型：中等判断
+                        min_vertex_threshold = 4
+                        min_face_threshold = 0
+                        volume_threshold_ratio = 0.03
+                        size_threshold_ratio = 0.03
+                    else:
+                        # 高面数模型：更严格的判断
+                        min_vertex_threshold = 4
+                        min_face_threshold = 0
+                        volume_threshold_ratio = 0.05
+                        size_threshold_ratio = 0.05
+                    
+                    # 计算预期的每个网格块的最小尺寸（用于判断是否为碎片）
+                    min_expected_volume = (expected_x_size * expected_y_size * original_z_size) * volume_threshold_ratio
+                    size_threshold_x = expected_x_size * size_threshold_ratio
+                    size_threshold_y = expected_y_size * size_threshold_ratio
+                    
+                    # 计算预期的每个切分块的面数（用于判断）
+                    expected_faces_per_segment = original_face_count / (x_segments * y_segments)
+                    expected_vertices_per_segment = original_vertex_count / (x_segments * y_segments)
+                    
+                    # 计算预期的切分块数
+                    expected_segment_count = x_segments * y_segments
+                    
+                    # 极简过滤：只删除真正无效的几何体（无面且顶点数<3）
+                    # 保留所有有效的切分块，避免误删
                     valid_objects = []
                     small_fragments = []
                     
-                    # 计算预期的每个网格块的最小尺寸（用于判断是否为碎片）
-                    min_expected_volume = (expected_x_size * expected_y_size * original_z_size) * 0.05  # 5%的预期体积
-                    
                     for sep_obj in separated_objects:
-                        # 计算物体的尺寸（使用包围盒）
-                        sep_bbox = [sep_obj.matrix_world @ Vector(corner) for corner in sep_obj.bound_box]
-                        sep_x_size = max(c.x for c in sep_bbox) - min(c.x for c in sep_bbox)
-                        sep_y_size = max(c.y for c in sep_bbox) - min(c.y for c in sep_bbox)
-                        sep_z_size = max(c.z for c in sep_bbox) - min(c.z for c in sep_bbox)
-                        sep_volume = sep_x_size * sep_y_size * sep_z_size
-                        
                         # 获取几何体数量
                         vertex_count = len(sep_obj.data.vertices)
                         face_count = len(sep_obj.data.polygons)
-                        edge_count = len(sep_obj.data.edges)
                         
-                        # 更严格的判断标准：删除小碎片
-                        # 1. 没有面（只有点或边）
-                        # 2. 顶点数极少（少于4个顶点）
-                        # 3. 体积太小（小于预期体积的5%，且顶点数少于10个）
-                        # 4. XY平面尺寸都异常小（可能是切分线上的碎片）
-                        size_threshold_x = expected_x_size * 0.05  # 5%的预期尺寸
-                        size_threshold_y = expected_y_size * 0.05
-                        
-                        is_fragment = (face_count < 1) or \
-                                     (vertex_count < 4) or \
-                                     (sep_volume < min_expected_volume and vertex_count < 10) or \
-                                     (sep_x_size < size_threshold_x and sep_y_size < size_threshold_y and vertex_count < 8)
+                        # 极简判断：只删除完全没有面且顶点数少于3的物体
+                        # 这样可以确保所有有效的切分块都被保留
+                        is_fragment = (face_count < 1) and (vertex_count < 3)
                         
                         if is_fragment:
                             small_fragments.append(sep_obj)
@@ -273,9 +291,16 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                         except:
                             pass
                     
-                    # 如果有小碎片被删除，报告信息
+                    # 报告信息
+                    actual_count = len(valid_objects)
                     if fragments_removed > 0:
                         self.report({'INFO'}, f"物体 '{obj.name}' 切分时删除了 {fragments_removed} 个小碎片")
+                    
+                    # 如果块数不足，报告警告（但不删除，因为可能是切分本身的问题）
+                    if actual_count < expected_segment_count:
+                        self.report({'WARNING'}, 
+                                  f"物体 '{obj.name}' 切分后得到 {actual_count} 个块，预期 {expected_segment_count} 个块。"
+                                  f"可能有 {expected_segment_count - actual_count} 个块在切分过程中丢失。")
                     
                     # 只对有效物体进行重命名
                     # 使用字典来跟踪每个索引位置的物体，避免重名
@@ -318,8 +343,8 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                             # 只有一个物体，直接命名
                             objects_at_position[0].name = f"{original_name}_{grid_x}_{grid_y}"
                         else:
-                            # 多个物体在同一位置（可能是碎片或重叠）
-                            # 选择体积最大的物体作为主物体，其他作为碎片删除
+                            # 多个物体在同一位置（可能是切分时产生的多个部分）
+                            # 合并这些物体而不是删除，确保不丢失任何有效块
                             def get_volume(obj):
                                 bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
                                 x_size = max(c.x for c in bbox) - min(c.x for c in bbox)
@@ -327,19 +352,35 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                                 z_size = max(c.z for c in bbox) - min(c.z for c in bbox)
                                 return x_size * y_size * z_size
                             
+                            # 按体积排序，最大的作为主物体
                             objects_at_position.sort(key=get_volume, reverse=True)
+                            main_obj = objects_at_position[0]
+                            
+                            # 合并其他物体到主物体
+                            if len(objects_at_position) > 1:
+                                # 确保所有物体都被选中
+                                bpy.ops.object.select_all(action='DESELECT')
+                                for obj_to_merge in objects_at_position:
+                                    obj_to_merge.select_set(True)
+                                bpy.context.view_layer.objects.active = main_obj
+                                
+                                # 合并物体
+                                try:
+                                    bpy.ops.object.join()
+                                    # 合并后，主物体就是合并后的物体
+                                    main_obj = bpy.context.active_object
+                                except Exception as e:
+                                    # 如果合并失败，只保留主物体，删除其他的
+                                    self.report({'WARNING'}, 
+                                              f"合并网格位置 ({grid_x}, {grid_y}) 的物体时出错: {str(e)}")
+                                    for fragment in objects_at_position[1:]:
+                                        try:
+                                            bpy.data.objects.remove(fragment, do_unlink=True)
+                                        except:
+                                            pass
                             
                             # 主物体使用标准命名
-                            main_obj = objects_at_position[0]
                             main_obj.name = f"{original_name}_{grid_x}_{grid_y}"
-                            
-                            # 其他物体作为碎片删除
-                            for fragment in objects_at_position[1:]:
-                                try:
-                                    bpy.data.objects.remove(fragment, do_unlink=True)
-                                    fragments_removed += 1
-                                except:
-                                    pass
                 
                 processed_count += 1
                 
@@ -615,11 +656,293 @@ class OBJECT_OT_edge_lock_decimate(Operator):
             return {'CANCELLED'}
 
 
+class OBJECT_OT_corner_lock_decimate(Operator):
+    """锁角精简：将非角顶点加入non_corner顶点组，然后添加精简修改器"""
+    bl_idname = "object.corner_lock_decimate"
+    bl_label = "锁角精简"
+    bl_description = "将所选物体的非角顶点（XY平面四个角以外的顶点）加入non_corner顶点组，然后添加精简修改器，只精简非角顶点，保留四个角"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        """检查是否有选中的网格物体"""
+        return context.selected_objects and any(
+            obj.type == 'MESH' for obj in context.selected_objects
+        )
+
+    def execute(self, context):
+        """执行锁角精简操作"""
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请选择至少一个网格物体")
+            return {'CANCELLED'}
+
+        # 从场景属性获取精简比率（复用锁边精简的比率）
+        decimate_ratio = context.scene.edge_lock_decimate_ratio
+        
+        if decimate_ratio <= 0.0 or decimate_ratio > 1.0:
+            self.report({'ERROR'}, "精简比率必须在0到1之间")
+            return {'CANCELLED'}
+
+        # 保存当前模式
+        original_mode = context.mode
+        original_active = context.view_layer.objects.active
+        
+        processed_count = 0
+        
+        try:
+            # 确保处于对象模式
+            if original_mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+            
+            for obj in selected_objects:
+                try:
+                    # 确保物体被选中并激活
+                    bpy.ops.object.select_all(action='DESELECT')
+                    obj.select_set(True)
+                    context.view_layer.objects.active = obj
+                    
+                    # 确保物体处于对象模式
+                    if obj.mode != 'OBJECT':
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                    
+                    # 确保网格数据独立
+                    if obj.data.users > 1:
+                        obj.data = obj.data.copy()
+                    
+                    # 获取物体的世界空间包围盒
+                    bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                    
+                    # 计算包围盒在XY平面的范围
+                    min_x = min(corner.x for corner in bbox_corners)
+                    max_x = max(corner.x for corner in bbox_corners)
+                    min_y = min(corner.y for corner in bbox_corners)
+                    max_y = max(corner.y for corner in bbox_corners)
+                    
+                    # 计算包围盒范围，用于确定容差
+                    x_range = max_x - min_x
+                    y_range = max_y - min_y
+                    
+                    # 使用包围盒尺寸的1%作为容差，但最小0.001，最大0.1
+                    tolerance = max(0.001, min(0.1, min(x_range, y_range) * 0.01))
+                    
+                    # 定义四个角的坐标（在XY平面上）
+                    corners = [
+                        (min_x, min_y),  # 左下角
+                        (min_x, max_y),  # 左上角
+                        (max_x, min_y),  # 右下角
+                        (max_x, max_y),  # 右上角
+                    ]
+                    
+                    # 创建bmesh对象来分析顶点
+                    bm = bmesh.new()
+                    bm.from_mesh(obj.data)
+                    
+                    # 确保查找表已更新
+                    bm.verts.ensure_lookup_table()
+                    
+                    # 应用物体的世界变换到bmesh（将局部坐标转换为世界坐标）
+                    bm.transform(obj.matrix_world)
+                    
+                    # 找到所有角顶点（在四个角附近的顶点）
+                    corner_vertices_bm = set()
+                    for vert in bm.verts:
+                        vert_x = vert.co.x
+                        vert_y = vert.co.y
+                        
+                        # 检查顶点是否在任何一个角附近
+                        for corner_x, corner_y in corners:
+                            if abs(vert_x - corner_x) < tolerance and abs(vert_y - corner_y) < tolerance:
+                                corner_vertices_bm.add(vert)
+                                break
+                    
+                    # 获取non_corner顶点的索引（非角顶点）
+                    non_corner_vertex_indices = [v.index for v in bm.verts if v not in corner_vertices_bm]
+                    
+                    # 将bmesh转换回局部空间
+                    bm.transform(obj.matrix_world.inverted())
+                    bm.free()
+                    
+                    # 创建或获取non_corner顶点组
+                    vertex_group_name = "non_corner"
+                    vg = None
+                    for existing_vg in obj.vertex_groups:
+                        if existing_vg.name == vertex_group_name:
+                            vg = existing_vg
+                            break
+                    
+                    if vg is None:
+                        vg = obj.vertex_groups.new(name=vertex_group_name)
+                    else:
+                        # 清空现有顶点组
+                        vg.remove(range(len(obj.data.vertices)))
+                    
+                    # 将non_corner顶点添加到顶点组，权重为1.0
+                    if non_corner_vertex_indices:
+                        vg.add(non_corner_vertex_indices, 1.0, 'REPLACE')
+                    
+                    # 检查是否已存在同名的精简修改器
+                    existing_modifier = None
+                    for mod in obj.modifiers:
+                        if mod.name == "CornerLockDecimate" and mod.type == 'DECIMATE':
+                            existing_modifier = mod
+                            break
+                    
+                    if existing_modifier is None:
+                        # 添加精简修改器
+                        decimate_mod = obj.modifiers.new(name="CornerLockDecimate", type='DECIMATE')
+                    else:
+                        decimate_mod = existing_modifier
+                    
+                    # 设置精简修改器参数
+                    decimate_mod.decimate_type = 'COLLAPSE'  # 使用折叠类型
+                    decimate_mod.ratio = decimate_ratio
+                    
+                    # 设置顶点组（只精简non_corner顶点组中的顶点）
+                    decimate_mod.vertex_group = vertex_group_name
+                    decimate_mod.invert_vertex_group = False  # 不反转，只精简non_corner组中的顶点
+                    
+                    processed_count += 1
+                    
+                except Exception as e:
+                    self.report({'ERROR'}, f"处理物体 '{obj.name}' 时出错: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+        
+        finally:
+            # 恢复原始选中状态
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in selected_objects:
+                obj.select_set(True)
+            if original_active and original_active.name in context.view_layer.objects:
+                context.view_layer.objects.active = original_active
+            
+            # 恢复原始模式
+            if original_mode != 'OBJECT':
+                try:
+                    bpy.ops.object.mode_set(mode=original_mode)
+                except:
+                    pass
+        
+        if processed_count > 0:
+            self.report({'INFO'}, f"成功为 {processed_count} 个物体添加锁角精简修改器")
+            return {'FINISHED'}
+        else:
+            self.report({'WARNING'}, "没有物体被成功处理")
+            return {'CANCELLED'}
+
+
+class OBJECT_OT_simple_decimate(Operator):
+    """普通精简：直接按照精简比率添加精简修改器，不添加顶点组"""
+    bl_idname = "object.simple_decimate"
+    bl_label = "普通精简"
+    bl_description = "直接按照精简比率添加精简修改器，不添加顶点组，精简整个物体"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        """检查是否有选中的网格物体"""
+        return context.selected_objects and any(
+            obj.type == 'MESH' for obj in context.selected_objects
+        )
+
+    def execute(self, context):
+        """执行普通精简操作"""
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请选择至少一个网格物体")
+            return {'CANCELLED'}
+
+        # 从场景属性获取精简比率
+        decimate_ratio = context.scene.edge_lock_decimate_ratio
+        
+        if decimate_ratio <= 0.0 or decimate_ratio > 1.0:
+            self.report({'ERROR'}, "精简比率必须在0到1之间")
+            return {'CANCELLED'}
+
+        # 保存当前模式
+        original_mode = context.mode
+        original_active = context.view_layer.objects.active
+        
+        processed_count = 0
+        
+        try:
+            # 确保处于对象模式
+            if original_mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+            
+            for obj in selected_objects:
+                try:
+                    # 确保物体被选中并激活
+                    bpy.ops.object.select_all(action='DESELECT')
+                    obj.select_set(True)
+                    context.view_layer.objects.active = obj
+                    
+                    # 确保物体处于对象模式
+                    if obj.mode != 'OBJECT':
+                        bpy.ops.object.mode_set(mode='OBJECT')
+                    
+                    # 检查是否已存在同名的精简修改器
+                    existing_modifier = None
+                    for mod in obj.modifiers:
+                        if mod.name == "SimpleDecimate" and mod.type == 'DECIMATE':
+                            existing_modifier = mod
+                            break
+                    
+                    if existing_modifier is None:
+                        # 添加精简修改器
+                        decimate_mod = obj.modifiers.new(name="SimpleDecimate", type='DECIMATE')
+                    else:
+                        decimate_mod = existing_modifier
+                    
+                    # 设置精简修改器参数
+                    decimate_mod.decimate_type = 'COLLAPSE'  # 使用折叠类型
+                    decimate_mod.ratio = decimate_ratio
+                    
+                    # 不设置顶点组，精简整个物体
+                    decimate_mod.vertex_group = ""
+                    
+                    processed_count += 1
+                    
+                except Exception as e:
+                    self.report({'ERROR'}, f"处理物体 '{obj.name}' 时出错: {str(e)}")
+                    import traceback
+                    traceback.print_exc()
+                    continue
+        
+        finally:
+            # 恢复原始选中状态
+            bpy.ops.object.select_all(action='DESELECT')
+            for obj in selected_objects:
+                obj.select_set(True)
+            if original_active and original_active.name in context.view_layer.objects:
+                context.view_layer.objects.active = original_active
+            
+            # 恢复原始模式
+            if original_mode != 'OBJECT':
+                try:
+                    bpy.ops.object.mode_set(mode=original_mode)
+                except:
+                    pass
+        
+        if processed_count > 0:
+            self.report({'INFO'}, f"成功为 {processed_count} 个物体添加普通精简修改器")
+            return {'FINISHED'}
+        else:
+            self.report({'WARNING'}, "没有物体被成功处理")
+            return {'CANCELLED'}
+
+
 # 注册类列表
 classes = [
     OBJECT_OT_mesh_grid_cut_top_view,
     OBJECT_OT_apply_modifiers,
     OBJECT_OT_edge_lock_decimate,
+    OBJECT_OT_corner_lock_decimate,
+    OBJECT_OT_simple_decimate,
 ]
 
 
