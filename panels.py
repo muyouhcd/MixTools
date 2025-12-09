@@ -51,9 +51,9 @@ class CustomFunctionsPanel(Panel):
         
         # 编辑工具
         col_edit_tools = layout.column()
-        col_edit_tools.prop(scene, "edit_tools_expand", text="编辑工具", emboss=False,
+        col_edit_tools.prop(context.scene, "edit_tools_expand", text="编辑工具", emboss=False,
                            icon='TRIA_DOWN' if context.scene.edit_tools_expand else 'TRIA_RIGHT')
-        if scene.edit_tools_expand:
+        if context.scene.edit_tools_expand:
             # 基础编辑工具
             edit_box = col_edit_tools.box()
             edit_box.label(text="基础编辑工具:", icon='TOOL_SETTINGS')
@@ -66,14 +66,23 @@ class CustomFunctionsPanel(Panel):
             # 网格切分工具
             mesh_cut_box = col_edit_tools.box()
             mesh_cut_box.label(text="网格切分工具:", icon='MOD_BOOLEAN')
-            mesh_cut_box.label(text="从顶视图（Z轴视角）进行网格状切分", icon='INFO')
-            mesh_cut_box.label(text="根据物体包围盒尺寸按段数切分", icon='INFO')
+            
+            # 按段数切分
             cut_segments_row1 = mesh_cut_box.row(align=True)
             cut_segments_row1.prop(context.scene, "mesh_grid_cut_x_segments", text="X方向段数")
             cut_segments_row2 = mesh_cut_box.row(align=True)
             cut_segments_row2.prop(context.scene, "mesh_grid_cut_y_segments", text="Y方向段数")
+            cut_segments_row3 = mesh_cut_box.row(align=True)
+            cut_segments_row3.prop(context.scene, "mesh_grid_cut_z_segments", text="Z方向段数")
             mesh_cut_box.prop(context.scene, "mesh_grid_cut_move_origin_to_bottom", text="原点移至包围盒底部中心")
             mesh_cut_box.operator("object.mesh_grid_cut_top_view", text="执行顶视图网格切分", icon='MOD_BOOLEAN')
+            
+            # 按边长切分
+            mesh_cut_box.separator()
+            mesh_cut_box.label(text="按边长切分:", icon='SNAP_GRID')
+            cut_size_row = mesh_cut_box.row(align=True)
+            cut_size_row.prop(context.scene, "mesh_grid_cut_segment_size", text="切分边长")
+            mesh_cut_box.operator("object.mesh_grid_cut_by_size", text="执行按边长网格切分", icon='MOD_BOOLEAN')
             
             # 精简工具
             decimate_box = col_edit_tools.box()
@@ -1305,6 +1314,23 @@ def register():
         min=1,
         max=100
     )
+    bpy.types.Scene.mesh_grid_cut_z_segments = bpy.props.IntProperty(
+        name="Z方向段数",
+        description="Z方向切分的段数（将包围盒Z范围分成多少段），默认为1（不进行Z方向切分）",
+        default=1,
+        min=1,
+        max=100
+    )
+    bpy.types.Scene.mesh_grid_cut_segment_size = bpy.props.FloatProperty(
+        name="切分边长",
+        description="按边长切分时，每个网格块的边长（米）",
+        default=1.0,
+        min=0.001,
+        max=1000.0,
+        step=0.1,
+        precision=3,
+        unit='LENGTH'
+    )
     bpy.types.Scene.mesh_grid_cut_move_origin_to_bottom = bpy.props.BoolProperty(
         name="原点移至包围盒底部中心",
         description="切分后，将每个物体的原点移动到其包围盒底部中心",
@@ -1483,6 +1509,8 @@ def unregister():
         # 网格切分工具属性
         "mesh_grid_cut_x_segments",
         "mesh_grid_cut_y_segments",
+        "mesh_grid_cut_z_segments",
+        "mesh_grid_cut_segment_size",
         "mesh_grid_cut_move_origin_to_bottom",
         
         # 曲线闭合选项属性

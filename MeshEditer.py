@@ -1,5 +1,6 @@
 import bpy
 import bmesh
+import math
 from mathutils import Vector, Matrix
 from bpy.props import IntProperty
 from bpy.types import Operator
@@ -30,8 +31,9 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
         # 从场景属性获取切分段数
         x_segments = context.scene.mesh_grid_cut_x_segments
         y_segments = context.scene.mesh_grid_cut_y_segments
+        z_segments = context.scene.mesh_grid_cut_z_segments
         
-        if x_segments < 1 or y_segments < 1:
+        if x_segments < 1 or y_segments < 1 or z_segments < 1:
             self.report({'ERROR'}, "切分段数必须大于等于1")
             return {'CANCELLED'}
 
@@ -50,19 +52,25 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                 # 获取物体的世界空间包围盒
                 bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
                 
-                # 计算包围盒在XY平面的范围
+                # 计算包围盒的范围
                 min_x = min(corner.x for corner in bbox_corners)
                 max_x = max(corner.x for corner in bbox_corners)
                 min_y = min(corner.y for corner in bbox_corners)
                 max_y = max(corner.y for corner in bbox_corners)
+                min_z = min(corner.z for corner in bbox_corners)
+                max_z = max(corner.z for corner in bbox_corners)
                 
                 # 计算包围盒范围
                 x_range = max_x - min_x
                 y_range = max_y - min_y
+                z_range = max_z - min_z
                 
                 if x_range < 0.001 or y_range < 0.001:
                     self.report({'WARNING'}, f"物体 '{obj.name}' 在XY平面上尺寸过小，跳过")
                     continue
+                
+                if z_segments > 1 and z_range < 0.001:
+                    self.report({'WARNING'}, f"物体 '{obj.name}' 在Z方向上尺寸过小，跳过Z方向切分")
                 
                 # 创建bmesh对象
                 bm = bmesh.new()
@@ -74,13 +82,20 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                 # 应用物体的世界变换到bmesh（将局部坐标转换为世界坐标）
                 bm.transform(obj.matrix_world)
                 
+                # 获取Z轴范围
+                min_z = min(corner.z for corner in bbox_corners)
+                max_z = max(corner.z for corner in bbox_corners)
+                z_range = max_z - min_z
+                
                 # 根据段数计算每段的尺寸
                 x_segment_size = x_range / x_segments
                 y_segment_size = y_range / y_segments
+                z_segment_size = z_range / z_segments if z_segments > 1 else z_range
                 
                 # 计算切分线位置
                 x_cuts = []
                 y_cuts = []
+                z_cuts = []
                 
                 # X方向的切分线（垂直于X轴，沿Y方向）
                 # 从第一段边界开始，到倒数第二段边界结束（不切分边界）
@@ -94,9 +109,14 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                     y_pos = min_y + i * y_segment_size
                     y_cuts.append(y_pos)
                 
-                # 获取Z轴中心位置（用于切分平面）
-                min_z = min(corner.z for corner in bbox_corners)
-                max_z = max(corner.z for corner in bbox_corners)
+                # Z方向的切分线（垂直于Z轴，沿XY方向）
+                # 从第一段边界开始，到倒数第二段边界结束（不切分边界）
+                if z_segments > 1:
+                    for i in range(1, z_segments):
+                        z_pos = min_z + i * z_segment_size
+                        z_cuts.append(z_pos)
+                
+                # 获取Z轴中心位置（用于X和Y方向的切分平面）
                 z_center = (min_z + max_z) / 2
                 
                 # 执行X方向的切分（垂直于X轴的平面）
@@ -131,6 +151,25 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                         clear_outer=False
                     )
                 
+                # 执行Z方向的切分（垂直于Z轴的平面）
+                if z_segments > 1:
+                    x_center = (min_x + max_x) / 2
+                    y_center = (min_y + max_y) / 2
+                    for z_pos in z_cuts:
+                        # 切分平面：垂直于Z轴，通过点(x_center, y_center, z_pos)
+                        plane_co = Vector((x_center, y_center, z_pos))
+                        plane_no = Vector((0, 0, 1))  # 法向量指向Z轴正方向
+                        
+                        # 执行切分
+                        bmesh.ops.bisect_plane(
+                            bm,
+                            geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+                            plane_co=plane_co,
+                            plane_no=plane_no,
+                            clear_inner=False,
+                            clear_outer=False
+                        )
+                
                 # 确保所有边都被分割（断开连接）
                 # bisect_plane 创建了新的边，但可能仍然连接着两边的网格
                 # 我们需要分割这些边来真正断开连接
@@ -164,6 +203,16 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                             if edge not in edges_to_split:
                                 edges_to_split.append(edge)
                             break
+                    
+                    # 检查边是否在Z切分线上
+                    if z_segments > 1:
+                        for z_pos in z_cuts:
+                            v1_on_line = abs(v1.z - z_pos) < tolerance
+                            v2_on_line = abs(v2.z - z_pos) < tolerance
+                            if v1_on_line and v2_on_line:
+                                if edge not in edges_to_split:
+                                    edges_to_split.append(edge)
+                                break
                 
                 # 分割这些边以断开连接
                 if edges_to_split:
@@ -257,11 +306,11 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                     size_threshold_y = expected_y_size * size_threshold_ratio
                     
                     # 计算预期的每个切分块的面数（用于判断）
-                    expected_faces_per_segment = original_face_count / (x_segments * y_segments)
-                    expected_vertices_per_segment = original_vertex_count / (x_segments * y_segments)
+                    expected_faces_per_segment = original_face_count / (x_segments * y_segments * z_segments)
+                    expected_vertices_per_segment = original_vertex_count / (x_segments * y_segments * z_segments)
                     
                     # 计算预期的切分块数
-                    expected_segment_count = x_segments * y_segments
+                    expected_segment_count = x_segments * y_segments * z_segments
                     
                     # 极简过滤：只删除真正无效的几何体（无面且顶点数<3）
                     # 保留所有有效的切分块，避免误删
@@ -304,17 +353,18 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                     
                     # 只对有效物体进行重命名
                     # 使用字典来跟踪每个索引位置的物体，避免重名
-                    grid_objects = {}  # {(grid_x, grid_y): [objects]}
+                    grid_objects = {}  # {(grid_x, grid_y, grid_z): [objects]} 或 {(grid_x, grid_y): [objects]}
                     
                     for sep_obj in valid_objects:
                         # 计算这个物体属于哪个网格区域
                         sep_bbox = [sep_obj.matrix_world @ Vector(corner) for corner in sep_obj.bound_box]
                         sep_center_x = sum(c.x for c in sep_bbox) / len(sep_bbox)
                         sep_center_y = sum(c.y for c in sep_bbox) / len(sep_bbox)
+                        sep_center_z = sum(c.z for c in sep_bbox) / len(sep_bbox)
                         
                         # 计算网格索引
-                        # 最小X、最小Y的位置对应索引(0,0)
-                        # 最大X、最大Y的位置对应索引(x_segments-1, y_segments-1)
+                        # 最小X、最小Y、最小Z的位置对应索引(0,0,0)
+                        # 最大X、最大Y、最大Z的位置对应索引(x_segments-1, y_segments-1, z_segments-1)
                         if x_segment_size > 0.001:
                             # 计算X索引：从min_x开始，每段大小为x_segment_size
                             grid_x = int((sep_center_x - min_x) / x_segment_size)
@@ -331,17 +381,32 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                         else:
                             grid_y = 0
                         
+                        # 计算Z索引（仅在z_segments > 1时）
+                        if z_segments > 1 and z_segment_size > 0.001:
+                            grid_z = int((sep_center_z - min_z) / z_segment_size)
+                            grid_z = max(0, min(grid_z, z_segments - 1))
+                        else:
+                            grid_z = 0
+                        
                         # 将物体添加到对应索引位置
-                        grid_key = (grid_x, grid_y)
+                        if z_segments > 1:
+                            grid_key = (grid_x, grid_y, grid_z)
+                        else:
+                            grid_key = (grid_x, grid_y)
                         if grid_key not in grid_objects:
                             grid_objects[grid_key] = []
                         grid_objects[grid_key].append(sep_obj)
                     
                     # 处理每个网格位置的物体
-                    for (grid_x, grid_y), objects_at_position in grid_objects.items():
+                    for grid_key, objects_at_position in grid_objects.items():
                         if len(objects_at_position) == 1:
                             # 只有一个物体，直接命名
-                            objects_at_position[0].name = f"{original_name}_{grid_x}_{grid_y}"
+                            if z_segments > 1:
+                                grid_x, grid_y, grid_z = grid_key
+                                objects_at_position[0].name = f"{original_name}_{grid_x}_{grid_y}_{grid_z}"
+                            else:
+                                grid_x, grid_y = grid_key
+                                objects_at_position[0].name = f"{original_name}_{grid_x}_{grid_y}"
                         else:
                             # 多个物体在同一位置（可能是切分时产生的多个部分）
                             # 合并这些物体而不是删除，确保不丢失任何有效块
@@ -371,8 +436,14 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                                     main_obj = bpy.context.active_object
                                 except Exception as e:
                                     # 如果合并失败，只保留主物体，删除其他的
-                                    self.report({'WARNING'}, 
-                                              f"合并网格位置 ({grid_x}, {grid_y}) 的物体时出错: {str(e)}")
+                                    if z_segments > 1:
+                                        grid_x, grid_y, grid_z = grid_key
+                                        self.report({'WARNING'}, 
+                                                  f"合并网格位置 ({grid_x}, {grid_y}, {grid_z}) 的物体时出错: {str(e)}")
+                                    else:
+                                        grid_x, grid_y = grid_key
+                                        self.report({'WARNING'}, 
+                                                  f"合并网格位置 ({grid_x}, {grid_y}) 的物体时出错: {str(e)}")
                                     for fragment in objects_at_position[1:]:
                                         try:
                                             bpy.data.objects.remove(fragment, do_unlink=True)
@@ -380,7 +451,12 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                                             pass
                             
                             # 主物体使用标准命名
-                            main_obj.name = f"{original_name}_{grid_x}_{grid_y}"
+                            if z_segments > 1:
+                                grid_x, grid_y, grid_z = grid_key
+                                main_obj.name = f"{original_name}_{grid_x}_{grid_y}_{grid_z}"
+                            else:
+                                grid_x, grid_y = grid_key
+                                main_obj.name = f"{original_name}_{grid_x}_{grid_y}"
                     
                     # 如果勾选了选项，将每个物体的原点移动到包围盒底部中心
                     if context.scene.mesh_grid_cut_move_origin_to_bottom:
@@ -428,6 +504,380 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                                 continue
                         
                         # 恢复原始游标位置
+                        context.scene.cursor.location = original_cursor_location
+                
+                processed_count += 1
+                
+            except Exception as e:
+                self.report({'ERROR'}, f"处理物体 '{obj.name}' 时出错: {str(e)}")
+                continue
+        
+        if processed_count > 0:
+            self.report({'INFO'}, f"成功切分 {processed_count} 个物体")
+            return {'FINISHED'}
+        else:
+            self.report({'WARNING'}, "没有物体被成功切分")
+            return {'CANCELLED'}
+
+
+class OBJECT_OT_mesh_grid_cut_by_size(Operator):
+    """按边长对物体进行网格状切分"""
+    bl_idname = "object.mesh_grid_cut_by_size"
+    bl_label = "按边长网格切分"
+    bl_description = "根据指定的边长对物体进行网格状切分，自动计算切分段数"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        """检查是否有选中的网格物体"""
+        return context.selected_objects and any(
+            obj.type == 'MESH' for obj in context.selected_objects
+        )
+
+    def execute(self, context):
+        """执行按边长网格切分操作"""
+        selected_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
+        
+        if not selected_objects:
+            self.report({'WARNING'}, "请选择至少一个网格物体")
+            return {'CANCELLED'}
+
+        # 从场景属性获取边长
+        segment_size = context.scene.mesh_grid_cut_segment_size
+        
+        if segment_size <= 0.001:
+            self.report({'ERROR'}, "切分边长必须大于0.001")
+            return {'CANCELLED'}
+
+        processed_count = 0
+        
+        for obj in selected_objects:
+            try:
+                # 确保物体处于对象模式
+                if obj.mode != 'OBJECT':
+                    bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # 确保网格数据独立
+                if obj.data.users > 1:
+                    obj.data = obj.data.copy()
+                
+                # 获取物体的世界空间包围盒
+                bbox_corners = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                
+                # 计算包围盒的范围
+                min_x = min(corner.x for corner in bbox_corners)
+                max_x = max(corner.x for corner in bbox_corners)
+                min_y = min(corner.y for corner in bbox_corners)
+                max_y = max(corner.y for corner in bbox_corners)
+                min_z = min(corner.z for corner in bbox_corners)
+                max_z = max(corner.z for corner in bbox_corners)
+                
+                # 计算包围盒范围
+                x_range = max_x - min_x
+                y_range = max_y - min_y
+                z_range = max_z - min_z
+                
+                if x_range < 0.001 or y_range < 0.001:
+                    self.report({'WARNING'}, f"物体 '{obj.name}' 在XY平面上尺寸过小，跳过")
+                    continue
+                
+                # 根据边长计算切分段数（向上取整，确保覆盖整个物体）
+                x_segments = max(1, math.ceil(x_range / segment_size))
+                y_segments = max(1, math.ceil(y_range / segment_size))
+                
+                # 创建bmesh对象
+                bm = bmesh.new()
+                depsgraph = context.evaluated_depsgraph_get()
+                
+                # 从物体创建bmesh（自动应用修改器）
+                bm.from_object(obj, depsgraph)
+                
+                # 应用物体的世界变换到bmesh（将局部坐标转换为世界坐标）
+                bm.transform(obj.matrix_world)
+                
+                # 根据段数计算每段的尺寸（实际使用计算的段数）
+                x_segment_size = x_range / x_segments
+                y_segment_size = y_range / y_segments
+                
+                # 计算切分线位置
+                x_cuts = []
+                y_cuts = []
+                
+                # X方向的切分线（垂直于X轴，沿Y方向）
+                for i in range(1, x_segments):
+                    x_pos = min_x + i * x_segment_size
+                    x_cuts.append(x_pos)
+                
+                # Y方向的切分线（垂直于Y轴，沿X方向）
+                for i in range(1, y_segments):
+                    y_pos = min_y + i * y_segment_size
+                    y_cuts.append(y_pos)
+                
+                # 获取Z轴中心位置（用于切分平面）
+                z_center = (min_z + max_z) / 2
+                
+                # 执行X方向的切分（垂直于X轴的平面）
+                for x_pos in x_cuts:
+                    plane_co = Vector((x_pos, (min_y + max_y) / 2, z_center))
+                    plane_no = Vector((1, 0, 0))
+                    
+                    bmesh.ops.bisect_plane(
+                        bm,
+                        geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+                        plane_co=plane_co,
+                        plane_no=plane_no,
+                        clear_inner=False,
+                        clear_outer=False
+                    )
+                
+                # 执行Y方向的切分（垂直于Y轴的平面）
+                for y_pos in y_cuts:
+                    plane_co = Vector(((min_x + max_x) / 2, y_pos, z_center))
+                    plane_no = Vector((0, 1, 0))
+                    
+                    bmesh.ops.bisect_plane(
+                        bm,
+                        geom=bm.verts[:] + bm.edges[:] + bm.faces[:],
+                        plane_co=plane_co,
+                        plane_no=plane_no,
+                        clear_inner=False,
+                        clear_outer=False
+                    )
+                
+                # 确保所有边都被分割（断开连接）
+                bm.edges.ensure_lookup_table()
+                bm.verts.ensure_lookup_table()
+                bm.faces.ensure_lookup_table()
+                
+                # 找到所有在切分线上的边
+                tolerance = 0.001
+                edges_to_split = []
+                
+                for edge in bm.edges:
+                    v1 = edge.verts[0].co
+                    v2 = edge.verts[1].co
+                    
+                    # 检查边是否在X切分线上
+                    for x_pos in x_cuts:
+                        v1_on_line = abs(v1.x - x_pos) < tolerance
+                        v2_on_line = abs(v2.x - x_pos) < tolerance
+                        if v1_on_line and v2_on_line:
+                            if edge not in edges_to_split:
+                                edges_to_split.append(edge)
+                            break
+                    
+                    # 检查边是否在Y切分线上
+                    for y_pos in y_cuts:
+                        v1_on_line = abs(v1.y - y_pos) < tolerance
+                        v2_on_line = abs(v2.y - y_pos) < tolerance
+                        if v1_on_line and v2_on_line:
+                            if edge not in edges_to_split:
+                                edges_to_split.append(edge)
+                            break
+                
+                # 分割这些边以断开连接
+                if edges_to_split:
+                    try:
+                        bmesh.ops.split_edges(bm, edges=edges_to_split)
+                    except Exception as e:
+                        for edge in list(edges_to_split):
+                            try:
+                                if edge.is_valid:
+                                    bmesh.ops.split_edges(bm, edges=[edge])
+                            except:
+                                pass
+                
+                # 将bmesh转换回局部空间
+                bm.transform(obj.matrix_world.inverted())
+                
+                # 更新网格
+                bm.normal_update()
+                bm.to_mesh(obj.data)
+                bm.free()
+                
+                # 更新物体
+                obj.data.update()
+                
+                # 进入编辑模式并分离网格
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                bpy.context.view_layer.objects.active = obj
+                
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                result = bpy.ops.mesh.separate(type='LOOSE')
+                bpy.ops.object.mode_set(mode='OBJECT')
+                
+                # 重命名分离出的物体
+                if 'FINISHED' in result:
+                    separated_objects = [o for o in context.selected_objects if o.type == 'MESH']
+                    
+                    original_name = obj.name
+                    original_x_size = max_x - min_x
+                    original_y_size = max_y - min_y
+                    original_z_size = max_z - min_z
+                    
+                    # 计算预期的每个网格块的尺寸
+                    expected_x_size = original_x_size / x_segments
+                    expected_y_size = original_y_size / y_segments
+                    
+                    # 获取原始物体的面数和顶点数
+                    original_face_count = len(obj.data.polygons)
+                    original_vertex_count = len(obj.data.vertices)
+                    
+                    # 根据原始模型的面数动态调整过滤阈值
+                    if original_face_count < 100:
+                        min_vertex_threshold = 3
+                        min_face_threshold = 0
+                        volume_threshold_ratio = 0.01
+                        size_threshold_ratio = 0.01
+                    elif original_face_count < 1000:
+                        min_vertex_threshold = 4
+                        min_face_threshold = 0
+                        volume_threshold_ratio = 0.03
+                        size_threshold_ratio = 0.03
+                    else:
+                        min_vertex_threshold = 4
+                        min_face_threshold = 0
+                        volume_threshold_ratio = 0.05
+                        size_threshold_ratio = 0.05
+                    
+                    min_expected_volume = (expected_x_size * expected_y_size * original_z_size) * volume_threshold_ratio
+                    size_threshold_x = expected_x_size * size_threshold_ratio
+                    size_threshold_y = expected_y_size * size_threshold_ratio
+                    
+                    expected_faces_per_segment = original_face_count / (x_segments * y_segments)
+                    expected_vertices_per_segment = original_vertex_count / (x_segments * y_segments)
+                    expected_segment_count = x_segments * y_segments
+                    
+                    # 过滤小碎片
+                    valid_objects = []
+                    small_fragments = []
+                    
+                    for sep_obj in separated_objects:
+                        vertex_count = len(sep_obj.data.vertices)
+                        face_count = len(sep_obj.data.polygons)
+                        is_fragment = (face_count < 1) and (vertex_count < 3)
+                        
+                        if is_fragment:
+                            small_fragments.append(sep_obj)
+                        else:
+                            valid_objects.append(sep_obj)
+                    
+                    # 删除小碎片
+                    fragments_removed = 0
+                    for fragment in small_fragments:
+                        try:
+                            bpy.data.objects.remove(fragment, do_unlink=True)
+                            fragments_removed += 1
+                        except:
+                            pass
+                    
+                    # 报告信息
+                    actual_count = len(valid_objects)
+                    if fragments_removed > 0:
+                        self.report({'INFO'}, f"物体 '{obj.name}' 切分时删除了 {fragments_removed} 个小碎片")
+                    
+                    if actual_count < expected_segment_count:
+                        self.report({'WARNING'}, 
+                                  f"物体 '{obj.name}' 切分后得到 {actual_count} 个块，预期 {expected_segment_count} 个块。"
+                                  f"可能有 {expected_segment_count - actual_count} 个块在切分过程中丢失。")
+                    
+                    # 重命名物体
+                    grid_objects = {}
+                    
+                    for sep_obj in valid_objects:
+                        sep_bbox = [sep_obj.matrix_world @ Vector(corner) for corner in sep_obj.bound_box]
+                        sep_center_x = sum(c.x for c in sep_bbox) / len(sep_bbox)
+                        sep_center_y = sum(c.y for c in sep_bbox) / len(sep_bbox)
+                        
+                        if x_segment_size > 0.001:
+                            grid_x = int((sep_center_x - min_x) / x_segment_size)
+                            grid_x = max(0, min(grid_x, x_segments - 1))
+                        else:
+                            grid_x = 0
+                        
+                        if y_segment_size > 0.001:
+                            grid_y = int((sep_center_y - min_y) / y_segment_size)
+                            grid_y = max(0, min(grid_y, y_segments - 1))
+                        else:
+                            grid_y = 0
+                        
+                        grid_key = (grid_x, grid_y)
+                        if grid_key not in grid_objects:
+                            grid_objects[grid_key] = []
+                        grid_objects[grid_key].append(sep_obj)
+                    
+                    # 处理每个网格位置的物体
+                    for (grid_x, grid_y), objects_at_position in grid_objects.items():
+                        if len(objects_at_position) == 1:
+                            objects_at_position[0].name = f"{original_name}_{grid_x}_{grid_y}"
+                        else:
+                            def get_volume(obj):
+                                bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                                x_size = max(c.x for c in bbox) - min(c.x for c in bbox)
+                                y_size = max(c.y for c in bbox) - min(c.y for c in bbox)
+                                z_size = max(c.z for c in bbox) - min(c.z for c in bbox)
+                                return x_size * y_size * z_size
+                            
+                            objects_at_position.sort(key=get_volume, reverse=True)
+                            main_obj = objects_at_position[0]
+                            
+                            if len(objects_at_position) > 1:
+                                bpy.ops.object.select_all(action='DESELECT')
+                                for obj_to_merge in objects_at_position:
+                                    obj_to_merge.select_set(True)
+                                bpy.context.view_layer.objects.active = main_obj
+                                
+                                try:
+                                    bpy.ops.object.join()
+                                    main_obj = bpy.context.active_object
+                                except Exception as e:
+                                    self.report({'WARNING'}, 
+                                              f"合并网格位置 ({grid_x}, {grid_y}) 的物体时出错: {str(e)}")
+                                    for fragment in objects_at_position[1:]:
+                                        try:
+                                            bpy.data.objects.remove(fragment, do_unlink=True)
+                                        except:
+                                            pass
+                            
+                            main_obj.name = f"{original_name}_{grid_x}_{grid_y}"
+                    
+                    # 如果勾选了选项，将每个物体的原点移动到包围盒底部中心
+                    if context.scene.mesh_grid_cut_move_origin_to_bottom:
+                        original_cursor_location = context.scene.cursor.location.copy()
+                        
+                        for sep_obj in valid_objects:
+                            try:
+                                if sep_obj.mode != 'OBJECT':
+                                    bpy.ops.object.mode_set(mode='OBJECT')
+                                
+                                bpy.ops.object.select_all(action='DESELECT')
+                                sep_obj.select_set(True)
+                                bpy.context.view_layer.objects.active = sep_obj
+                                
+                                sep_bbox = [sep_obj.matrix_world @ Vector(corner) for corner in sep_obj.bound_box]
+                                min_x_sep = min(c.x for c in sep_bbox)
+                                max_x_sep = max(c.x for c in sep_bbox)
+                                min_y_sep = min(c.y for c in sep_bbox)
+                                max_y_sep = max(c.y for c in sep_bbox)
+                                
+                                current_origin_world = sep_obj.matrix_world.translation
+                                current_z = current_origin_world.z
+                                
+                                bottom_center_world = Vector((
+                                    (min_x_sep + max_x_sep) / 2,
+                                    (min_y_sep + max_y_sep) / 2,
+                                    current_z
+                                ))
+                                
+                                context.scene.cursor.location = bottom_center_world
+                                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+                                
+                            except Exception as e:
+                                self.report({'WARNING'}, f"移动物体 '{sep_obj.name}' 的原点时出错: {str(e)}")
+                                continue
+                        
                         context.scene.cursor.location = original_cursor_location
                 
                 processed_count += 1
@@ -987,6 +1437,7 @@ class OBJECT_OT_simple_decimate(Operator):
 # 注册类列表
 classes = [
     OBJECT_OT_mesh_grid_cut_top_view,
+    OBJECT_OT_mesh_grid_cut_by_size,
     OBJECT_OT_apply_modifiers,
     OBJECT_OT_edge_lock_decimate,
     OBJECT_OT_corner_lock_decimate,
