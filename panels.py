@@ -57,6 +57,7 @@ class CustomFunctionsPanel(Panel):
             # 基础编辑工具
             edit_box = col_edit_tools.box()
             edit_box.label(text="基础编辑工具:", icon='TOOL_SETTINGS')
+            edit_box.operator("object.apply_modifiers", text="应用修改器", icon='CHECKMARK')
             edit_box.operator("object.remove_modifiers", text="移除修改器", icon='MODIFIER')
             edit_box.operator("object.remove_constraints", text="移除约束", icon='CONSTRAINT')
             edit_box.operator("object.make_single_user_operator", text="批量独立化物体", icon='UNLINKED')
@@ -72,6 +73,15 @@ class CustomFunctionsPanel(Panel):
             cut_segments_row2 = mesh_cut_box.row(align=True)
             cut_segments_row2.prop(context.scene, "mesh_grid_cut_y_segments", text="Y方向段数")
             mesh_cut_box.operator("object.mesh_grid_cut_top_view", text="执行顶视图网格切分", icon='MOD_BOOLEAN')
+            
+            # 锁边精简工具
+            edge_lock_box = col_edit_tools.box()
+            edge_lock_box.label(text="锁边精简工具:", icon='MOD_DECIM')
+            edge_lock_box.label(text="将非边缘顶点加入inner顶点组，添加精简修改器", icon='INFO')
+            edge_lock_box.label(text="只精简内部顶点，保留边缘部分", icon='INFO')
+            decimate_ratio_row = edge_lock_box.row(align=True)
+            decimate_ratio_row.prop(context.scene, "edge_lock_decimate_ratio", text="精简比率", slider=True)
+            edge_lock_box.operator("object.edge_lock_decimate", text="执行锁边精简", icon='MOD_DECIM')
             
             # 合并工具
             merge_box = col_edit_tools.box()
@@ -1307,6 +1317,16 @@ def register():
         type=bpy.types.Object,
         name="父级物体",
         description="选择作为父级的物体"
+    )
+    
+    # 锁边精简工具属性
+    bpy.types.Scene.edge_lock_decimate_ratio = bpy.props.FloatProperty(
+        name="精简比率",
+        description="精简修改器的比率参数（0.0-1.0），值越小精简越多",
+        default=0.5,
+        min=0.0,
+        max=1.0,
+        precision=3
     )
     
     # Mesh顶点重合度阈值属性
