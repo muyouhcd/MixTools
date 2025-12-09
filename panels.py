@@ -72,6 +72,7 @@ class CustomFunctionsPanel(Panel):
             cut_segments_row1.prop(context.scene, "mesh_grid_cut_x_segments", text="X方向段数")
             cut_segments_row2 = mesh_cut_box.row(align=True)
             cut_segments_row2.prop(context.scene, "mesh_grid_cut_y_segments", text="Y方向段数")
+            mesh_cut_box.prop(context.scene, "mesh_grid_cut_move_origin_to_bottom", text="原点移至包围盒底部中心")
             mesh_cut_box.operator("object.mesh_grid_cut_top_view", text="执行顶视图网格切分", icon='MOD_BOOLEAN')
             
             # 精简工具
@@ -1304,6 +1305,11 @@ def register():
         min=1,
         max=100
     )
+    bpy.types.Scene.mesh_grid_cut_move_origin_to_bottom = bpy.props.BoolProperty(
+        name="原点移至包围盒底部中心",
+        description="切分后，将每个物体的原点移动到其包围盒底部中心",
+        default=False
+    )
     
     # 曲线闭合选项属性
     bpy.types.Scene.curve_closed_option = bpy.props.BoolProperty(
@@ -1477,6 +1483,7 @@ def unregister():
         # 网格切分工具属性
         "mesh_grid_cut_x_segments",
         "mesh_grid_cut_y_segments",
+        "mesh_grid_cut_move_origin_to_bottom",
         
         # 曲线闭合选项属性
         "curve_closed_option",

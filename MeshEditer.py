@@ -381,6 +381,54 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                             
                             # 主物体使用标准命名
                             main_obj.name = f"{original_name}_{grid_x}_{grid_y}"
+                    
+                    # 如果勾选了选项，将每个物体的原点移动到包围盒底部中心
+                    if context.scene.mesh_grid_cut_move_origin_to_bottom:
+                        # 保存原始游标位置
+                        original_cursor_location = context.scene.cursor.location.copy()
+                        
+                        for sep_obj in valid_objects:
+                            try:
+                                # 确保物体处于对象模式
+                                if sep_obj.mode != 'OBJECT':
+                                    bpy.ops.object.mode_set(mode='OBJECT')
+                                
+                                # 选中物体并设置为活动物体
+                                bpy.ops.object.select_all(action='DESELECT')
+                                sep_obj.select_set(True)
+                                bpy.context.view_layer.objects.active = sep_obj
+                                
+                                # 计算包围盒底部中心（在世界坐标系中）
+                                sep_bbox = [sep_obj.matrix_world @ Vector(corner) for corner in sep_obj.bound_box]
+                                min_x = min(c.x for c in sep_bbox)
+                                max_x = max(c.x for c in sep_bbox)
+                                min_y = min(c.y for c in sep_bbox)
+                                max_y = max(c.y for c in sep_bbox)
+                                
+                                # 获取当前原点的Z坐标（保持不变）
+                                current_origin_world = sep_obj.matrix_world.translation
+                                current_z = current_origin_world.z
+                                
+                                # 底部中心坐标（世界坐标系），但Z坐标保持原点的Z坐标不变
+                                bottom_center_world = Vector((
+                                    (min_x + max_x) / 2,
+                                    (min_y + max_y) / 2,
+                                    current_z  # Z坐标保持不变
+                                ))
+                                
+                                # 设置3D游标到目标位置
+                                context.scene.cursor.location = bottom_center_world
+                                
+                                # 使用Blender内置功能将原点设置到游标位置
+                                # 这会自动处理几何体的移动，保持物体在世界空间中的位置不变
+                                bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+                                
+                            except Exception as e:
+                                self.report({'WARNING'}, f"移动物体 '{sep_obj.name}' 的原点时出错: {str(e)}")
+                                continue
+                        
+                        # 恢复原始游标位置
+                        context.scene.cursor.location = original_cursor_location
                 
                 processed_count += 1
                 
