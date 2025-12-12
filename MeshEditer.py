@@ -262,6 +262,11 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                     # 获取所有选中的物体（包括原物体和分离出的物体）
                     separated_objects = [o for o in context.selected_objects if o.type == 'MESH']
                     
+                    # 如果只有一个物体，说明没有成功分离，跳过
+                    if len(separated_objects) <= 1:
+                        self.report({'WARNING'}, f"物体 '{obj.name}' 切分后没有产生新的物体，可能切分段数设置不当或物体无法切分")
+                        continue
+                    
                     # 保存原始物体名称
                     original_name = obj.name
                     
@@ -398,24 +403,36 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                         grid_objects[grid_key].append(sep_obj)
                     
                     # 处理每个网格位置的物体
+                    final_valid_objects = []  # 用于存储最终有效的物体
                     for grid_key, objects_at_position in grid_objects.items():
                         if len(objects_at_position) == 1:
                             # 只有一个物体，直接命名
+                            final_obj = objects_at_position[0]
                             if z_segments > 1:
                                 grid_x, grid_y, grid_z = grid_key
-                                objects_at_position[0].name = f"{original_name}_{grid_x}_{grid_y}_{grid_z}"
+                                final_obj.name = f"{original_name}_{grid_x}_{grid_y}_{grid_z}"
                             else:
                                 grid_x, grid_y = grid_key
-                                objects_at_position[0].name = f"{original_name}_{grid_x}_{grid_y}"
+                                final_obj.name = f"{original_name}_{grid_x}_{grid_y}"
+                            final_valid_objects.append(final_obj)
                         else:
                             # 多个物体在同一位置（可能是切分时产生的多个部分）
                             # 合并这些物体而不是删除，确保不丢失任何有效块
                             def get_volume(obj):
-                                bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
-                                x_size = max(c.x for c in bbox) - min(c.x for c in bbox)
-                                y_size = max(c.y for c in bbox) - min(c.y for c in bbox)
-                                z_size = max(c.z for c in bbox) - min(c.z for c in bbox)
-                                return x_size * y_size * z_size
+                                try:
+                                    bbox = [obj.matrix_world @ Vector(corner) for corner in obj.bound_box]
+                                    x_size = max(c.x for c in bbox) - min(c.x for c in bbox)
+                                    y_size = max(c.y for c in bbox) - min(c.y for c in bbox)
+                                    z_size = max(c.z for c in bbox) - min(c.z for c in bbox)
+                                    return x_size * y_size * z_size
+                                except:
+                                    return 0
+                            
+                            # 过滤掉已删除的对象
+                            objects_at_position = [obj for obj in objects_at_position if obj.name in bpy.data.objects]
+                            
+                            if len(objects_at_position) == 0:
+                                continue
                             
                             # 按体积排序，最大的作为主物体
                             objects_at_position.sort(key=get_volume, reverse=True)
@@ -426,37 +443,50 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                                 # 确保所有物体都被选中
                                 bpy.ops.object.select_all(action='DESELECT')
                                 for obj_to_merge in objects_at_position:
-                                    obj_to_merge.select_set(True)
-                                bpy.context.view_layer.objects.active = main_obj
+                                    try:
+                                        if obj_to_merge.name in bpy.data.objects:
+                                            obj_to_merge.select_set(True)
+                                    except:
+                                        pass
                                 
-                                # 合并物体
-                                try:
-                                    bpy.ops.object.join()
-                                    # 合并后，主物体就是合并后的物体
-                                    main_obj = bpy.context.active_object
-                                except Exception as e:
-                                    # 如果合并失败，只保留主物体，删除其他的
-                                    if z_segments > 1:
-                                        grid_x, grid_y, grid_z = grid_key
-                                        self.report({'WARNING'}, 
-                                                  f"合并网格位置 ({grid_x}, {grid_y}, {grid_z}) 的物体时出错: {str(e)}")
-                                    else:
-                                        grid_x, grid_y = grid_key
-                                        self.report({'WARNING'}, 
-                                                  f"合并网格位置 ({grid_x}, {grid_y}) 的物体时出错: {str(e)}")
-                                    for fragment in objects_at_position[1:]:
-                                        try:
-                                            bpy.data.objects.remove(fragment, do_unlink=True)
-                                        except:
-                                            pass
+                                if main_obj.name in bpy.data.objects:
+                                    bpy.context.view_layer.objects.active = main_obj
+                                    
+                                    # 合并物体
+                                    try:
+                                        bpy.ops.object.join()
+                                        # 合并后，主物体就是合并后的物体
+                                        if bpy.context.active_object:
+                                            main_obj = bpy.context.active_object
+                                    except Exception as e:
+                                        # 如果合并失败，只保留主物体，删除其他的
+                                        if z_segments > 1:
+                                            grid_x, grid_y, grid_z = grid_key
+                                            self.report({'WARNING'}, 
+                                                      f"合并网格位置 ({grid_x}, {grid_y}, {grid_z}) 的物体时出错: {str(e)}")
+                                        else:
+                                            grid_x, grid_y = grid_key
+                                            self.report({'WARNING'}, 
+                                                      f"合并网格位置 ({grid_x}, {grid_y}) 的物体时出错: {str(e)}")
+                                        for fragment in objects_at_position[1:]:
+                                            try:
+                                                if fragment.name in bpy.data.objects:
+                                                    bpy.data.objects.remove(fragment, do_unlink=True)
+                                            except:
+                                                pass
                             
                             # 主物体使用标准命名
-                            if z_segments > 1:
-                                grid_x, grid_y, grid_z = grid_key
-                                main_obj.name = f"{original_name}_{grid_x}_{grid_y}_{grid_z}"
-                            else:
-                                grid_x, grid_y = grid_key
-                                main_obj.name = f"{original_name}_{grid_x}_{grid_y}"
+                            if main_obj.name in bpy.data.objects:
+                                if z_segments > 1:
+                                    grid_x, grid_y, grid_z = grid_key
+                                    main_obj.name = f"{original_name}_{grid_x}_{grid_y}_{grid_z}"
+                                else:
+                                    grid_x, grid_y = grid_key
+                                    main_obj.name = f"{original_name}_{grid_x}_{grid_y}"
+                                final_valid_objects.append(main_obj)
+                    
+                    # 更新 valid_objects 为最终有效的物体列表
+                    valid_objects = final_valid_objects
                     
                     # 如果勾选了选项，将每个物体的原点移动到包围盒底部中心
                     if context.scene.mesh_grid_cut_move_origin_to_bottom:
@@ -464,6 +494,9 @@ class OBJECT_OT_mesh_grid_cut_top_view(Operator):
                         original_cursor_location = context.scene.cursor.location.copy()
                         
                         for sep_obj in valid_objects:
+                            # 检查对象是否仍然有效
+                            if sep_obj.name not in bpy.data.objects:
+                                continue
                             try:
                                 # 确保物体处于对象模式
                                 if sep_obj.mode != 'OBJECT':

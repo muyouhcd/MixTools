@@ -187,8 +187,7 @@ class CustomFunctionsPanel(Panel):
             vertex_group_row = vertex_group_box.row(align=True)
             vertex_group_row.prop(scene, "vertex_group_name", text="顶点组名称")
             vertex_group_row.operator("object.batch_create_vertex_group", text="创建顶点组", icon='ADD')
-
-
+            
         # 选择工具
         col_select_tools = layout.column()
         col_select_tools.prop(scene, "select_tools_expand", text="选择工具", emboss=False,
@@ -420,6 +419,7 @@ class CustomFunctionsPanel(Panel):
             material_split_box.label(text="材质拆分:", icon='MOD_BOOLEAN')
             material_split_box.prop(context.scene, "split_material", text="拆分材质")
             material_split_box.operator("object.split_mesh_by_material", text="按材质拆分Mesh", icon='MOD_BOOLEAN')
+            material_split_box.operator("object.split_mesh_by_all_materials", text="按所有材质拆分Mesh", icon='MOD_BOOLEAN')
             
             # 传统材质替换
             traditional_replace_box = material_replace_box.box()
@@ -1513,6 +1513,7 @@ def unregister():
         "mesh_grid_cut_segment_size",
         "mesh_grid_cut_move_origin_to_bottom",
         
+        # Box碰撞盒生成工具属性
         # 曲线闭合选项属性
         "curve_closed_option",
         
