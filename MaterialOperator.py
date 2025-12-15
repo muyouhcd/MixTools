@@ -1078,7 +1078,7 @@ class SplitMeshByMaterialOperator(bpy.types.Operator):
         return {'FINISHED'}
     
     def separate_material_faces(self, obj, material_indices, split_material):
-        """使用Blender内置功能分离指定材质的面（类似Alt+P效果）"""
+        """使用Blender内置功能分离指定材质的面，不清理未使用材质"""
         try:
             # 进入编辑模式
             bpy.context.view_layer.objects.active = obj
@@ -1096,29 +1096,54 @@ class SplitMeshByMaterialOperator(bpy.types.Operator):
             # 回到编辑模式
             bpy.ops.object.mode_set(mode='EDIT')
             
+            # 记录分离前的物体集合
+            objects_before = set(bpy.context.scene.objects)
+            
             # 分离选中的面
             bpy.ops.mesh.separate(type='SELECTED')
             
             # 回到物体模式
             bpy.ops.object.mode_set(mode='OBJECT')
             
-            # 重命名新分离的物体
-            if len(bpy.context.selected_objects) > 1:
-                # 找到新分离的物体（应该是最后一个选中的）
-                new_obj = None
+            # 找到新分离的物体（通过比较分离前后的物体集合）
+            objects_after = set(bpy.context.scene.objects)
+            new_objects = objects_after - objects_before
+            
+            new_obj = None
+            if new_objects:
+                # 获取新创建的物体（应该是MESH类型）
+                for new_object in new_objects:
+                    if new_object.type == 'MESH' and new_object != obj:
+                        new_obj = new_object
+                        break
+            
+            # 如果上面的方法没找到，使用原来的方法（从选中的物体中查找）
+            if not new_obj and len(bpy.context.selected_objects) > 1:
                 for selected_obj in bpy.context.selected_objects:
                     if selected_obj != obj and selected_obj.type == 'MESH':
                         new_obj = selected_obj
                         break
-                
-                if new_obj:
-                    new_obj.name = f"{obj.name}_{split_material.name}"
+            
+            # 重命名新分离的物体
+            if new_obj:
+                # 直接设置物体名称为材质名称
+                new_obj.name = split_material.name
+                # 同时更新mesh数据块的名称
+                if new_obj.data:
+                    new_obj.data.name = split_material.name
                     
-                    # 清理新物体的材质槽，只保留指定材质
-                    self.clean_material_slots(new_obj, split_material)
+                    # 找到分离材质在新物体中的索引
+                    split_material_index = -1
+                    for i, slot in enumerate(new_obj.material_slots):
+                        if slot.material == split_material:
+                            split_material_index = i
+                            break
                     
-                    # 从原物体中移除指定材质
-                    self.remove_material_from_object(obj, split_material)
+                    # 如果找到了材质索引，更新所有多边形的材质索引指向该材质
+                    # 不清理材质槽，保留所有材质槽
+                    if split_material_index >= 0:
+                        for poly in new_obj.data.polygons:
+                            poly.material_index = split_material_index
                     
                     return True
             
@@ -1135,9 +1160,41 @@ class SplitMeshByMaterialOperator(bpy.types.Operator):
     
     def clean_material_slots(self, obj, material):
         """清理材质槽，只保留指定材质，并更新所有多边形的材质索引为0"""
-        # 清除所有材质槽
-        while len(obj.material_slots) > 0:
-            obj.active_material_index = 0
+        # 找到指定材质在材质槽中的索引
+        target_material_index = -1
+        for i, slot in enumerate(obj.material_slots):
+            if slot.material == material:
+                target_material_index = i
+                break
+        
+        # 如果找到了材质，先将所有多边形的索引设置为该材质的索引
+        # 这样可以确保所有多边形都指向正确的材质
+        if target_material_index >= 0:
+            for poly in obj.data.polygons:
+                poly.material_index = target_material_index
+            
+            # 如果材质不在第一个槽位，需要将其移动到第一个槽位
+            if target_material_index > 0:
+                # 将第一个槽位设置为目标材质
+                obj.material_slots[0].material = material
+                # 更新所有多边形的索引为0
+                for poly in obj.data.polygons:
+                    poly.material_index = 0
+        else:
+            # 如果材质不在材质槽中，先将所有多边形索引设置为0
+            for poly in obj.data.polygons:
+                poly.material_index = 0
+            # 如果第一个材质槽存在，设置为目标材质
+            if len(obj.material_slots) > 0:
+                obj.material_slots[0].material = material
+            else:
+                # 如果没有材质槽，添加一个
+                bpy.ops.object.material_slot_add({'object': obj})
+                obj.material_slots[0].material = material
+        
+        # 从后往前删除除第一个之外的所有材质槽
+        while len(obj.material_slots) > 1:
+            obj.active_material_index = len(obj.material_slots) - 1
             bpy.ops.object.material_slot_remove({'object': obj})
         
         # 清空材质列表
@@ -1146,14 +1203,11 @@ class SplitMeshByMaterialOperator(bpy.types.Operator):
         # 添加指定材质到材质列表
         obj.data.materials.append(material)
         
-        # 确保有材质槽（如果没有，添加一个）
-        if len(obj.material_slots) == 0:
-            bpy.ops.object.material_slot_add({'object': obj})
+        # 确保第一个材质槽指向指定材质
+        if len(obj.material_slots) > 0:
+            obj.material_slots[0].material = material
         
-        # 将材质槽设置为指定材质
-        obj.material_slots[0].material = material
-        
-        # 更新所有多边形的材质索引为0（因为现在只有一个材质槽）
+        # 最终确保所有多边形的材质索引为0
         for poly in obj.data.polygons:
             poly.material_index = 0
     
@@ -1185,9 +1239,12 @@ class SplitMeshByMaterialOperator(bpy.types.Operator):
                 break
         
         if material_slot_index >= 0:
-            # 在移除材质槽之前，需要更新所有使用该材质的多边形索引
-            # 因为移除材质槽后，索引会发生变化
-            # 先找到所有使用该材质的多边形，并记录它们需要的新索引
+            # 检查是否还有面使用该材质（理论上不应该有，因为已经分离了）
+            # 但为了安全，我们先处理这些面
+            remaining_faces_with_material = []
+            for poly in obj.data.polygons:
+                if poly.material_index == material_slot_index:
+                    remaining_faces_with_material.append(poly.index)
             
             # 获取移除材质槽后，每个材质槽的新索引映射
             # 创建一个映射：旧索引 -> 新索引
@@ -1198,20 +1255,34 @@ class SplitMeshByMaterialOperator(bpy.types.Operator):
                     index_mapping[i] = new_index
                     new_index += 1
             
+            # 如果有其他材质槽，将使用分离材质的面设置为第一个可用材质
+            # 如果没有其他材质槽，这些面应该已经被分离了，所以这种情况不应该发生
+            fallback_index = 0 if len(index_mapping) > 0 else 0
+            
             # 更新所有多边形的材质索引
             for poly in obj.data.polygons:
                 old_index = poly.material_index
                 if old_index in index_mapping:
+                    # 正常情况：更新到新的索引
                     poly.material_index = index_mapping[old_index]
                 elif old_index == material_slot_index:
-                    # 如果多边形使用的是要移除的材质，将其设置为第一个可用材质（通常是0）
-                    # 但这种情况不应该发生，因为我们已经分离了这些面
-                    # 为了安全起见，设置为0
-                    poly.material_index = 0
+                    # 异常情况：还有面使用要移除的材质（理论上不应该发生）
+                    # 设置为第一个可用材质
+                    if len(index_mapping) > 0:
+                        poly.material_index = 0  # 使用第一个可用材质
+                    else:
+                        # 如果没有其他材质槽，保持原样（虽然这种情况不应该发生）
+                        pass
             
             # 移除材质槽
             obj.active_material_index = material_slot_index
             bpy.ops.object.material_slot_remove({'object': obj})
+            
+            # 移除材质槽后，验证并修复材质索引（确保所有索引都在有效范围内）
+            max_index = len(obj.material_slots) - 1
+            for poly in obj.data.polygons:
+                if poly.material_index > max_index:
+                    poly.material_index = max_index if max_index >= 0 else 0
 
 class SplitMeshByAllMaterialsOperator(bpy.types.Operator):
     bl_idname = "object.split_mesh_by_all_materials"
@@ -1303,7 +1374,7 @@ class SplitMeshByAllMaterialsOperator(bpy.types.Operator):
         return {'FINISHED'}
     
     def separate_material_faces(self, obj, material_indices, split_material):
-        """使用Blender内置功能分离指定材质的面（类似Alt+P效果）"""
+        """使用Blender内置功能分离指定材质的面，不清理未使用材质"""
         try:
             # 进入编辑模式
             bpy.context.view_layer.objects.active = obj
@@ -1321,29 +1392,54 @@ class SplitMeshByAllMaterialsOperator(bpy.types.Operator):
             # 回到编辑模式
             bpy.ops.object.mode_set(mode='EDIT')
             
+            # 记录分离前的物体集合
+            objects_before = set(bpy.context.scene.objects)
+            
             # 分离选中的面
             bpy.ops.mesh.separate(type='SELECTED')
             
             # 回到物体模式
             bpy.ops.object.mode_set(mode='OBJECT')
             
-            # 重命名新分离的物体
-            if len(bpy.context.selected_objects) > 1:
-                # 找到新分离的物体（应该是最后一个选中的）
-                new_obj = None
+            # 找到新分离的物体（通过比较分离前后的物体集合）
+            objects_after = set(bpy.context.scene.objects)
+            new_objects = objects_after - objects_before
+            
+            new_obj = None
+            if new_objects:
+                # 获取新创建的物体（应该是MESH类型）
+                for new_object in new_objects:
+                    if new_object.type == 'MESH' and new_object != obj:
+                        new_obj = new_object
+                        break
+            
+            # 如果上面的方法没找到，使用原来的方法（从选中的物体中查找）
+            if not new_obj and len(bpy.context.selected_objects) > 1:
                 for selected_obj in bpy.context.selected_objects:
                     if selected_obj != obj and selected_obj.type == 'MESH':
                         new_obj = selected_obj
                         break
-                
-                if new_obj:
-                    new_obj.name = f"{obj.name}_{split_material.name}"
+            
+            # 重命名新分离的物体
+            if new_obj:
+                # 直接设置物体名称为材质名称
+                new_obj.name = split_material.name
+                # 同时更新mesh数据块的名称
+                if new_obj.data:
+                    new_obj.data.name = split_material.name
                     
-                    # 清理新物体的材质槽，只保留指定材质
-                    self.clean_material_slots(new_obj, split_material)
+                    # 找到分离材质在新物体中的索引
+                    split_material_index = -1
+                    for i, slot in enumerate(new_obj.material_slots):
+                        if slot.material == split_material:
+                            split_material_index = i
+                            break
                     
-                    # 从原物体中移除指定材质
-                    self.remove_material_from_object(obj, split_material)
+                    # 如果找到了材质索引，更新所有多边形的材质索引指向该材质
+                    # 不清理材质槽，保留所有材质槽
+                    if split_material_index >= 0:
+                        for poly in new_obj.data.polygons:
+                            poly.material_index = split_material_index
                     
                     return True
             
@@ -1360,9 +1456,41 @@ class SplitMeshByAllMaterialsOperator(bpy.types.Operator):
     
     def clean_material_slots(self, obj, material):
         """清理材质槽，只保留指定材质，并更新所有多边形的材质索引为0"""
-        # 清除所有材质槽
-        while len(obj.material_slots) > 0:
-            obj.active_material_index = 0
+        # 找到指定材质在材质槽中的索引
+        target_material_index = -1
+        for i, slot in enumerate(obj.material_slots):
+            if slot.material == material:
+                target_material_index = i
+                break
+        
+        # 如果找到了材质，先将所有多边形的索引设置为该材质的索引
+        # 这样可以确保所有多边形都指向正确的材质
+        if target_material_index >= 0:
+            for poly in obj.data.polygons:
+                poly.material_index = target_material_index
+            
+            # 如果材质不在第一个槽位，需要将其移动到第一个槽位
+            if target_material_index > 0:
+                # 将第一个槽位设置为目标材质
+                obj.material_slots[0].material = material
+                # 更新所有多边形的索引为0
+                for poly in obj.data.polygons:
+                    poly.material_index = 0
+        else:
+            # 如果材质不在材质槽中，先将所有多边形索引设置为0
+            for poly in obj.data.polygons:
+                poly.material_index = 0
+            # 如果第一个材质槽存在，设置为目标材质
+            if len(obj.material_slots) > 0:
+                obj.material_slots[0].material = material
+            else:
+                # 如果没有材质槽，添加一个
+                bpy.ops.object.material_slot_add({'object': obj})
+                obj.material_slots[0].material = material
+        
+        # 从后往前删除除第一个之外的所有材质槽
+        while len(obj.material_slots) > 1:
+            obj.active_material_index = len(obj.material_slots) - 1
             bpy.ops.object.material_slot_remove({'object': obj})
         
         # 清空材质列表
@@ -1371,14 +1499,11 @@ class SplitMeshByAllMaterialsOperator(bpy.types.Operator):
         # 添加指定材质到材质列表
         obj.data.materials.append(material)
         
-        # 确保有材质槽（如果没有，添加一个）
-        if len(obj.material_slots) == 0:
-            bpy.ops.object.material_slot_add({'object': obj})
+        # 确保第一个材质槽指向指定材质
+        if len(obj.material_slots) > 0:
+            obj.material_slots[0].material = material
         
-        # 将材质槽设置为指定材质
-        obj.material_slots[0].material = material
-        
-        # 更新所有多边形的材质索引为0（因为现在只有一个材质槽）
+        # 最终确保所有多边形的材质索引为0
         for poly in obj.data.polygons:
             poly.material_index = 0
     
@@ -1392,9 +1517,12 @@ class SplitMeshByAllMaterialsOperator(bpy.types.Operator):
                 break
         
         if material_slot_index >= 0:
-            # 在移除材质槽之前，需要更新所有使用该材质的多边形索引
-            # 因为移除材质槽后，索引会发生变化
-            # 先找到所有使用该材质的多边形，并记录它们需要的新索引
+            # 检查是否还有面使用该材质（理论上不应该有，因为已经分离了）
+            # 但为了安全，我们先处理这些面
+            remaining_faces_with_material = []
+            for poly in obj.data.polygons:
+                if poly.material_index == material_slot_index:
+                    remaining_faces_with_material.append(poly.index)
             
             # 获取移除材质槽后，每个材质槽的新索引映射
             # 创建一个映射：旧索引 -> 新索引
@@ -1405,20 +1533,34 @@ class SplitMeshByAllMaterialsOperator(bpy.types.Operator):
                     index_mapping[i] = new_index
                     new_index += 1
             
+            # 如果有其他材质槽，将使用分离材质的面设置为第一个可用材质
+            # 如果没有其他材质槽，这些面应该已经被分离了，所以这种情况不应该发生
+            fallback_index = 0 if len(index_mapping) > 0 else 0
+            
             # 更新所有多边形的材质索引
             for poly in obj.data.polygons:
                 old_index = poly.material_index
                 if old_index in index_mapping:
+                    # 正常情况：更新到新的索引
                     poly.material_index = index_mapping[old_index]
                 elif old_index == material_slot_index:
-                    # 如果多边形使用的是要移除的材质，将其设置为第一个可用材质（通常是0）
-                    # 但这种情况不应该发生，因为我们已经分离了这些面
-                    # 为了安全起见，设置为0
-                    poly.material_index = 0
+                    # 异常情况：还有面使用要移除的材质（理论上不应该发生）
+                    # 设置为第一个可用材质
+                    if len(index_mapping) > 0:
+                        poly.material_index = 0  # 使用第一个可用材质
+                    else:
+                        # 如果没有其他材质槽，保持原样（虽然这种情况不应该发生）
+                        pass
             
             # 移除材质槽
             obj.active_material_index = material_slot_index
             bpy.ops.object.material_slot_remove({'object': obj})
+            
+            # 移除材质槽后，验证并修复材质索引（确保所有索引都在有效范围内）
+            max_index = len(obj.material_slots) - 1
+            for poly in obj.data.polygons:
+                if poly.material_index > max_index:
+                    poly.material_index = max_index if max_index >= 0 else 0
 
 # 设置贴图Alpha通道打包模式
 class SetTextureAlphaPacking(bpy.types.Operator):
