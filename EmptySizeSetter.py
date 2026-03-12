@@ -31,8 +31,13 @@ class SetEmptyDisplaySize(bpy.types.Operator):
         self.report({'INFO'}, f"已将 {len(empty_objects)} 个空物体的显示尺寸设置为 {display_size}")
         return {'FINISHED'}
 
+classes = (
+    SetEmptyDisplaySize,
+)
+
 def register():
-    bpy.utils.register_class(SetEmptyDisplaySize)
+    for cls in classes:
+        bpy.utils.register_class(cls)
     # 注册场景属性
     bpy.types.Scene.empty_display_size = bpy.props.FloatProperty(
         name="空物体显示尺寸",
@@ -46,7 +51,8 @@ def register():
     )
 
 def unregister():
-    bpy.utils.unregister_class(SetEmptyDisplaySize)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
     # 注销场景属性
     delattr(bpy.types.Scene, 'empty_display_size')
 

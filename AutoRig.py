@@ -187,15 +187,15 @@ def select_armature():
             armature_obj = obj
             break
 
-    # 取消选中其他物体，并选中骨架
-    bpy.ops.object.select_all(action='DESELECT')
-    armature_obj.select_set(True)
-    bpy.context.view_layer.objects.active = armature_obj
-
     # 如果没有找到骨架对象，则返回
     if armature_obj is None:
         print("没有找到骨架对象，请确保选择的对象中包含一个骨架。")
         return
+
+    # 取消选中其他物体，并选中骨架
+    bpy.ops.object.select_all(action='DESELECT')
+    armature_obj.select_set(True)
+    bpy.context.view_layer.objects.active = armature_obj
     
     # 进入编辑模式
     bpy.ops.object.mode_set(mode='EDIT')
@@ -1045,8 +1045,10 @@ class ConnectBone(bpy.types.Operator):
         def connect_bones_recursive(armature, bone_name):
             bones = armature.data.edit_bones
             current_bone = bones.get(bone_name)
-            
-            if current_bone and current_bone.parent:
+            if current_bone is None:
+                return
+
+            if current_bone.parent:
                 # 检查子骨骼的起点是否与父骨骼的终点重合
                 if (current_bone.head - current_bone.parent.tail).length < 1e-5:
                     # 如果重合且未连接时进行连接操作

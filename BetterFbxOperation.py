@@ -463,20 +463,19 @@ class BetterFbxBatchImportByNameListAliasOperator(Operator):
         # 调用实际的按名称列表导入操作符
         return bpy.ops.better_fbx.batch_import_by_name_list_with_better_fbx()
 
+classes = (
+    BetterFbxBatchImportOperator,
+    BetterFbxBatchImportFilesOperator,
+    BetterFbxBatchImportByNameListOperator,
+    BetterFbxBatchImportAliasOperator,
+    BetterFbxBatchImportFilesAliasOperator,
+    BetterFbxBatchImportByNameListAliasOperator,
+)
+
 def register():
-    bpy.utils.register_class(BetterFbxBatchImportOperator)
-    bpy.utils.register_class(BetterFbxBatchImportFilesOperator)
-    bpy.utils.register_class(BetterFbxBatchImportByNameListOperator)
-    # 注册别名操作符
-    bpy.utils.register_class(BetterFbxBatchImportAliasOperator)
-    bpy.utils.register_class(BetterFbxBatchImportFilesAliasOperator)
-    bpy.utils.register_class(BetterFbxBatchImportByNameListAliasOperator)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(BetterFbxBatchImportOperator)
-    bpy.utils.unregister_class(BetterFbxBatchImportFilesOperator)
-    bpy.utils.unregister_class(BetterFbxBatchImportByNameListOperator)
-    # 注销别名操作符
-    bpy.utils.unregister_class(BetterFbxBatchImportAliasOperator)
-    bpy.utils.unregister_class(BetterFbxBatchImportFilesAliasOperator)
-    bpy.utils.unregister_class(BetterFbxBatchImportByNameListAliasOperator)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

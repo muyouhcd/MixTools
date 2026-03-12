@@ -23,6 +23,7 @@ def has_texture(obj):
     return False
     
 class SelectLargeObjectsOperator(bpy.types.Operator):
+    """选择过大物体"""
     bl_idname = "object.select_large_objects"
     bl_label = "选择过大物体"
     bl_options = {'REGISTER', 'UNDO'}
@@ -42,6 +43,7 @@ class SelectLargeObjectsOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SelectSmallObjectsOperator(bpy.types.Operator):
+    """选择过小物体"""
     bl_idname = "object.select_small_objects"
     bl_label = "选择过小物体"
     bl_options = {'REGISTER', 'UNDO'}
@@ -61,6 +63,7 @@ class SelectSmallObjectsOperator(bpy.types.Operator):
         return {'FINISHED'}
         
 class SelectObjectsWithoutTextureOperator(bpy.types.Operator):
+    """选择没有贴图的物体"""
     bl_idname = "object.select_objects_without_texture"
     bl_label = "选择没有贴图的物体"
     bl_options = {'REGISTER', 'UNDO'}
@@ -73,6 +76,7 @@ class SelectObjectsWithoutTextureOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class SelectObjectsWithoutVertexGroupsOperator(bpy.types.Operator):
+    """选择没有顶点组的物体"""
     bl_idname = "object.select_objects_without_vertex_groups"
     bl_label = "选择没有顶点组的物体"
     bl_options = {'REGISTER', 'UNDO'}
@@ -100,8 +104,10 @@ def update_small_objects_threshold(self, context):
 
 # 按体积筛选物体
 class SelectByVolume(bpy.types.Operator):
+    """按体积筛选物体"""
     bl_idname = "object.mian_select_by_volume"
     bl_label = "按体积筛选物体"
+    bl_options = {'REGISTER', 'UNDO'}
 
     filter_mode: bpy.props.EnumProperty(
         name="Filter Mode",
@@ -151,6 +157,7 @@ class SelectByVolume(bpy.types.Operator):
 
 # 根据名称列表保留物体并删除其他物体
 class SelectAndDeleteByNameListOperator(bpy.types.Operator):
+    """按名称列表筛选物体"""
     bl_idname = "object.select_and_delete_by_name_list"
     bl_label = "按名称列表筛选物体"
     bl_options = {'REGISTER', 'UNDO'}
@@ -243,29 +250,42 @@ def read_names_from_temp_file(scene):
 
 # 操作器：编辑名称列表
 class EditNamesListOperator(bpy.types.Operator):
+    """编辑名称列表"""
     bl_idname = "object.edit_names_list"
     bl_label = "编辑名称列表"
     bl_description = "在外部文本编辑器中编辑名称列表"
-    
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         edit_names_list_in_text_editor(context.scene)
         return {'FINISHED'}
 
 # 操作器：从临时文件读取名称列表
 class ReadNamesFromTempFileOperator(bpy.types.Operator):
+    """加载名称列表"""
     bl_idname = "object.read_names_from_temp_file"
     bl_label = "加载名称列表"
     bl_description = "从保存的文本文件加载名称列表"
-    
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         read_names_from_temp_file(context.scene)
         return {'FINISHED'}
 
+classes = (
+    SelectLargeObjectsOperator,
+    SelectSmallObjectsOperator,
+    SelectObjectsWithoutTextureOperator,
+    SelectObjectsWithoutVertexGroupsOperator,
+    SelectByVolume,
+    SelectAndDeleteByNameListOperator,
+    EditNamesListOperator,
+    ReadNamesFromTempFileOperator,
+)
+
 def register():
-    bpy.utils.register_class(SelectLargeObjectsOperator)
-    bpy.utils.register_class(SelectSmallObjectsOperator)
-    bpy.utils.register_class(SelectObjectsWithoutTextureOperator)
-    bpy.utils.register_class(SelectObjectsWithoutVertexGroupsOperator)
+    for cls in classes:
+        bpy.utils.register_class(cls)
     bpy.types.Scene.select_large_objects_threshold = bpy.props.FloatProperty(
         name="Threshold (Meters)",
         description="Threshold size in meters for large objects",
@@ -280,11 +300,6 @@ def register():
         min=0.0,
         update=update_small_objects_threshold
     )
-    bpy.utils.register_class(SelectByVolume)
-    bpy.utils.register_class(SelectAndDeleteByNameListOperator)
-    bpy.utils.register_class(EditNamesListOperator)
-    bpy.utils.register_class(ReadNamesFromTempFileOperator)
-    
     # 为按名称列表筛选功能添加属性
     bpy.types.Scene.object_names_list = bpy.props.StringProperty(
         name="物体名称列表",
@@ -309,19 +324,9 @@ def register():
         default=True
     )
 
-
-
 def unregister():
-    # 注销操作符类
-    bpy.utils.unregister_class(SelectSmallObjectsOperator)
-    bpy.utils.unregister_class(SelectLargeObjectsOperator)
-    bpy.utils.unregister_class(SelectObjectsWithoutTextureOperator)
-    bpy.utils.unregister_class(SelectObjectsWithoutVertexGroupsOperator)
-    bpy.utils.unregister_class(SelectByVolume)
-    bpy.utils.unregister_class(SelectAndDeleteByNameListOperator)
-    bpy.utils.unregister_class(EditNamesListOperator)
-    bpy.utils.unregister_class(ReadNamesFromTempFileOperator)
-    
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
     # 注销场景属性
     properties_to_remove = [
         "select_large_objects_threshold",
@@ -331,7 +336,6 @@ def unregister():
         "delete_lights_option",
         "show_report_option"
     ]
-    
     # 安全地删除所有属性
     for prop in properties_to_remove:
         try:

@@ -4,8 +4,10 @@ import bpy
 # 校正旋转
 
 class CorrectRotation(bpy.types.Operator):
+    """校正旋转"""
     bl_idname = "object.mian_correct_rotation"
     bl_label = "校正旋转"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -52,8 +54,14 @@ class CorrectRotation(bpy.types.Operator):
         return {'FINISHED'}
 
 
+classes = (
+    CorrectRotation,
+)
+
 def register():
-    bpy.utils.register_class(CorrectRotation)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(CorrectRotation)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

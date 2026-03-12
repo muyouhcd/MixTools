@@ -77,8 +77,14 @@ class CombinSameOriginObject(bpy.types.Operator):
         print("所有相同世界坐标的物体已合并。")
         return {'FINISHED'}
 
+classes = (
+    CombinSameOriginObject,
+)
+
 def register():
-    bpy.utils.register_class(CombinSameOriginObject)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(CombinSameOriginObject)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

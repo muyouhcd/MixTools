@@ -83,13 +83,18 @@ class mian_OT_batch_import_obj(Operator):
         context.window_manager.fileselect_add(self)
         return {'RUNNING_MODAL'}
 
+classes = (
+    mian_OT_batch_import_fbx,
+    mian_OT_batch_import_obj,
+)
+
 def register():
-    bpy.utils.register_class(mian_OT_batch_import_fbx)
-    bpy.utils.register_class(mian_OT_batch_import_obj)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(mian_OT_batch_import_fbx)
-    bpy.utils.unregister_class(mian_OT_batch_import_obj)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 
 if __name__ == "__main__":
     register()

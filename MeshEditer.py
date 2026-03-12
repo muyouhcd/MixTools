@@ -1467,25 +1467,20 @@ class OBJECT_OT_simple_decimate(Operator):
             return {'CANCELLED'}
 
 
-# 注册类列表
-classes = [
+classes = (
     OBJECT_OT_mesh_grid_cut_top_view,
     OBJECT_OT_mesh_grid_cut_by_size,
     OBJECT_OT_apply_modifiers,
     OBJECT_OT_edge_lock_decimate,
     OBJECT_OT_corner_lock_decimate,
     OBJECT_OT_simple_decimate,
-]
-
+)
 
 def register():
-    """注册操作符"""
     for cls in classes:
         bpy.utils.register_class(cls)
 
-
 def unregister():
-    """注销操作符"""
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
 

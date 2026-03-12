@@ -5,9 +5,11 @@ import mathutils
 
 
 class RandomPlacement(bpy.types.Operator):
+    """随机放置"""
     bl_idname = "object.mian_random_placement"
     bl_label = "随机放置"
     bl_description = "在指定范围内随机分布所选物体的位置"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         # 获取自定义属性的值
@@ -26,9 +28,11 @@ class RandomPlacement(bpy.types.Operator):
 
 
 class RandomScale(bpy.types.Operator):
+    """随机缩放"""
     bl_idname = "object.mian_random_scale"
     bl_label = "随机缩放"
     bl_description = "在指定范围内随机缩放所选物体，可分别设置X、Y、Z轴的缩放范围"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         # 获取自定义属性的值
@@ -53,6 +57,7 @@ class RandomScale(bpy.types.Operator):
 
 
 class RandomRotation(bpy.types.Operator):
+    """随机旋转"""
     bl_idname = "object.mian_random_rotation"
     bl_label = "随机旋转"
     bl_description = "对所选物体进行指定轴向的随机旋转"

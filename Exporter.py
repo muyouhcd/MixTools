@@ -78,30 +78,8 @@ EXPORT_CONFIGS = {
     )
 }
 
-# 导出目录属性
-bpy.types.Scene.export_directory = bpy.props.StringProperty(
-    name="Export Directory",
-    description="Directory where the exported files will be written",
-    subtype='DIR_PATH'
-)
-
-# 添加清除父级选项
-bpy.types.Scene.clear_parent_on_export = bpy.props.BoolProperty(
-    name="清除父级关系",
-    description="导出时清除顶级父级关系（保持变换）",
-    default=False
-)
-
 # 批处理大小常量
 BATCH_SIZE = 10
-
-# 添加导出配置选择属性
-bpy.types.Scene.export_config = bpy.props.EnumProperty(
-    name="导出配置",
-    description="选择导出配置",
-    items=[(key, config.name, config.description) for key, config in EXPORT_CONFIGS.items()],
-    default='Unity'
-)
 
 def check_dir(self, context):
     dest_path = bpy.path.abspath(context.scene.export_directory)
@@ -674,6 +652,21 @@ class ExporteObjOperator(bpy.types.Operator):
     return {'FINISHED'}
 
 def register():
+    # 注册场景属性
+    bpy.types.Scene.export_directory = bpy.props.StringProperty(
+        name="Export Directory",
+        description="Directory where the exported files will be written",
+        subtype='DIR_PATH')
+    bpy.types.Scene.clear_parent_on_export = bpy.props.BoolProperty(
+        name="清除父级关系",
+        description="导出时清除顶级父级关系（保持变换）",
+        default=False)
+    bpy.types.Scene.export_config = bpy.props.EnumProperty(
+        name="导出配置",
+        description="选择导出配置",
+        items=[(key, config.name, config.description) for key, config in EXPORT_CONFIGS.items()],
+        default='Unity')
+
     bpy.utils.register_class(ExportFbxByParent)
     bpy.utils.register_class(ExportFbxByColMark)
     bpy.utils.register_class(ExportFbxByCollection)
@@ -682,10 +675,15 @@ def register():
     bpy.utils.register_class(ExporteObjOperator)
 
 def unregister():
-    bpy.utils.unregister_class(ExportFbxByParent)
-    bpy.utils.unregister_class(ExportFbxByColMark)
-    bpy.utils.unregister_class(ExportFbxByCollection)
-    bpy.utils.unregister_class(ExportFbxByParentMax)
-    bpy.utils.unregister_class(ExportFbxByMesh)
     bpy.utils.unregister_class(ExporteObjOperator)
+    bpy.utils.unregister_class(ExportFbxByMesh)
+    bpy.utils.unregister_class(ExportFbxByParentMax)
+    bpy.utils.unregister_class(ExportFbxByCollection)
+    bpy.utils.unregister_class(ExportFbxByColMark)
+    bpy.utils.unregister_class(ExportFbxByParent)
+
+    # 清理场景属性
+    for attr in ('export_directory', 'clear_parent_on_export', 'export_config'):
+        if hasattr(bpy.types.Scene, attr):
+            delattr(bpy.types.Scene, attr)
 

@@ -159,12 +159,17 @@ class RetopologizeAndBakeOperator(bpy.types.Operator):
         retopologize_and_bake_color(context)
         return {'FINISHED'}
 
-# 注册和解除注册功能
+classes = (
+    RetopologizeAndBakeOperator,
+)
+
 def register():
-    bpy.utils.register_class(RetopologizeAndBakeOperator)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(RetopologizeAndBakeOperator)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 
 
 if __name__ == "__main__":

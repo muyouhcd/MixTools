@@ -509,10 +509,15 @@ class AutoHideDeleteOperator(Operator):
         return True
 
 
+classes = (
+    AutoHideCleanOperator,
+    AutoHideDeleteOperator,
+)
+
 def register():
-    bpy.utils.register_class(AutoHideCleanOperator)
-    bpy.utils.register_class(AutoHideDeleteOperator)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(AutoHideDeleteOperator)
-    bpy.utils.unregister_class(AutoHideCleanOperator)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

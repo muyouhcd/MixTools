@@ -874,6 +874,58 @@ class AutoRenderer():
         print(message)
         if self.report_callback:
             self.report_callback(info_type, message)
+    
+    def check_and_handle_camera_markers(self):
+        """检查并处理时间轴上的相机标记，确保渲染时使用指定的相机"""
+        try:
+            scene = bpy.context.scene
+            camera_markers = [marker for marker in scene.timeline_markers if marker.camera]
+            
+            if camera_markers:
+                print(f"⚠ 检测到 {len(camera_markers)} 个相机标记，可能会影响渲染")
+                print("ℹ 将确保使用指定的相机，忽略相机标记")
+                
+                # 保存原始相机标记状态（如果需要恢复）
+                original_camera_markers = []
+                for marker in camera_markers:
+                    original_camera_markers.append({
+                        'name': marker.name,
+                        'frame': marker.frame,
+                        'camera': marker.camera
+                    })
+                
+                # 临时清除相机标记的相机引用，防止自动切换
+                for marker in camera_markers:
+                    marker.camera = None
+                    print(f"  - 已临时清除标记 '{marker.name}' 的相机引用")
+                
+                return original_camera_markers
+            else:
+                print("ℹ 未检测到相机标记")
+                return None
+                
+        except Exception as e:
+            print(f"⚠ 检查相机标记时出错: {str(e)}")
+            return None
+    
+    def restore_camera_markers(self, original_markers):
+        """恢复相机标记（如果需要）"""
+        if not original_markers:
+            return
+        
+        try:
+            scene = bpy.context.scene
+            print("ℹ 恢复相机标记...")
+            
+            for marker_info in original_markers:
+                # 查找对应的标记
+                marker = scene.timeline_markers.get(marker_info['name'])
+                if marker:
+                    marker.camera = marker_info['camera']
+                    print(f"  - 已恢复标记 '{marker.name}' 的相机引用")
+            
+        except Exception as e:
+            print(f"⚠ 恢复相机标记时出错: {str(e)}")
 
     def render_collection(self, collection_name: str):
         print(f"\n--- 开始渲染集合: {collection_name} ---")
@@ -909,6 +961,9 @@ class AutoRenderer():
             print("✅ 透明背景已启用")
         else:
             print("ℹ 透明背景未启用，边框将使用不透明填充")
+        
+        # 检查并处理相机标记
+        original_camera_markers = self.check_and_handle_camera_markers()
         
         # 确保相机被激活
         print(f"ℹ 确保相机 '{self.cam.name}' 被激活...")
@@ -1117,6 +1172,9 @@ class AutoRenderer():
                     bpy.context.scene.render.use_compositing = True
                     bpy.context.scene.render.use_sequencer = False
                     
+                    # 在渲染前再次确保使用指定的相机（防止相机标记影响）
+                    bpy.context.scene.camera = self.cam
+                    
                     # 使用合成器渲染，包含所有节点效果
                     # 注意：write_still=True 会自动保存到指定路径，不需要再次保存
                     bpy.ops.render.render(write_still=True, use_viewport=False)
@@ -1146,6 +1204,8 @@ class AutoRenderer():
                         
                         if is_valid:
                             print("✓ 强制启用成功，使用合成器渲染")
+                            # 在渲染前再次确保使用指定的相机（防止相机标记影响）
+                            bpy.context.scene.camera = self.cam
                             bpy.ops.render.render(write_still=True, use_viewport=False)
                             print("✓ 合成器渲染完成，包含辉光等效果")
                             
@@ -1168,6 +1228,8 @@ class AutoRenderer():
                         print(f"⚠ 强制启用合成器时出错: {str(e)}")
                         print("回退到标准渲染")
                         bpy.context.scene.render.use_compositing = False
+                        # 在渲染前再次确保使用指定的相机（防止相机标记影响）
+                        bpy.context.scene.camera = self.cam
                         bpy.ops.render.render(write_still=True)
                         print("✓ 标准渲染完成")
                 
@@ -1205,6 +1267,10 @@ class AutoRenderer():
         print(f"--- {complete_msg} ---\n")
         self.report_info({'INFO'}, complete_msg)
         
+        # 恢复相机标记（如果之前被临时清除）
+        if original_camera_markers:
+            self.restore_camera_markers(original_camera_markers)
+        
         # 重置渲染状态标志
         self.is_rendering = False
 
@@ -1224,6 +1290,9 @@ class AutoRenderer():
             print(f"错误: {error_msg}")
             self.report_info({'ERROR'}, error_msg)
             raise KeyError(error_msg)
+        
+        # 检查并处理相机标记
+        original_camera_markers = self.check_and_handle_camera_markers()
         
         # 确保相机被激活
         print(f"ℹ 确保相机 '{self.cam.name}' 被激活...")
@@ -1297,6 +1366,9 @@ class AutoRenderer():
             bpy.context.scene.frame_current = frame_counter
             print(f"设置当前帧为: {frame_counter}")
             
+            # 在设置帧后再次确保使用指定的相机（防止相机标记在帧切换时生效）
+            bpy.context.scene.camera = self.cam
+            
             # 聚焦到物体并生成关键帧
             try:
                 self.focus_object(focus_objects)
@@ -1315,6 +1387,10 @@ class AutoRenderer():
         bpy.context.scene.frame_start = 1
         bpy.context.scene.frame_end = frame_counter - 1
         print(f"已设置场景帧范围: {bpy.context.scene.frame_start} - {bpy.context.scene.frame_end}")
+        
+        # 恢复相机标记（如果之前被临时清除）
+        if original_camera_markers:
+            self.restore_camera_markers(original_camera_markers)
 
     def auto_render(self):
         """

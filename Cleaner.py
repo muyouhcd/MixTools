@@ -1188,41 +1188,32 @@ class RemoveIdenticalMeshesByShape(bpy.types.Operator):
         return {'FINISHED'}
 
 
+classes = (
+    IMAGE_OT_RemoveBrokenImages,
+    UVCleaner,
+    OBJECT_OT_clean_meshes_without_faces,
+    UNUSED_MATERIAL_SLOTS_OT_Remove,
+    OBJECT_OT_clean_empty,
+    OBJECT_OT_clean_empty_recursive,
+    CleanEmpty,
+    CleanCollection,
+    RemoveModifiers,
+    RemoveConstraints,
+    RemoveInstanceDuplicatesOperator,
+    CleanSense,
+    ClearAnimationData,
+    RemoveDuplicateMeshesByVertex,
+    RemovePlanarMeshes,
+    RemoveIdenticalMeshesByShape,
+)
+
 def register():
-    bpy.utils.register_class(IMAGE_OT_RemoveBrokenImages)
-    bpy.utils.register_class(UVCleaner)
-    bpy.utils.register_class(OBJECT_OT_clean_meshes_without_faces)
-    bpy.utils.register_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
-    bpy.utils.register_class(OBJECT_OT_clean_empty)
-    bpy.utils.register_class(OBJECT_OT_clean_empty_recursive)
-    bpy.utils.register_class(CleanEmpty)
-    bpy.utils.register_class(CleanCollection)
-    bpy.utils.register_class(RemoveModifiers)
-    bpy.utils.register_class(RemoveConstraints)
-    bpy.utils.register_class(RemoveInstanceDuplicatesOperator)
-    bpy.utils.register_class(CleanSense)
-    bpy.utils.register_class(ClearAnimationData)
-    bpy.utils.register_class(RemoveDuplicateMeshesByVertex)
-    bpy.utils.register_class(RemovePlanarMeshes)
-    bpy.utils.register_class(RemoveIdenticalMeshesByShape)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(IMAGE_OT_RemoveBrokenImages)
-    bpy.utils.unregister_class(UVCleaner)
-    bpy.utils.unregister_class(OBJECT_OT_clean_meshes_without_faces)
-    bpy.utils.unregister_class(UNUSED_MATERIAL_SLOTS_OT_Remove)
-    bpy.utils.unregister_class(OBJECT_OT_clean_empty)
-    bpy.utils.unregister_class(OBJECT_OT_clean_empty_recursive)
-    bpy.utils.unregister_class(CleanEmpty)
-    bpy.utils.unregister_class(CleanCollection)
-    bpy.utils.unregister_class(RemoveModifiers)
-    bpy.utils.unregister_class(RemoveConstraints)
-    bpy.utils.unregister_class(RemoveInstanceDuplicatesOperator)
-    bpy.utils.unregister_class(CleanSense)
-    bpy.utils.unregister_class(ClearAnimationData)
-    bpy.utils.unregister_class(RemoveDuplicateMeshesByVertex)
-    bpy.utils.unregister_class(RemovePlanarMeshes)
-    bpy.utils.unregister_class(RemoveIdenticalMeshesByShape)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 
 if __name__ == "__main__":
      register()

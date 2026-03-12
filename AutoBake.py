@@ -117,11 +117,18 @@ class RetopologizeAndBakeOperator(bpy.types.Operator):
     bl_idname = "object.retopologize_and_bake_without_remesh"
     bl_label = "Retopologize and Bake"
     
-    def execute(self, new_context):
-        retopologize_and_bake_without_remesh_color(new_context)
+    def execute(self, context):
+        retopologize_and_bake_without_remesh_color(context)
         return {'FINISHED'}
 
+classes = (
+    RetopologizeAndBakeOperator,
+)
+
 def register():
-    bpy.utils.register_class(RetopologizeAndBakeOperator)
+    for cls in classes:
+        bpy.utils.register_class(cls)
+
 def unregister():
-    bpy.utils.unregister_class(RetopologizeAndBakeOperator)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

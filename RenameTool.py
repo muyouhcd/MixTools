@@ -42,6 +42,7 @@ def rename_texture():
         print("All image names have been updated.")
 
 class RenameTextureOrign(bpy.types.Operator):
+    """重命名贴图为原始文件名"""
     bl_idname = "object.rename_texture_orign"
     bl_label = "rename texture name to orign"
     bl_description = "将贴图名称改为原始文件名（去除扩展名）"
@@ -54,9 +55,11 @@ class RenameTextureOrign(bpy.types.Operator):
     
 #去除名称后缀
 class RemoveNameSuffix(bpy.types.Operator):
+    """移除名称后缀"""
     bl_idname = "object.mian_remove_name_suffix"
     bl_label = "移除名称后缀"
     bl_description = "移除所选物体名称中的后缀（如_001、-01、.001等）"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         selected_objects = bpy.context.selected_objects
@@ -79,6 +82,7 @@ class RemoveNameSuffix(bpy.types.Operator):
 
 #移除顶级物体名称后缀，重名则交换
 class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
+    """移除后缀数字，保持顶级无后缀"""
     bl_idname = "object.remove_suffix_and_resolve"
     bl_label = "移除后缀数字，保持顶级无后缀"
     bl_description = "移除顶级物体的数字后缀，如有重名则交换名称"
@@ -111,6 +115,7 @@ class OBJECT_OT_remove_suffix_and_resolve_conflicts(Operator):
 
 #移除所选物体顶级父级名称中的.00n后缀
 class OBJECT_OT_remove_top_level_suffix(Operator):
+    """移除顶级父级.00n后缀"""
     bl_idname = "object.remove_top_level_suffix"
     bl_label = "移除顶级父级.00n后缀"
     bl_description = "移除所选物体顶级父级名称中的.00n后缀，如有重名则保持顶级无后缀，冲突物体加后缀"
@@ -294,9 +299,11 @@ def rename_collections(self, context):
         collB.name = closest_top_objA.name
 
 class OBJECT_OT_RenameButton(bpy.types.Operator):
+    """重命名集合"""
     bl_idname = "object.mian_rename_collections"
     bl_label = "Rename Collections"
     bl_description = "根据空间位置关系自动重命名集合：将目标集合中的子集合重命名为参考集合中位置最接近的物体名称。需要先选择参考集合(collectionA)和目标集合(collectionB)。"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         rename_collections(self, context)
@@ -304,9 +311,11 @@ class OBJECT_OT_RenameButton(bpy.types.Operator):
 
 # 按照空间前后顺序对所选物体重命名
 class RenameByLocation(bpy.types.Operator):
+    """按轴空间顺序重命名"""
     bl_idname = "object.mian_rename_location"
     bl_label = "按轴空间顺序重命名"
     bl_description = "根据所选物体在指定轴向上的空间位置顺序进行重命名"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -333,9 +342,11 @@ class RenameByLocation(bpy.types.Operator):
 
 #重命名为所处集合名称
 class RenameSelectedObjects(bpy.types.Operator):
+    """所选物体命名为其所在集合名称"""
     bl_idname = "object.rename_to_collection"
     bl_label = "所选物体命名为其所在集合名称"
     bl_description = "将所选物体的名称改为其所在集合的名称"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         # 获取当前选中的物体
@@ -473,10 +484,12 @@ def move_digits_to_end(name):
     return '_'.join(non_digit_parts + digit_parts)
 
 class AutoRenameCar(bpy.types.Operator):
+    """自动重命名汽车For Unity"""
     bl_idname = "object.mian_auto_rename_car"
     bl_label = "自动重命名汽车For Unity(-y朝前)"
     bl_description = "自动重命名汽车模型，适用于Unity引擎，包括车身、车轮等部件的智能命名"
-    
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         def flatten_hierarchy():
             def is_root_obj(obj):
@@ -656,9 +669,11 @@ class AutoRenameCar(bpy.types.Operator):
         return {"FINISHED"}
     
 class AutoRenameCarForRigCar(bpy.types.Operator):
+    """自动重命名汽车For Rig-car"""
     bl_idname = "object.mian_auto_rename_car_for_rigcar"
     bl_label = "自动重命名汽车For Rig-car(-y朝前)"
     bl_description = "自动重命名汽车模型，适用于Rig-car系统，包括层级结构和命名规范"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         def set_remaining_objects_as_children_of_body():
@@ -773,9 +788,11 @@ class AutoRenameCarForRigCar(bpy.types.Operator):
 
 #批量更改子级名称为顶级父级，忽略隐藏物体
 class RenameByParent(bpy.types.Operator):
+    """更改所选物体为其顶级名称"""
     bl_idname = "object.mian_rename_by_parent"
     bl_label = "更改所选物体为其顶级名称"
     bl_description = "将所选子物体的名称更改为其顶级父物体的名称"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -819,32 +836,27 @@ class RenameByParent(bpy.types.Operator):
         return {"FINISHED"}
 
 
-def register():     
-    bpy.utils.register_class(RenameTextureOrign)
-    bpy.utils.register_class(RemoveNameSuffix)
-    bpy.utils.register_class(OBJECT_OT_remove_suffix_and_resolve_conflicts)
-    bpy.utils.register_class(OBJECT_OT_remove_top_level_suffix)
-    bpy.utils.register_class(RenameMeshesOperator)
-    bpy.utils.register_class(RenameObjectsOperator)
-    bpy.utils.register_class(OBJECT_OT_RenameButton)
-    bpy.utils.register_class(RenameByLocation)
-    bpy.utils.register_class(RenameSelectedObjects)
-    bpy.utils.register_class(AutoRenameCar)
-    bpy.utils.register_class(AutoRenameCarForRigCar)
-    bpy.utils.register_class(RenameByParent)
+classes = (
+    RenameTextureOrign,
+    RemoveNameSuffix,
+    OBJECT_OT_remove_suffix_and_resolve_conflicts,
+    OBJECT_OT_remove_top_level_suffix,
+    RenameMeshesOperator,
+    RenameObjectsOperator,
+    OBJECT_OT_RenameButton,
+    RenameByLocation,
+    RenameSelectedObjects,
+    AutoRenameCar,
+    AutoRenameCarForRigCar,
+    RenameByParent,
+)
+
+def register():
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(RenameTextureOrign)
-    bpy.utils.unregister_class(RemoveNameSuffix)
-    bpy.utils.unregister_class(OBJECT_OT_remove_suffix_and_resolve_conflicts)
-    bpy.utils.unregister_class(OBJECT_OT_remove_top_level_suffix)
-    bpy.utils.unregister_class(RenameMeshesOperator)
-    bpy.utils.unregister_class(RenameObjectsOperator)
-    bpy.utils.unregister_class(OBJECT_OT_RenameButton)
-    bpy.utils.unregister_class(RenameByLocation)
-    bpy.utils.unregister_class(RenameSelectedObjects)
-    bpy.utils.unregister_class(AutoRenameCar)
-    bpy.utils.unregister_class(AutoRenameCarForRigCar)
-    bpy.utils.unregister_class(RenameByParent)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 
 

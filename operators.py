@@ -22,6 +22,7 @@ from mathutils import Quaternion
 
 #转换实例化对象
 class ObjectInstancer(bpy.types.Operator):
+    """转换实例化对象"""
     bl_idname = "object.object_instance"
     bl_label = "Object Instance"
     bl_description = "将所选物体转换为实例化对象：使用第一个物体作为源，其余物体替换为其实例，保持原有位置和变换"
@@ -79,6 +80,7 @@ class ObjectInstancer(bpy.types.Operator):
 
 # 几何相同性检测和实例化
 class GeometryMatcherOperator(bpy.types.Operator):
+    """几何相同性检测并实例化"""
     bl_idname = "object.geometry_matcher"
     bl_label = "几何相同性检测并实例化"
     bl_description = "检测几何相同的物体并转换为实例化对象"
@@ -179,6 +181,7 @@ class GeometryMatcherOperator(bpy.types.Operator):
             return False
 
 class OBJECT_OT_reset_z_axis(Operator):
+    """重置选择对象的Z轴位置"""
     bl_idname = "object.reset_z_axis"
     bl_label = "重置选择对象的Z轴位置"
     bl_description = "将所选物体的Z轴位置重置为0，保持X和Y轴位置不变"
@@ -194,6 +197,7 @@ class OBJECT_OT_reset_z_axis(Operator):
 
 #批量独立化
 class OBJECT_OT_make_single_user(bpy.types.Operator):
+    """批量独立化"""
     bl_idname = "object.make_single_user_operator"
     bl_label = "批量独立化"
     bl_description = "将所选物体的数据块独立化，使每个物体拥有独立的数据副本"
@@ -221,6 +225,7 @@ class OBJECT_OT_make_single_user(bpy.types.Operator):
 
 #生成凸包
 class OBJECT_OT_convex_hull_creator(bpy.types.Operator):
+    """生成凸包"""
     bl_idname = "object.convex_hull_creator"
     bl_label = "生成凸包"
     bl_description = "为所选物体生成凸包网格，创建包围所有顶点的凸多面体"
@@ -278,6 +283,7 @@ class VoxelConverter(bpy.types.Operator):
     """生成obj2vox指令"""
     bl_idname = "object.voxel_converter"
     bl_label = "生成体素化指令"
+    bl_options = {'REGISTER', 'UNDO'}
 
     # 添加一个IntProperty属性，用于从UI获取用户输入的值
     resolution_factor: bpy.props.IntProperty(
@@ -321,9 +327,11 @@ bpy.types.Scene.queue_up_axis = bpy.props.EnumProperty(
     default="X"
 )
 class QueueUp(bpy.types.Operator):
+    """列队"""
     bl_idname = "object.mian_queue_up"
     bl_label = "列队"
     bl_description = "将所选物体按指定轴向和间距进行排列，形成整齐的队列"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         distance = bpy.context.scene.queue_up_distance
@@ -404,9 +412,11 @@ def link_empty(obj_collection, empty_name, location):
     return empty
 
 class CreateEmptyAtObjectBottom(bpy.types.Operator):
+    """在选中物体底部创建父级空物体"""
     bl_idname = "object.mian_create_empty_at_bottom"
     bl_label = "在选中物体底部创建父级空物体"
     bl_description = "在所选物体的底部位置创建空物体作为父级，用于组织物体层级"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         multiple_object_binding = context.scene.multiple_object_binding
@@ -465,8 +475,10 @@ class CreateEmptyAtObjectBottom(bpy.types.Operator):
 
 # 按距离划分编组并绑定最高的物体为父级
 class CollectionByDistance(bpy.types.Operator):
+    """按距离划分编组并绑定最高的物体为父级"""
     bl_idname = "object.mian_collection_bydistance"
     bl_label = "按距离划分编组并绑定最高的物体为父级"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -503,9 +515,11 @@ class CollectionByDistance(bpy.types.Operator):
 
 #检测碰撞并且合并：
 class CollectionByAttached(bpy.types.Operator):
+    """接触合并"""
     bl_idname = "object.collection_by_attached"
     bl_label = "接触合并"
     bl_description = "检测接触的物体并将它们合并到同一个集合中"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         def create_bounding_box_vectors(obj):
@@ -591,9 +605,11 @@ class CollectionByAttached(bpy.types.Operator):
 
 # 碰撞检测（Boundbox）并打组
 class CollectionByBoundingbox(bpy.types.Operator):
+    """检测碰撞归为一个集合"""
     bl_idname = "object.mian_collection_byboundingbox"
     bl_label = "检测碰撞归为一个集合（无法撤回请及时保存）"
     bl_description = "检测包围盒碰撞的物体并将它们归入同一个集合中"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -688,9 +704,11 @@ class CollectionByBoundingbox(bpy.types.Operator):
 
 #vox导入处理
 class VoxOperation(bpy.types.Operator):
+    """vox角色处理"""
     bl_idname = "object.vox_operation"
     bl_label = "vox角色处理"
     bl_description = "导入VOX文件并进行一键处理，包括材质设置和优化"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -702,9 +720,11 @@ class VoxOperation(bpy.types.Operator):
 
 # 碰撞检测（Boundbox）并创建父级
 class ParentByBoundingbox(bpy.types.Operator):
+    """检测碰撞归为一个子集"""
     bl_idname = "object.mian_parent_byboundingbox"
     bl_label = "检测碰撞归为一个子集"
     bl_description = "检测包围盒碰撞的物体并创建父级关系，将碰撞的物体设为子物体"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         def create_bounding_box_vectors(obj):
@@ -826,9 +846,11 @@ bpy.types.Scene.threshold_distance = bpy.props.FloatProperty(
 )
 
 class BoundboxGen(bpy.types.Operator):
+    """生成包围盒"""
     bl_idname = "object.mian_boundbox_gen"
     bl_label = "生成包围盒"
     bl_description = "为所选物体生成包围盒，创建立方体网格包围所选物体"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         def get_local_bounding_box(obj):
@@ -902,8 +924,10 @@ class BoundboxGen(bpy.types.Operator):
     
 # 选择合并，不破坏集合关系
 class CombinObject(bpy.types.Operator):
+    """安全合并（不破坏集合）"""
     bl_idname = "object.mian_safecombin"
     bl_label = "安全合并（不破坏集合）"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -955,8 +979,10 @@ class CombinObject(bpy.types.Operator):
 
 # 移除选中物体的顶点组
 class RemoveVertexGroup(bpy.types.Operator):
+    """移除选中物体的顶点组"""
     bl_idname = "object.mian_remove_vertex_group"
     bl_label = "移除选中物体的顶点组"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -978,6 +1004,7 @@ class RemoveVertexGroup(bpy.types.Operator):
 
 # 移除选中物体中空的顶点组
 class RemoveEmptyVertexGroups(bpy.types.Operator):
+    """移除选中物体中空的顶点组"""
     bl_idname = "object.mian_remove_empty_vertex_groups"
     bl_label = "移除选中物体中空的顶点组"
     bl_description = "移除选中物体中权重为0或没有顶点的空顶点组"
@@ -1031,8 +1058,10 @@ class RemoveEmptyVertexGroups(bpy.types.Operator):
 
 # 对齐原点
 class AlignOrign(bpy.types.Operator):
+    """对齐原点"""
     bl_idname = "object.mian_align_orign"
     bl_label = "对齐原点（需要勾选仅影响原点）"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
 
@@ -1076,9 +1105,11 @@ class AlignOrign(bpy.types.Operator):
 
 #一键提升精度
 class MoveOutsideOperator(bpy.types.Operator):
+    """校正旋转"""
     bl_idname = "object.move_outside_operator"
     bl_label = "校正旋转"
-    
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         obj=context.active_object
         obj.select_set(True)
@@ -1093,9 +1124,11 @@ class MoveOutsideOperator(bpy.types.Operator):
         return {"FINISHED"}
 
 class FixSizeOperator(bpy.types.Operator):
+    """提升精度"""
     bl_idname = "object.fix_size_operator"
     bl_label = "提升精度"
-    
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         outermost_obj = context.active_object
         if outermost_obj is not None:
@@ -1139,9 +1172,11 @@ def set_nearest_parent_for_collection(self, context):
 
 # ----       
 class OBJECT_OT_SetParentButton(bpy.types.Operator):
+    """设置集合父级关系"""
     bl_idname = "object.mian_set_parent_collections"
     bl_label = "Set Parent Collections"
     bl_description = "根据目标集合中最接近的物体设置集合的父级关系"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         set_nearest_parent_for_collection(self, context)
@@ -1149,6 +1184,7 @@ class OBJECT_OT_SetParentButton(bpy.types.Operator):
 
 # 批量快速parenting操作符
 class OBJECT_OT_BatchParentOperator(bpy.types.Operator):
+    """批量快速Parenting"""
     bl_idname = "object.batch_parent_operator"
     bl_label = "批量快速Parenting"
     bl_description = "将所选物体批量设置为指定父级物体的子集，优化大量物体层级设置性能"
@@ -1194,10 +1230,12 @@ class OBJECT_OT_BatchParentOperator(bpy.types.Operator):
     
 #按照集合对齐顶级父级
 class OBJECT_OT_AlignOperator(bpy.types.Operator):
+    """集合父级批量对齐"""
     bl_idname = "object.align_operator"
     bl_label = "集合父级批量对齐"
     bl_description = "将目标集合中的顶级父物体与参考集合中最近的物体对齐"
-    
+    bl_options = {'REGISTER', 'UNDO'}
+
     def execute(self, context):
         def get_all_top_level_objects(collection):
             top_objects = [obj for obj in collection.objects if obj.parent is None]
@@ -1252,9 +1290,11 @@ def uv_sets_equal(set_a, set_b):
   
 # 相比单独的脚本，插件的不同之处在于需要定义一个操作并注册这个操作
 class UVObjectMatcherOperator(bpy.types.Operator):
+    """选取同uv物体"""
     bl_idname = "object.match_uv"
     bl_label = "选取同uv物体"
     bl_description = "选择与当前活动物体具有相同UV坐标的物体"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         selected_object = context.active_object
@@ -1276,8 +1316,10 @@ class UVObjectMatcherOperator(bpy.types.Operator):
 
 # 重置所选矢量
 class ResetNormals(bpy.types.Operator):
+    """重置所选矢量"""
     bl_idname = "object.mian_reset_normals"
     bl_label = "重置所选矢量"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         # 获取当前激活的物体
@@ -1309,6 +1351,7 @@ class ResetNormals(bpy.types.Operator):
         return {"FINISHED"}
 
 class ResetNormalsAndFlatShadingOperator(bpy.types.Operator):
+    """重置法线并设置平面着色"""
     bl_idname = "object.reset_normals_flat_shading"
     bl_label = "Reset Normals and Flat Shading"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1343,9 +1386,11 @@ class ResetNormalsAndFlatShadingOperator(bpy.types.Operator):
 
 # 合并顶级层级
 class MergeTopLevel(bpy.types.Operator):
+  """合并顶级层级"""
   bl_idname = "object.mian_merge_top_level"
   bl_label = "合并顶级层级"
   bl_description = "将所选物体的顶级层级进行合并，简化物体结构"
+  bl_options = {'REGISTER', 'UNDO'}
 
   def execute(self, context):
 
@@ -1401,9 +1446,11 @@ class MergeTopLevel(bpy.types.Operator):
     return {'FINISHED'}
 
 class ApplyAndSeparate(bpy.types.Operator):
+    """独立化、应用所有变换"""
     bl_idname = "object.mian_apply_and_separate"
     bl_label = "独立化、应用所有变换"
     bl_description = "将所选物体独立化并应用所有变换，确保物体数据独立"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         # 获取当前所选物体和具有负缩放的物体列表
@@ -1481,6 +1528,7 @@ class ApplyAndSeparate(bpy.types.Operator):
 
 # 批量关联目录内所有blender文件场景
 class SCENE_OT_link_scenes_from_blend_files(bpy.types.Operator):
+    """从选定目录中的.blend文件批量关联场景"""
     bl_idname = "scene.link_scenes_batch"
     bl_label = "从选定目录中的.blend文件批量关联场景"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1524,6 +1572,7 @@ class SCENE_OT_link_scenes_from_blend_files(bpy.types.Operator):
 
 # 排序场景列表
 class SCENE_OT_sort_scenes(bpy.types.Operator):
+    """按名称排序场景"""
     bl_idname = "scene.sort_scenes"
     bl_label = "按名称排序场景"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1551,6 +1600,7 @@ class SCENE_OT_sort_scenes(bpy.types.Operator):
 
 # 场景批量添加至时间轴
 class SCENE_OT_add_sorted_scenes_to_sequencer(bpy.types.Operator):
+    """将已排序的场景添加到序列编辑器"""
     bl_idname = "scene.add_sorted_scenes_to_sequencer"
     bl_label = "将已排序的场景添加到序列编辑器"
     bl_options = {'REGISTER', 'UNDO'}
@@ -1585,6 +1635,7 @@ class SCENE_OT_add_sorted_scenes_to_sequencer(bpy.types.Operator):
 
 # 下落至表面
 class OBJECT_OT_move_to_surface(bpy.types.Operator):
+    """下落至表面"""
     bl_idname = "object.move_to_surface"
     bl_label = "下落至表面"
     bl_description = "将所选物体沿指定方向移动，直到与场景中的其他物体表面接触"
@@ -1644,6 +1695,7 @@ class OBJECT_OT_move_to_surface(bpy.types.Operator):
 
 # 批量创建顶点组运算符
 class BatchCreateVertexGroup(bpy.types.Operator):
+    """批量创建顶点组"""
     bl_idname = "object.batch_create_vertex_group"
     bl_label = "批量创建顶点组"
     bl_description = "为所选物体创建指定名称的顶点组，并将所有顶点写入"
@@ -1703,6 +1755,7 @@ class BatchCreateVertexGroup(bpy.types.Operator):
 
 # 对齐物体原点操作符
 class AlignObjectOriginOperator(bpy.types.Operator):
+    """对齐物体原点"""
     bl_idname = "object.align_object_origin"
     bl_label = "对齐物体原点"
     bl_description = "将次选物体的原点对齐到主选物体上，同时保证mesh位置不变"
@@ -1841,6 +1894,13 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                     original_material_slot_count = secondary_material_slot_counts[i]
                     original_uv_layer_names = secondary_uv_layer_names[i]
                     
+                    # 记录拆分后物体的当前世界空间位置（此时原点已经对齐到主选物体）
+                    # 这是关键：拆分后，物体的原点已经对齐到主选物体，mesh位置也正确
+                    aligned_world_matrix = split_obj.matrix_world.copy()
+                    
+                    # 获取主选物体的原点位置（世界空间）
+                    main_origin_world = main_object.matrix_world.translation
+                    
                     # 恢复物体名称
                     split_obj.name = original_name
                     # 恢复mesh名称
@@ -1889,11 +1949,12 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                         if split_obj not in col.objects.values():
                             col.objects.link(split_obj)
                     
-                    # 恢复父级关系并保持世界空间变换不变
+                    # 恢复父级关系并保持对齐后的世界空间变换
+                    # 关键修改：使用对齐后的世界空间变换，而不是原始的
                     if original_parent:
                         # 先解除当前父级关系（如果有的话）
                         if split_obj.parent:
-                            # 记录当前世界空间变换
+                            # 记录当前世界空间变换（已经对齐的）
                             current_world_matrix = split_obj.matrix_world.copy()
                             # 解除父级关系
                             split_obj.parent = None
@@ -1902,20 +1963,20 @@ class AlignObjectOriginOperator(bpy.types.Operator):
                         
                         # 设置新的父级关系
                         split_obj.parent = original_parent
-                        # 保持世界空间变换不变
-                        split_obj.matrix_world = original_world_matrix
+                        # 保持对齐后的世界空间变换不变
+                        split_obj.matrix_world = aligned_world_matrix
                     else:
                         # 如果没有父级，先解除当前父级关系（如果有的话）
                         if split_obj.parent:
-                            # 记录当前世界空间变换
+                            # 记录当前世界空间变换（已经对齐的）
                             current_world_matrix = split_obj.matrix_world.copy()
                             # 解除父级关系
                             split_obj.parent = None
                             # 保持世界空间变换不变
                             split_obj.matrix_world = current_world_matrix
                         else:
-                            # 直接设置世界空间变换
-                            split_obj.matrix_world = original_world_matrix
+                            # 直接设置对齐后的世界空间变换
+                            split_obj.matrix_world = aligned_world_matrix
                     
                     # 删除临时Merge顶点组
                     # 删除主选物体中的Merge顶点组

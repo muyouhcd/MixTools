@@ -430,69 +430,49 @@ dependency_manager = DependencyManager()
 
 def safe_plugin_initialization():
     """安全的插件初始化流程"""
-    print("=" * 50)
-    print("🚀 MixTools 插件初始化")
-    print("=" * 50)
-    
-    # 1. 先检查依赖状态（不安装）
-    print("🔍 步骤1: 检查依赖状态...")
+    print("MixTools: 初始化...")
+
+    # 检查依赖状态
     dependency_manager.check_dependencies()
-    
-    # 2. 如果依赖不可用，尝试安装
+
+    # 如果依赖不可用，尝试安装
     can_load, missing_deps = dependency_manager.can_plugin_load_safely()
-    print(f"📊 依赖检查结果: can_load={can_load}, missing_deps={missing_deps}")
-    
+
     if not can_load:
-        print(f"⚠️ 检测到缺失依赖: {missing_deps}")
-        print("🔧 步骤2: 尝试安装依赖...")
-        
+        print(f"MixTools: 缺失依赖: {missing_deps}, 尝试安装...")
+
         local_addon_path = dependency_manager.get_addon_path()
-        print(f"📁 插件路径: {local_addon_path}")
-        
+
         if local_addon_path:
             local_package_dir = os.path.join(local_addon_path, "MixTools", "package")
-            print(f"📦 包目录: {local_package_dir}")
-            print(f"📦 包目录存在: {os.path.exists(local_package_dir)}")
-            
+
             if os.path.exists(local_package_dir):
                 install_success, install_message = dependency_manager.install_local_packages_with_verification(local_package_dir)
-                
+
                 if install_success:
-                    print("✅ 依赖安装成功，重新检查状态...")
                     dependency_manager.check_dependencies()
                     can_load, missing_deps = dependency_manager.can_plugin_load_safely()
                 else:
-                    print(f"⚠️ 依赖安装失败: {install_message}")
-                    print("插件将以受限模式运行，部分功能可能不可用")
+                    print(f"MixTools: 依赖安装失败: {install_message}")
             else:
-                print(f"⚠️ 包目录不存在: {local_package_dir}")
-                print("插件将以受限模式运行，部分功能可能不可用")
+                print(f"MixTools: 包目录不存在: {local_package_dir}")
         else:
-            print("⚠️ 无法确定插件路径，跳过依赖安装")
-    
-    # 3. 最终检查
+            print("MixTools: 无法确定插件路径，跳过依赖安装")
+
+    # 最终检查
     if not can_load:
-        print(f"⚠️ 缺少关键依赖: {missing_deps}")
-        print("💡 解决方案:")
-        print("   1. 手动安装依赖: 在Blender的Python目录运行 'python.exe -m pip install pillow'")
-        print("   2. 检查package文件夹中是否有对应平台的依赖文件")
-        print("   3. 联系开发者获取支持")
-        
-        # 显示依赖状态摘要
-        status = dependency_manager.get_dependency_status_summary()
-        print(f"\n📊 依赖状态: {status['available']}/{status['total']} 可用")
-        
-        # 即使缺少依赖，也允许插件以受限模式运行
-        print("🔄 插件将以受限模式运行，部分功能可能不可用")
+        print(f"MixTools: 缺少关键依赖: {missing_deps}")
+        print("  解决方案: python.exe -m pip install pillow")
         return False  # 返回False表示不是完整模式，但仍会继续注册
     else:
-        print("✅ 所有关键依赖可用，插件可以正常加载")
+        print("MixTools: 所有依赖可用")
         return True
 
 # 延迟执行插件初始化，避免在导入时触发依赖检查
 plugin_initialization_success = None
 #------------------------------------------------------------------------------------------
 
+from . import utils
 from . import update
 from . import operators
 from . import panels
@@ -515,6 +495,8 @@ from . import RenderFrame
 from . import Cleaner
 from . import LightOperator
 from . import animationoperater
+from . import AnimationJsonImporter
+from . import AnimationAnimImporter
 from . import RoleReplacer
 from . import Importer
 from . import BetterFbxOperation
@@ -530,29 +512,20 @@ from . import MeshEditer
 
 def register():
     """插件注册函数 - 支持降级模式"""
-    print("🔧 开始注册插件模块...")
-    
     # 在注册时执行依赖检查和初始化
     global plugin_initialization_success
     if plugin_initialization_success is None:
-        print("🔍 执行依赖检查和初始化...")
         plugin_initialization_success = safe_plugin_initialization()
-    else:
-        print("ℹ️ 依赖检查已完成，跳过重复检查")
-    
+
     # 检查依赖状态，决定注册模式
     can_load_safely, missing_deps = dependency_manager.can_plugin_load_safely()
-    print(f"📊 依赖状态: can_load_safely={can_load_safely}, missing_deps={missing_deps}")
-    
+
     if not can_load_safely:
-        print(f"⚠️ 检测到缺失依赖: {missing_deps}")
-        print("🔄 以受限模式注册插件...")
+        print(f"MixTools: 以受限模式注册 (缺失: {missing_deps})")
         register_limited_mode()
     else:
-        print("✅ 以完整模式注册插件...")
+        print("MixTools: 以完整模式注册")
         register_full_mode()
-    
-    print("🎉 插件注册完成！")
 
 def register_full_mode():
     """完整模式注册 - 所有功能可用"""
@@ -581,6 +554,8 @@ def register_full_mode():
         UVformater.register()
         Voxelizer.register()
         animationoperater.register()
+        AnimationJsonImporter.register()
+        AnimationAnimImporter.register()
         RoleReplacer.register()
         Importer.register()
         BetterFbxOperation.register()
@@ -597,26 +572,21 @@ def register_full_mode():
         # 最后注册UI面板
         panels.register()
         
-        # 打印依赖状态
         print_dependency_status()
-        
-        print("✅ 完整模式注册成功")
-        
+        print("MixTools: 完整模式注册成功")
+
     except Exception as e:
-        print(f"❌ 完整模式注册失败: {e}")
-        print("🔄 尝试降级到受限模式...")
+        print(f"MixTools: 完整模式注册失败: {e}, 降级到受限模式")
         register_limited_mode()
 
 def register_limited_mode():
     """受限模式注册 - 缺少关键依赖时的降级版本"""
     try:
-        print("🔧 注册基础功能模块...")
-        
         # 先注销可能已注册的类，避免重复注册
         try:
             update.unregister()
             operators.unregister()
-        except:
+        except Exception:
             pass
         
         # 注册基础模块（不依赖PIL）
@@ -624,7 +594,7 @@ def register_limited_mode():
             update.register()
             operators.register()
         except Exception as e:
-            print(f"⚠️ 基础模块注册失败: {e}")
+            print(f"MixTools: 基础模块注册失败: {e}")
             # 继续尝试注册其他模块
         
         # 注册不依赖PIL的功能模块（安全注册）
@@ -646,6 +616,8 @@ def register_limited_mode():
             (UVformater, "UVformater"),
             (Voxelizer, "Voxelizer"),
             (animationoperater, "animationoperater"),
+            (AnimationJsonImporter, "AnimationJsonImporter"),
+            (AnimationAnimImporter, "AnimationAnimImporter"),
             (RoleReplacer, "RoleReplacer"),
             (Importer, "Importer"),
             (BetterFbxOperation, "BetterFbxOperation"),
@@ -663,62 +635,34 @@ def register_limited_mode():
         # 尝试注册AutoRender模块（即使PIL不可用，也要注册UI属性）
         try:
             AutoRender.register()
-            print("✅ AutoRender 注册成功（UI属性）")
         except Exception as e:
-            print(f"⚠️ AutoRender 注册失败: {e}")
-            # 继续注册其他模块
-        
+            print(f"MixTools: AutoRender 注册失败: {e}")
+
         for module, name in safe_modules:
             try:
                 module.register()
-                print(f"✅ {name} 注册成功")
             except Exception as e:
-                print(f"⚠️ {name} 注册失败: {e}")
-                # 继续注册其他模块
+                print(f"MixTools: {name} 注册失败: {e}")
         
         # 注册受限版本的UI面板
         panels.register()
         
-        # 打印依赖状态
         print_dependency_status()
-        
-        print("✅ 受限模式注册成功")
-        print("💡 受限模式说明:")
-        print("   - 大部分功能仍然可用（约90%的功能）")
-        print("   - 被禁用的功能: 渲染后处理、图像边框添加等")
-        print("   - 如需完整功能，请手动安装PIL依赖")
-        print("   - 安装命令: python.exe -m pip install pillow")
-        
-    except Exception as e:
-        print(f"❌ 受限模式注册也失败: {e}")
-        print("🚨 插件无法正常加载，请检查错误信息并联系开发者")
+        print("MixTools: 受限模式注册成功 (如需完整功能: pip install pillow)")
 
-# 简化的依赖状态显示
+    except Exception as e:
+        print(f"MixTools: 受限模式注册失败: {e}")
+
 def print_dependency_status():
     """打印依赖状态到控制台"""
     status = dependency_manager.get_dependency_status_summary()
-    
-    print("\n" + "="*50)
-    print("📊 依赖状态报告")
-    print("="*50)
-    print(f"总依赖数: {status['total']}")
-    print(f"可用依赖: {status['available']}")
-    print(f"缺失依赖: {status['missing']}")
-    
     if status['missing'] > 0:
-        print(f"缺失列表: {', '.join(status['missing_list'])}")
-        print("\n💡 解决方案:")
-        print("1. 手动安装: python.exe -m pip install pillow")
-        print("2. 检查package文件夹中的依赖文件")
-        print("3. 联系开发者获取支持")
+        print(f"MixTools: 依赖 {status['available']}/{status['total']} 可用, 缺失: {', '.join(status['missing_list'])}")
     else:
-        print("✅ 所有依赖都可用")
-    
-    print("="*50)
+        print(f"MixTools: 依赖 {status['available']}/{status['total']} 全部可用")
 
 def unregister():
     """插件注销函数"""
-    print("🔧 开始注销插件模块...")
     
     try:
         # 先注销UI面板
@@ -726,6 +670,8 @@ def unregister():
         
         # 注销功能模块
         RoleReplacer.unregister()
+        AnimationAnimImporter.unregister()
+        AnimationJsonImporter.unregister()
         animationoperater.unregister()
         Voxelizer.unregister()
         UVformater.unregister()
@@ -761,10 +707,8 @@ def unregister():
         operators.unregister()
         update.unregister()
         
-        print("✅ 插件注销完成")
-        
     except Exception as e:
-        print(f"❌ 插件注销时出现错误: {e}")
+        print(f"MixTools: 注销错误: {e}")
 
 if __name__ == "__main__":
     register()

@@ -1,10 +1,5 @@
 import bpy
 
-# 定义自定义属性
-bpy.types.Scene.rv_start_frame = bpy.props.IntProperty(name="Start Frame", default=1, description="开始帧")
-bpy.types.Scene.rv_end_frame = bpy.props.IntProperty(name="End Frame", default=250, description="结束帧")
-bpy.types.Scene.rv_initial_visibility = bpy.props.BoolProperty(name="Initial Visibility", default=True, description="初始可见性")
-
 class OBJECT_OT_set_render_visibility(bpy.types.Operator):
     bl_label = "设置渲染可见性"
     bl_idname = "object.set_render_visibility"
@@ -42,10 +37,19 @@ class OBJECT_OT_set_render_visibility(bpy.types.Operator):
             self.apply_visibility(child, start_frame, end_frame, initial_visibility)
 
 def register():
+    bpy.types.Scene.rv_start_frame = bpy.props.IntProperty(
+        name="Start Frame", default=1, description="开始帧")
+    bpy.types.Scene.rv_end_frame = bpy.props.IntProperty(
+        name="End Frame", default=250, description="结束帧")
+    bpy.types.Scene.rv_initial_visibility = bpy.props.BoolProperty(
+        name="Initial Visibility", default=True, description="初始可见性")
     bpy.utils.register_class(OBJECT_OT_set_render_visibility)
 
 def unregister():
     bpy.utils.unregister_class(OBJECT_OT_set_render_visibility)
+    for attr in ('rv_start_frame', 'rv_end_frame', 'rv_initial_visibility'):
+        if hasattr(bpy.types.Scene, attr):
+            delattr(bpy.types.Scene, attr)
 
 if __name__ == "__main__":
     register()

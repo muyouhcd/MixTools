@@ -210,12 +210,16 @@ class MultiplyLightIntensity(bpy.types.Operator):
         self.report({'INFO'}, f"已将 {adjusted_count} 个唯一灯光数据块的强度乘以: {self.intensity_multiplier}")
         return {'FINISHED'}
 
+classes = (
+    LinkSimilarLights,
+    AdjustLightIntensity,
+    MultiplyLightIntensity,
+)
+
 def register():
-    bpy.utils.register_class(LinkSimilarLights)
-    bpy.utils.register_class(AdjustLightIntensity)
-    bpy.utils.register_class(MultiplyLightIntensity)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(LinkSimilarLights)
-    bpy.utils.unregister_class(AdjustLightIntensity)
-    bpy.utils.unregister_class(MultiplyLightIntensity) 
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)

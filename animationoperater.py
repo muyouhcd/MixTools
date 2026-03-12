@@ -34,138 +34,82 @@ def estimate_memory_usage(bone_count, frame_count):
     total_bytes = bone_count * frame_count * bytes_per_bone_frame
     return total_bytes / (1024 * 1024)  # 转换为MB
 
-# 清除所选物体动画中的缩放部分
-class ClearScaleAnimation(bpy.types.Operator):
+# ---------------------------------------------------------------------------
+# 动画通道清除 - 基类与子类
+# ---------------------------------------------------------------------------
+
+class ClearAnimationChannelBase(bpy.types.Operator):
+    """清除指定通道动画的基类。子类只需定义 _channel_keyword 和 _channel_label。"""
+    bl_options = {'REGISTER', 'UNDO'}
+
+    _channel_keyword = ""  # 子类覆盖：在 data_path 中匹配的关键字
+    _channel_label = ""    # 子类覆盖：用于提示信息的中文名称
+
+    def execute(self, context):
+        affected_objects = 0
+
+        for obj in context.selected_objects:
+            if obj.animation_data is None or obj.animation_data.action is None:
+                continue
+
+            fcurves = obj.animation_data.action.fcurves
+            curves_to_remove = [
+                i for i, fc in enumerate(fcurves)
+                if self._channel_keyword in fc.data_path
+            ]
+
+            for index in sorted(curves_to_remove, reverse=True):
+                fcurves.remove(fcurves[index])
+
+            if curves_to_remove:
+                affected_objects += 1
+
+        self.report({'INFO'}, f"已从 {affected_objects} 个物体中清除{self._channel_label}动画")
+        return {'FINISHED'}
+
+
+class ClearScaleAnimation(ClearAnimationChannelBase):
+    """清除缩放动画"""
     bl_idname = "animation.clear_scale_animation"
     bl_label = "清除缩放动画"
     bl_description = "从所选物体的动画中清除所有缩放关键帧"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def execute(self, context):
-        selected_objects = context.selected_objects
-        affected_objects = 0
-        
-        for obj in selected_objects:
-            # 检查对象是否有动画数据
-            if obj.animation_data is None or obj.animation_data.action is None:
-                continue
-                
-            action = obj.animation_data.action
-            fcurves = action.fcurves
-            
-            # 标记要删除的曲线
-            curves_to_remove = []
-            
-            # 查找与缩放相关的曲线
-            for i, fc in enumerate(fcurves):
-                # 检查通道路径是否与缩放相关
-                if "scale" in fc.data_path:
-                    curves_to_remove.append(i)
-            
-            # 倒序删除曲线，以避免索引偏移问题
-            for index in sorted(curves_to_remove, reverse=True):
-                fcurves.remove(fcurves[index])
-                
-            if curves_to_remove:
-                affected_objects += 1
-        
-        self.report({'INFO'}, f"已从 {affected_objects} 个物体中清除缩放动画")
-        return {'FINISHED'}
+    _channel_keyword = "scale"
+    _channel_label = "缩放"
 
-# 清除所选物体的所有动画
+
 class ClearAllAnimation(bpy.types.Operator):
+    """清除所选物体的所有动画数据"""
     bl_idname = "animation.clear_all_animation"
     bl_label = "清除所有动画"
     bl_description = "从所选物体中清除所有动画数据"
     bl_options = {'REGISTER', 'UNDO'}
-    
+
     def execute(self, context):
-        selected_objects = context.selected_objects
         affected_objects = 0
-        
-        for obj in selected_objects:
+        for obj in context.selected_objects:
             if obj.animation_data:
                 obj.animation_data_clear()
                 affected_objects += 1
-                
         self.report({'INFO'}, f"已从 {affected_objects} 个物体中清除所有动画数据")
         return {'FINISHED'}
 
-# 清除所选物体的位移动画
-class ClearLocationAnimation(bpy.types.Operator):
+
+class ClearLocationAnimation(ClearAnimationChannelBase):
+    """清除位移动画"""
     bl_idname = "animation.clear_location_animation"
     bl_label = "清除位移动画"
     bl_description = "从所选物体的动画中清除所有位移关键帧"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def execute(self, context):
-        selected_objects = context.selected_objects
-        affected_objects = 0
-        
-        for obj in selected_objects:
-            # 检查对象是否有动画数据
-            if obj.animation_data is None or obj.animation_data.action is None:
-                continue
-                
-            action = obj.animation_data.action
-            fcurves = action.fcurves
-            
-            # 标记要删除的曲线
-            curves_to_remove = []
-            
-            # 查找与位移相关的曲线
-            for i, fc in enumerate(fcurves):
-                # 检查通道路径是否与位移相关
-                if "location" in fc.data_path:
-                    curves_to_remove.append(i)
-            
-            # 倒序删除曲线，以避免索引偏移问题
-            for index in sorted(curves_to_remove, reverse=True):
-                fcurves.remove(fcurves[index])
-                
-            if curves_to_remove:
-                affected_objects += 1
-        
-        self.report({'INFO'}, f"已从 {affected_objects} 个物体中清除位移动画")
-        return {'FINISHED'}
+    _channel_keyword = "location"
+    _channel_label = "位移"
 
-# 清除所选物体的旋转动画
-class ClearRotationAnimation(bpy.types.Operator):
+
+class ClearRotationAnimation(ClearAnimationChannelBase):
+    """清除旋转动画"""
     bl_idname = "animation.clear_rotation_animation"
     bl_label = "清除旋转动画"
     bl_description = "从所选物体的动画中清除所有旋转关键帧"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def execute(self, context):
-        selected_objects = context.selected_objects
-        affected_objects = 0
-        
-        for obj in selected_objects:
-            # 检查对象是否有动画数据
-            if obj.animation_data is None or obj.animation_data.action is None:
-                continue
-                
-            action = obj.animation_data.action
-            fcurves = action.fcurves
-            
-            # 标记要删除的曲线
-            curves_to_remove = []
-            
-            # 查找与旋转相关的曲线
-            for i, fc in enumerate(fcurves):
-                # 检查通道路径是否与旋转相关
-                if "rotation" in fc.data_path:
-                    curves_to_remove.append(i)
-            
-            # 倒序删除曲线，以避免索引偏移问题
-            for index in sorted(curves_to_remove, reverse=True):
-                fcurves.remove(fcurves[index])
-                
-            if curves_to_remove:
-                affected_objects += 1
-        
-        self.report({'INFO'}, f"已从 {affected_objects} 个物体中清除旋转动画")
-        return {'FINISHED'}
+    _channel_keyword = "rotation"
+    _channel_label = "旋转"
 
 # 为所选动画曲线添加循环修改器
 class AddCycleModifierToAnimation(bpy.types.Operator):
@@ -1192,31 +1136,26 @@ class RemoveDuplicateFrames(bpy.types.Operator):
         
         return removed_count
 
+classes = (
+    ClearScaleAnimation,
+    ClearAllAnimation,
+    ClearLocationAnimation,
+    ClearRotationAnimation,
+    AddCycleModifierToAnimation,
+    AddCycleModifierNoOffset,
+    RemoveAllModifiersFromAnimation,
+    AddFollowPathConstraint,
+    SetToRestPosition,
+    SetToPosePosition,
+    RandomOffsetAnimation,
+    RemoveDuplicateFrames,
+)
+
 def register():
-    bpy.utils.register_class(ClearScaleAnimation)
-    bpy.utils.register_class(ClearAllAnimation)
-    bpy.utils.register_class(ClearLocationAnimation)
-    bpy.utils.register_class(ClearRotationAnimation)
-    bpy.utils.register_class(AddCycleModifierToAnimation)
-    bpy.utils.register_class(AddCycleModifierNoOffset)
-    bpy.utils.register_class(RemoveAllModifiersFromAnimation)
-    bpy.utils.register_class(AddFollowPathConstraint)
-    bpy.utils.register_class(SetToRestPosition)
-    bpy.utils.register_class(SetToPosePosition)
-    bpy.utils.register_class(RandomOffsetAnimation)
-    bpy.utils.register_class(RemoveDuplicateFrames)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(ClearScaleAnimation)
-    bpy.utils.unregister_class(ClearAllAnimation)
-    bpy.utils.unregister_class(ClearLocationAnimation)
-    bpy.utils.unregister_class(ClearRotationAnimation)
-    bpy.utils.unregister_class(AddCycleModifierToAnimation)
-    bpy.utils.unregister_class(AddCycleModifierNoOffset)
-    bpy.utils.unregister_class(RemoveAllModifiersFromAnimation)
-    bpy.utils.unregister_class(AddFollowPathConstraint)
-    bpy.utils.unregister_class(SetToRestPosition)
-    bpy.utils.unregister_class(SetToPosePosition)
-    bpy.utils.unregister_class(RandomOffsetAnimation)
-    bpy.utils.unregister_class(RemoveDuplicateFrames)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
 

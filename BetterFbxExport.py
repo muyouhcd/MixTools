@@ -331,9 +331,13 @@ class BETTER_FBX_OT_BatchExportByTopLevel(Operator):
 
 
 
+classes = (
+    BETTER_FBX_OT_BatchExportByTopLevel,
+)
+
 def register():
-    bpy.utils.register_class(BETTER_FBX_OT_BatchExportByTopLevel)
-    
+    for cls in classes:
+        bpy.utils.register_class(cls)
     # 注册场景属性
     bpy.types.Scene.better_fbx_export_directory = bpy.props.StringProperty(
         name="FBX导出目录",
@@ -343,8 +347,8 @@ def register():
     )
 
 def unregister():
-    bpy.utils.unregister_class(BETTER_FBX_OT_BatchExportByTopLevel)
-    
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
     # 注销场景属性
     try:
         delattr(bpy.types.Scene, "better_fbx_export_directory")

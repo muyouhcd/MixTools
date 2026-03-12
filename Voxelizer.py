@@ -7,7 +7,6 @@ from bpy.props import BoolProperty # type: ignore
 
 major, minor = bpy.app.version[:2]
 version2 = f"{major}.{minor}"
-print(version2)
 
 
 class MySettings(PropertyGroup):
@@ -23,7 +22,7 @@ class MySettings(PropertyGroup):
     voxelizer_path : StringProperty(
             name="cuda_voxelizer文件路径",
             description="Path to Cuda Voxelizer",
-            default=f"C:\\Users\\admin\\AppData\\Roaming\\Blender Foundation\\Blender\\{version2}\\scripts\\addons\\Mixtools\\",
+            default=os.path.dirname(os.path.abspath(__file__)) + os.sep,
             maxlen=1024,
             subtype='DIR_PATH')# type: ignore
 
@@ -158,16 +157,15 @@ def register():
     
 
 def unregister():
-    bpy.utils.unregister_class(VOXELIZER_OT_convert)
-    bpy.utils.unregister_class(MySettings)
     bpy.utils.unregister_class(VOXELIZER_OT_convert_with_color)
+    bpy.utils.unregister_class(VOXELIZER_OT_convert)
     del bpy.types.Scene.voxelizer_tool
+    bpy.utils.unregister_class(MySettings)
 
     try:
         del bpy.types.Scene.generate_solid
-    except:
-        print('generate_solid 取消注册失败')
-        pass  # 类未注册，忽略该异常
+    except AttributeError:
+        pass
     
 
 if __name__ == "__main__":

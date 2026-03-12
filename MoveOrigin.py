@@ -3,6 +3,7 @@ from mathutils import Vector
 
 
 class OBJECT_OT_MoveOrigin(bpy.types.Operator):
+    """调整原点"""
     bl_idname = "object.move_origin"
     bl_label = "调整原点"
     bl_options = {'REGISTER', 'UNDO'}
@@ -54,8 +55,13 @@ class OBJECT_OT_MoveOrigin(bpy.types.Operator):
 
         return {'FINISHED'}
 
+classes = (
+    OBJECT_OT_MoveOrigin,
+)
+
 def register():
-    bpy.utils.register_class(OBJECT_OT_MoveOrigin)
+    for cls in classes:
+        bpy.utils.register_class(cls)
     bpy.types.Scene.axis_direction_enum = bpy.props.EnumProperty(
         name="Axis Direction",
         items=[
@@ -68,8 +74,10 @@ def register():
         ],
         default='-Z'
     )
+
 def unregister():
-    bpy.utils.unregister_class(OBJECT_OT_MoveOrigin)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
     del bpy.types.Scene.axis_direction_enum
 
 if __name__ == "__main__":

@@ -342,10 +342,15 @@ class BONE_CONVERTER_OT_CopyParameters(bpy.types.Operator):
         self.report({'INFO'}, message)
         return result
 
+classes = (
+    BONE_CONVERTER_OT_Convert,
+    BONE_CONVERTER_OT_CopyParameters,
+)
+
 def register():
-    bpy.utils.register_class(BONE_CONVERTER_OT_Convert)
-    bpy.utils.register_class(BONE_CONVERTER_OT_CopyParameters)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
 def unregister():
-    bpy.utils.unregister_class(BONE_CONVERTER_OT_Convert)
-    bpy.utils.unregister_class(BONE_CONVERTER_OT_CopyParameters)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
