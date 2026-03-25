@@ -118,6 +118,7 @@ TOOL_REGISTRY = [
     ("灯光工具", "object.adjust_light_intensity", "设置灯光强度", "CHECKMARK"),
     ("灯光工具", "object.multiply_light_intensity", "乘以灯光强度", "MODIFIER"),
     # 动画工具
+    ("动画工具", "animation.build_unity_armature", "从FBX构建Unity骨架", "ARMATURE_DATA"),
     ("动画工具", "animation.import_anim", "导入Unity动画文件(.anim)", "IMPORT"),
     ("动画工具", "animation.import_json", "导入Unity动画JSON", "IMPORT"),
     ("动画工具", "animation.clear_scale_animation", "清除缩放动画", "FULLSCREEN_ENTER"),
@@ -795,6 +796,7 @@ class CustomFunctionsPanel(Panel):
         # Unity动画导入工具
         unity_import_box = col.box()
         unity_import_box.label(text="Unity动画导入:", icon='IMPORT')
+        unity_import_box.operator("animation.build_unity_armature", text="从FBX构建Unity骨架", icon='ARMATURE_DATA')
         unity_import_box.operator("animation.import_anim", text="导入Unity动画文件(.anim)", icon='IMPORT')
         unity_import_box.operator("animation.import_json", text="导入Unity动画JSON", icon='IMPORT')
 
